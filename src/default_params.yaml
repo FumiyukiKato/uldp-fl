@@ -1,0 +1,25 @@
+# Default parameter
+
+seed: 0
+dataset_name: "mnist"
+model_name: "cnn"
+n_users: 1000
+n_silos: 10
+user_dist: "uniform-iid"
+silo_dist: "uniform"
+user_alpha: 0.5
+silo_alpha: 0.5
+n_labels: 10
+n_silo_per_round: 10
+n_total_round: 20
+epochs: 5
+lr: 0.001
+local_batch_size: 1
+weight_decay: 0.001
+client_optimizer: "sgd"
+agg_strategy: "DEFAULT"
+group_k: 1
+sigma: 1.0
+delta: 0.00001
+clipping_bound: 1.0
+verbose: 0
