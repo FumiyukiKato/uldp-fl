@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import Dict, List, Optional, Tuple
 import torch
 
 from comm_manager import GRPCCommManager
@@ -16,18 +16,21 @@ class FLSilo:
         agg_strategy: str,
         local_train_dataset: List[Tuple[torch.Tensor, int]],
         local_test_dataset: List[Tuple[torch.Tensor, int]],
-        lr: float,
+        user_histogram: Optional[Dict[int, int]],
+        user_ids_of_local_train_dataset: Optional[List[int]],
+        learning_rate: float,
         local_batch_size: int,
-        weight_decay: float,
         client_optimizer: str,
         epochs: int,
         device: str,
         silo_id: int,
         client_id: int,
         n_total_round: int,
-        local_sigma: float,
-        local_delta: float,
-        local_clipping_bound: float,
+        weight_decay: Optional[float] = None,
+        local_sigma: Optional[float] = None,
+        local_delta: Optional[float] = None,
+        local_clipping_bound: Optional[float] = None,
+        group_k: Optional[int] = None,
     ):
         local_trainer = ClassificationTrainer(
             base_seed=seed,
@@ -37,14 +40,17 @@ class FLSilo:
             agg_strategy=agg_strategy,
             local_train_dataset=local_train_dataset,
             local_test_dataset=local_test_dataset,
+            user_histogram=user_histogram,
+            user_ids_of_local_train_dataset=user_ids_of_local_train_dataset,
             client_optimizer=client_optimizer,
-            learning_rate=lr,
+            learning_rate=learning_rate,
             local_batch_size=local_batch_size,
             weight_decay=weight_decay,
             epochs=epochs,
             local_sigma=local_sigma,
             local_delta=local_delta,
             local_clipping_bound=local_clipping_bound,
+            group_k=group_k,
         )
         self.client_manager = SiloManager(
             local_trainer,
@@ -102,7 +108,10 @@ class SiloManager(GRPCCommManager):
         weights, n_local_sample = self.local_trainer.train(global_round_index)
         self.local_trainer.test_local(global_round_index)
         self.send_model_to_server(
-            ip_utils.AGGREGATION_SERVER_ID, weights, n_local_sample
+            ip_utils.AGGREGATION_SERVER_ID,
+            weights,
+            n_local_sample,
+            self.local_trainer.get_latest_epsilon(),
         )
 
     def register_message_receive_handlers(self):
@@ -182,7 +191,7 @@ class SiloManager(GRPCCommManager):
         message.add_params(FLMessage.MSG_ARG_KEY_CLIENT_STATUS, status)
         self.send_message(message)
 
-    def send_model_to_server(self, receive_id, weights, n_local_sample):
+    def send_model_to_server(self, receive_id, weights, n_local_sample, eps):
         message = GRPCMessage(
             FLMessage.MSG_TYPE_C2S_SEND_MODEL_TO_SERVER,
             self.client_id,
@@ -190,4 +199,5 @@ class SiloManager(GRPCCommManager):
         )
         message.add_params(FLMessage.MSG_ARG_KEY_MODEL_PARAMS, weights)
         message.add_params(FLMessage.MSG_ARG_KEY_NUM_SAMPLES, n_local_sample)
+        message.add_params(FLMessage.MSG_ARG_KEY_EPSILON, eps)
         self.send_message(message)

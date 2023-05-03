@@ -24,7 +24,6 @@ def args_parser(role: str = "server"):
 
     parser.add_argument("--seed", type=int, help="random seed")
     parser.add_argument("--gpu_id", help="To use cuda, set to a specific GPU ID. Default set to use CPU.")
-    parser.add_argument("--client_id", type=int, help="client_id, used for communication")
     parser.add_argument("--silo_id", type=int, help="silo_id, used for communication")
 
     parser.add_argument("--dataset_name", type=str, help="name of dataset")
@@ -41,16 +40,17 @@ def args_parser(role: str = "server"):
     parser.add_argument("--n_silo_per_round", type=int, help="the silos per round")
     parser.add_argument("--n_total_round", type=int, help="The number of total rounds: R")
     parser.add_argument("--epochs", type=int, help="number of local training epochs")
-    parser.add_argument("--lr", type=float, help="learning rate")
+    parser.add_argument("--learning_rate", type=float, help="learning rate")
     parser.add_argument("--local_batch_size", type=int, help="local batch size")
     parser.add_argument("--weight_decay", type=float, help="weight_decay")
     parser.add_argument("--client_optimizer", type=str, help="local of optimizer")
 
-    parser.add_argument("--agg_strategy", type=str, help="aggregation strategy [DEFAULT, SILO-LEVEL-DP, USER-LEVEL-DP, RECORD-LEVEL-DP, GROUP-DP]")
+    parser.add_argument("--agg_strategy", type=str, help="aggregation strategy [DEFAULT, SILO-LEVEL-DP, RECORD-LEVEL-DP, ULDP-NAIVE, ULDP-GROUP, ULDP-SGD, ULDP-AVG]")
     parser.add_argument("--group_k", type=int, help="k (maximum number of user contribution) of group privacy")
-    parser.add_argument("--sigma", type=float, help="sigma for gaussian noise (a.k.a. noise multiplier)")
+    parser.add_argument("--sigma", type=float, help="noise multiplier (Note: std_dev = sigma * clipping_bound))")
     parser.add_argument("--clipping_bound", type=float, help="clipping bound for differential privacy")
     parser.add_argument("--delta", type=float, help="delta for differential privacy")
+    parser.add_argument("--sampling_rate_q", type=float, help="sampling rate q for user-level sub-sampling")
 
     parser.add_argument("--verbose", type=int, help="verbose")
 

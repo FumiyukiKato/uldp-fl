@@ -11,13 +11,8 @@ from simulator import FLSimulator
 
 from mylogger import logger_set_debug
 
-if __name__ == "__main__":
-    args = args_parser("simulation")
 
-    if args.verbose:
-        logger_set_debug()
-
-    path_project = os.path.abspath("..")
+def run_simulation(args, path_project):
     if args.gpu_id:
         torch.cuda.set_device(args.gpu_id)
     device = "cuda" if args.gpu_id else "cpu"
@@ -41,6 +36,7 @@ if __name__ == "__main__":
         args.n_labels,
         user_silo_matrix,
         is_simulation=True,
+        agg_strategy=args.agg_strategy,
     )
 
     # load model
@@ -55,10 +51,11 @@ if __name__ == "__main__":
         test_dataset=test_dataset,
         local_dataset_per_silos=local_dataset_per_silos,
         n_silos=args.n_silos,
+        n_users=args.n_users,
         device=device,
         n_total_round=args.n_total_round,
         n_silo_per_round=args.n_silo_per_round,
-        lr=args.lr,
+        learning_rate=args.learning_rate,
         local_batch_size=args.local_batch_size,
         weight_decay=args.weight_decay,
         client_optimizer=args.client_optimizer,
@@ -67,8 +64,18 @@ if __name__ == "__main__":
         clipping_bound=args.clipping_bound,
         sigma=args.sigma,
         delta=args.delta,
+        group_k=args.group_k,
     )
     simulator.run()
 
     results = simulator.get_results()
+    return results
+
+
+if __name__ == "__main__":
+    args = args_parser("simulation")
+    path_project = os.path.abspath("..")
+    if args.verbose:
+        logger_set_debug()
+    results = run_simulation(args, path_project)
     save_resuls(path_project, args, results)

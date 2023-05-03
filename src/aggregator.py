@@ -2,8 +2,10 @@ import numpy as np
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
-from typing import List, Tuple, OrderedDict
+from typing import List
+
 from mylogger import logger
+import noise_utils
 
 
 class Aggregator:
@@ -33,7 +35,7 @@ class Aggregator:
         self.n_silo_per_round = n_silo_per_round
         self.device = device
         self.strategy = strategy
-        if self.strategy in ["SILO-LEVEL-DP"]:
+        if self.strategy in ["SILO-LEVEL-DP", "ULDP-NAIVE", "RECORD-LEVEL-DP"]:
             from opacus.accountants import RDPAccountant
 
             assert (
@@ -43,12 +45,16 @@ class Aggregator:
             self.sigma = sigma
             self.delta = delta
             self.accountant = RDPAccountant()
+        elif self.strategy in ["RECORD-LEVEL-DP", "ULDP-GROUP"]:
+            self.delta = delta
+
         self.model_dict = dict()
         self.n_sample_dict = dict()
         self.flag_client_model_uploaded_dict = dict()
         for idx in range(self.n_silos):
             self.flag_client_model_uploaded_dict[idx] = False
 
+        self.latest_eps = None
         self.results = {"privacy_budget": [], "global_test": []}
 
     def get_results(self):
@@ -63,7 +69,29 @@ class Aggregator:
     def set_global_model_params(self, model_parameters):
         self.model.load_state_dict(model_parameters)
 
-    def add_local_trained_result(self, silo_id, model_params, n_sample):
+    def record_epsilon(self, round_idx):
+        if self.strategy in ["SILO-LEVEL-DP"]:
+            self.accountant.step(
+                noise_multiplier=self.sigma,
+                sample_rate=self.n_silo_per_round / self.n_silos,
+            )
+            eps = self.accountant.get_epsilon(self.delta)
+        elif self.strategy in ["RECORD-LEVEL-DP", "ULDP-GROUP"]:
+            eps = self.latest_eps
+        elif self.strategy in ["ULDP-NAIVE"]:
+            self.accountant.step(noise_multiplier=self.sigma, sample_rate=1.0)
+            eps = self.accountant.get_epsilon(self.delta)
+        elif self.strategy in ["DEFAULT"]:
+            return
+        else:
+            raise NotImplementedError(
+                "strategy = {} is not implemented".format(self.strategy)
+            )
+
+        logger.info("Privacy spent: epsilon = {} (round {})".format(eps, round_idx))
+        self.results["privacy_budget"].append((round_idx, eps, self.delta))
+
+    def add_local_trained_result(self, silo_id, model_params, n_sample, eps):
         """
         Add the local trained model from a silo to the aggregator.
 
@@ -71,12 +99,14 @@ class Aggregator:
             silo_id (int): the id of the silo.
             model_params (dict): the model parameters of the local trained model.
             n_sample (int): the number of samples used for training the local model.
+            eps (float): the privacy budget used for training the local model.
         """
         model_params = model_params_to_device(model_params, self.device)
 
         self.model_dict[silo_id] = model_params
         self.n_sample_dict[silo_id] = n_sample
         self.flag_client_model_uploaded_dict[silo_id] = True
+        self.latest_eps = eps
 
     def silo_selection(self):
         """
@@ -127,91 +157,34 @@ class Aggregator:
                 (self.n_sample_dict[silo_id], self.model_dict[silo_id])
             )
 
-        # Aggregation w/ or w/o clipping and w/ or w/o weighted averaging
-        if self.strategy == "SILO-LEVEL-DP":
-            model_list = self.global_clip(
-                raw_client_model_or_grad_list, self.clipping_bound
-            )
-            averaged_params = self.torch_aggregation(model_list)
-        elif self.strategy in ["RECORD-LEVEL-DP", "GROUP-DP", "USER-LEVEL-DP"]:
-            averaged_params = self.torch_aggregation(raw_client_model_or_grad_list)
-        elif self.strategy in ["DEFAULT"]:
-            averaged_params = self.torch_weighted_aggregation(
-                raw_client_model_or_grad_list
-            )
-        else:
-            raise NotImplementedError(
-                "strategy = {} is not implemented".format(self.strategy)
-            )
-
-        # Noise addition
-        if self.strategy == "SILO-LEVEL-DP":  # https://arxiv.org/abs/1812.06210
+        if self.strategy in ["SILO-LEVEL-DP"]:
+            # https://arxiv.org/abs/1812.06210
             # Usually, this is used in cross-device FL, where the number of participants is large.
-            # In cross-silo FL, there is too few participants.
-            sample_rate = self.n_silo_per_round / self.n_silos
-            self.accountant.step(
-                noise_multiplier=self.sigma / self.clipping_bound,
-                sample_rate=sample_rate,
+            averaged_param_diff = self.torch_aggregation(raw_client_model_or_grad_list)
+            noised_averaged_param_diff = noise_utils.add_global_noise(
+                averaged_param_diff,
+                random_state=self.random_state,
+                std_dev=(self.sigma * self.clipping_bound) / self.n_silo_per_round,
             )
-            total_epsilon = self.accountant.get_epsilon(self.delta)
-            logger.info("Privacy spent: epsilon = {}".format(total_epsilon))
-            self.results["privacy_budget"].append(
-                (round_idx, total_epsilon, self.delta)
+            global_weights = self.update_global_weights_from_diff(
+                noised_averaged_param_diff
             )
-            averaged_params = self._add_global_noise(averaged_params)
-        elif self.strategy in [
-            "DEFAULT",
-            "RECORD-LEVEL-DP",
-            "GROUP-DP",
-            "USER-LEVEL-DP",
-        ]:
-            pass
+        elif self.strategy in ["RECORD-LEVEL-DP", "ULDP-GROUP"]:
+            averaged_param_diff = self.torch_aggregation(raw_client_model_or_grad_list)
+            global_weights = self.update_global_weights_from_diff(averaged_param_diff)
+        elif self.strategy in ["ULDP-NAIVE"]:
+            averaged_param_diff = self.torch_aggregation(raw_client_model_or_grad_list)
+            global_weights = self.update_global_weights_from_diff(averaged_param_diff)
+        elif self.strategy in ["DEFAULT"]:
+            averaged_param_diff = self.torch_aggregation(raw_client_model_or_grad_list)
+            global_weights = self.update_global_weights_from_diff(averaged_param_diff)
         else:
             raise NotImplementedError(
                 "strategy = {} is not implemented".format(self.strategy)
             )
 
-        self.set_global_model_params(averaged_params)
-        return averaged_params
-
-    def _add_global_noise(self, grad):
-        new_grad = OrderedDict()
-        for k in grad.keys():
-            new_grad[k] = self._compute_new_grad(grad[k])
-        return new_grad
-
-    def _compute_new_grad(self, grad):
-        # Gaussian noise
-        noise = torch.Tensor(self.random_state.normal(0, self.sigma, size=grad.shape))
-        return noise + grad
-
-    def global_clip(
-        self,
-        raw_client_model_or_grad_list: List[Tuple[float, OrderedDict]],
-        clipping_bound: float,
-    ):
-        """
-        Clip the L2-norm of parameters of the local trained models for DP.
-
-        Param:
-            raw_client_model_or_grad_list (list): the list of local trained models from the selected silos.
-            clipping_bound (float): the L2 clipping bound.
-        """
-        new_grad_list = []
-        for n_sample, local_grad in raw_client_model_or_grad_list:
-            total_norm = torch.norm(
-                torch.stack(
-                    [torch.norm(local_grad[k], 2.0) for k in local_grad.keys()]
-                ),
-                2.0,
-            )
-            for k in local_grad.keys():
-                clip_coef = clipping_bound / (total_norm + 1e-6)
-                clip_coef_clamped = torch.clamp(clip_coef, max=1.0)
-                for k in local_grad.keys():
-                    local_grad[k].mul_(clip_coef_clamped)
-            new_grad_list.append((n_sample, local_grad))
-        return new_grad_list
+        self.record_epsilon(round_idx)
+        return global_weights
 
     def torch_aggregation(self, raw_grad_list: List):
         """
@@ -316,8 +289,11 @@ class Aggregator:
         )
         return test_acc, test_loss
 
-    def test_for_all_clients(self, round_idx):
-        pass
+    def update_global_weights_from_diff(self, local_weights_diff):
+        global_weights = self.get_global_model_params()
+        for key in global_weights.keys():
+            global_weights[key] += local_weights_diff[key]
+        return global_weights
 
 
 def model_params_to_device(params_obj, device):

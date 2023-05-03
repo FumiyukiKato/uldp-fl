@@ -413,10 +413,6 @@ class TestDataset(unittest.TestCase):
         )
         return updated_train_dataset
 
-    def test_something(self):
-        # テストケースを記述
-        self.assertTrue(True)
-
 
 if __name__ == "__main__":
     unittest.main()

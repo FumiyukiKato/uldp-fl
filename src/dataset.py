@@ -330,6 +330,47 @@ def allocate_data_noniid(
     return updated_user_indices_of_data
 
 
+def prepare_silo_dataset(
+    train_dataset,
+    data_indices_per_silos,
+    silo_id,
+    silo_random_state,
+) -> Tuple[List[Tuple[torch.Tensor, int]], List[Tuple[torch.Tensor, int]], List]:
+    silo_indices = data_indices_per_silos[silo_id]
+    local_dataset = [train_dataset[i] for i in silo_indices]
+    targets = [target for _, target in local_dataset]
+    if len(local_dataset) <= 200:
+        local_train_dataset, local_test_dataset = local_dataset, []
+    else:
+        (
+            local_train_dataset,
+            local_test_dataset,
+            local_train_indices,
+            _,
+        ) = train_test_split(
+            local_dataset,
+            silo_indices,
+            test_size=LOCAL_TEST_RATIO,
+            random_state=silo_random_state,
+            stratify=targets,
+        )
+
+    return local_train_dataset, local_test_dataset, local_train_indices
+
+
+def build_user_histogram(local_train_indices, data_indices_of_users) -> Dict[int, int]:
+    user_histogram = {}
+    user_ids_of_local_train_dataset = []
+    for idx in local_train_indices:
+        user_id = data_indices_of_users[idx]
+        if user_id not in user_histogram:
+            user_histogram[user_id] = 1
+        else:
+            user_histogram[user_id] += 1
+        user_ids_of_local_train_dataset.append(user_id)
+    return user_histogram, user_ids_of_local_train_dataset
+
+
 def load_dataset(
     random_state: np.random.RandomState,
     dataset_name: str,
@@ -345,6 +386,7 @@ def load_dataset(
     user_silo_matrix: np.ndarray = None,
     silo_id: int = None,
     is_simulation: bool = False,
+    agg_strategy: str = None,
 ) -> Tuple[List[Tuple[torch.Tensor, int]], List[Tuple[torch.Tensor, int]]]:
     logger.info("Start prepare dataset...")
     if dataset_name == "cifar10":
@@ -437,33 +479,50 @@ def load_dataset(
         n_labels=n_labels,
         user_silo_matrix=user_silo_matrix,
     )
-    logger.info("Finish prepare dataset.")
+    logger.info("-- Finish prepare dataset.")
 
+    # for simulator
     if is_simulation:
         dataset_per_silos = {}
         for silo_id in range(n_silos):
             silo_random_state = copy.deepcopy(random_state)
-            local_dataset = [train_dataset[i] for i in data_indices_per_silos[silo_id]]
-            targets = [target for _, target in local_dataset]
-            local_train_dataset, local_test_dataset = train_test_split(
-                local_dataset,
-                test_size=LOCAL_TEST_RATIO,
-                random_state=silo_random_state,
-                stratify=targets,
+            (
+                local_train_dataset,
+                local_test_dataset,
+                local_train_indices,
+            ) = prepare_silo_dataset(
+                train_dataset,
+                data_indices_per_silos,
+                silo_id,
+                silo_random_state,
             )
-            dataset_per_silos[silo_id] = (local_train_dataset, local_test_dataset)
 
+            user_hist, user_ids = build_user_histogram(
+                local_train_indices, data_indices_of_users
+            )
+            dataset_per_silos[silo_id] = (
+                local_train_dataset,
+                local_test_dataset,
+                user_hist,
+                user_ids,
+            )
         return train_dataset, test_dataset, dataset_per_silos
-
+    # for silo
     if silo_id is not None:
-        local_dataset = [train_dataset[i] for i in data_indices_per_silos[silo_id]]
-        targets = [target for _, target in local_dataset]
-        local_train_dataset, local_test_dataset = train_test_split(
-            local_dataset,
-            test_size=LOCAL_TEST_RATIO,
-            random_state=random_state,
-            stratify=targets,
+        (
+            local_train_dataset,
+            local_test_dataset,
+            local_train_indices,
+        ) = prepare_silo_dataset(
+            train_dataset,
+            data_indices_per_silos,
+            silo_id,
+            silo_random_state,
         )
-        return local_train_dataset, local_test_dataset
+        user_hist, user_ids = build_user_histogram(
+            local_train_indices, data_indices_of_users
+        )
+        return local_train_dataset, local_test_dataset, user_hist, user_ids
 
+    # for server
     return train_dataset, test_dataset

@@ -42,6 +42,8 @@ if __name__ == "__main__":
         p_list,
         args.n_labels,
         user_silo_matrix,
+        is_simulation=False,
+        agg_strategy=args.agg_strategy,
     )
 
     # load model

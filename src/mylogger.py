@@ -1,5 +1,8 @@
 import logging
 import sys
+import warnings
+
+warnings.simplefilter(action="ignore", category=UserWarning)
 
 
 logger = logging.getLogger("acsilo")
@@ -15,3 +18,4 @@ logger.propagate = False
 
 def logger_set_debug():
     logger.setLevel(logging.DEBUG)
+    warnings.simplefilter(action="default", category=UserWarning)

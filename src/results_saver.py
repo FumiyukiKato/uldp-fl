@@ -17,6 +17,7 @@ def save_resuls(path_project, args, results: dict) -> str:
     timestamp = datetime.datetime.fromtimestamp(time.time()).strftime("%Y%m%d%H%M%S")
     results_dir = os.path.join(path_project, RESULTS_DIR, hashed_args + "_" + timestamp)
     os.mkdir(results_dir)
+    results["args"] = args
     with open(os.path.join(results_dir, "results.json"), "w") as f:
         json.dump(results, f)
 

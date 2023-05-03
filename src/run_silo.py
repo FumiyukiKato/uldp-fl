@@ -30,7 +30,7 @@ if __name__ == "__main__":
     )
 
     # load data
-    train_dataset, test_dataset = load_dataset(
+    train_dataset, test_dataset, user_hist, user_ids = load_dataset(
         data_random_state,
         args.dataset_name,
         path_project,
@@ -58,18 +58,21 @@ if __name__ == "__main__":
         agg_strategy=args.agg_strategy,
         local_train_dataset=train_dataset,
         local_test_dataset=test_dataset,
-        lr=args.lr,
+        user_histogram=user_hist,
+        user_ids_of_local_train_dataset=user_ids,
+        learning_rate=args.learning_rate,
         local_batch_size=args.local_batch_size,
-        weight_decay=args.weight_decay,
         client_optimizer=args.client_optimizer,
         epochs=args.epochs,
         device=device,
         silo_id=args.silo_id,
         client_id=client_id,
         n_total_round=args.n_total_round,
+        weight_decay=args.weight_decay,
         local_sigma=args.sigma,
         local_delta=args.delta,
         local_clipping_bound=args.clipping_bound,
+        group_k=args.group_k,
     )
     silo.run()
 

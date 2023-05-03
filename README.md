@@ -17,7 +17,7 @@
 
     ```bash
     $ cd src
-    $ python run_simulation.py --n_silos=3 --n_silo_per_round=2 --n_total_round=5 --local_batch_size=64 --lr=0.05
+    $ python run_simulation.py --n_silos=3 --n_silo_per_round=2 --n_total_round=5 --local_batch_size=64 --learning_rate=0.05
     ```
 
 
