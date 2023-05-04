@@ -19,11 +19,41 @@ class Coordinator:
         self.n_silos = n_silos
         self.original_user_hist_dct = {silo_id: {} for silo_id in range(n_silos)}
 
+    def build_user_weights(self, uniform: bool = True) -> Dict[int, Dict[int, float]]:
+        """
+        Build user weights for ULDP-SGD.
+        """
+        user_weights_per_silo = {silo_id: {} for silo_id in range(self.n_silos)}
+        if uniform:
+            for silo_id in range(self.n_silos):
+                user_weights_per_silo[silo_id] = {
+                    user_id: 1.0 / self.n_silos for user_id in range(self.n_users)
+                }
+        else:
+            # Weighting in proportion to the number of users
+            # calculate total user count for each user
+            total_user_count = {}
+            for silo_id, user_hist in self.original_user_hist_dct.items():
+                for user_id, user_count in user_hist.items():
+                    if user_id not in total_user_count:
+                        total_user_count[user_id] = 0
+                    total_user_count[user_id] += user_count
+            # calculate user weights for each silo
+            for silo_id, user_hist in self.original_user_hist_dct.items():
+                for user_id, user_count in user_hist.items():
+                    user_weights_per_silo[silo_id][user_id] = (
+                        user_count / total_user_count[user_id]
+                    )
+        return user_weights_per_silo
+
     def build_user_bound_histograms(
         self,
         group_k: int,
         old_user_histogram_dct: Dict[int, Dict[int, int]] = None,
     ) -> Dict[int, Dict[int, int]]:
+        """
+        Build user bounded histograms for ULDP-GROUP.
+        """
         if old_user_histogram_dct is not None:
             # Fair method, if old_user_histogram_dct is given
             total_user_histogram = {}

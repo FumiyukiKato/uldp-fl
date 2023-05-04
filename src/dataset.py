@@ -340,7 +340,11 @@ def prepare_silo_dataset(
     local_dataset = [train_dataset[i] for i in silo_indices]
     targets = [target for _, target in local_dataset]
     if len(local_dataset) <= 200:
-        local_train_dataset, local_test_dataset = local_dataset, []
+        local_train_dataset, local_test_dataset, local_train_indices = (
+            local_dataset,
+            [],
+            silo_indices,
+        )
     else:
         (
             local_train_dataset,

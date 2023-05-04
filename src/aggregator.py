@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
-from typing import List
+from typing import Dict, List, Optional
 
 from mylogger import logger
 import noise_utils
@@ -21,11 +21,12 @@ class Aggregator:
         n_silos,
         n_silo_per_round,
         device,
-        base_seed,
-        strategy,
-        clipping_bound=None,
-        sigma=None,
-        delta=None,
+        base_seed: int,
+        strategy: str,
+        clipping_bound: Optional[float] = None,
+        sigma: Optional[float] = None,
+        delta: Optional[float] = None,
+        central_learning_rate: Optional[float] = None,
     ):
         self.random_state = np.random.RandomState(seed=base_seed + 1000000)
         self.model: nn.Module = model
@@ -35,7 +36,13 @@ class Aggregator:
         self.n_silo_per_round = n_silo_per_round
         self.device = device
         self.strategy = strategy
-        if self.strategy in ["SILO-LEVEL-DP", "ULDP-NAIVE", "RECORD-LEVEL-DP"]:
+        if self.strategy in [
+            "SILO-LEVEL-DP",
+            "ULDP-NAIVE",
+            "RECORD-LEVEL-DP",
+            "ULDP-SGD",
+            "ULDP-AVG",
+        ]:
             from opacus.accountants import RDPAccountant
 
             assert (
@@ -47,6 +54,9 @@ class Aggregator:
             self.accountant = RDPAccountant()
         elif self.strategy in ["RECORD-LEVEL-DP", "ULDP-GROUP"]:
             self.delta = delta
+
+        if self.strategy in ["ULDP-SGD"]:
+            self.central_learning_rate = central_learning_rate
 
         self.model_dict = dict()
         self.n_sample_dict = dict()
@@ -80,6 +90,12 @@ class Aggregator:
             eps = self.latest_eps
         elif self.strategy in ["ULDP-NAIVE"]:
             self.accountant.step(noise_multiplier=self.sigma, sample_rate=1.0)
+            eps = self.accountant.get_epsilon(self.delta)
+        elif self.strategy in ["ULDP-SGD", "ULDP-AVG"]:
+            self.accountant.step(
+                noise_multiplier=self.sigma,
+                sample_rate=1.0,
+            )
             eps = self.accountant.get_epsilon(self.delta)
         elif self.strategy in ["DEFAULT"]:
             return
@@ -175,6 +191,12 @@ class Aggregator:
         elif self.strategy in ["ULDP-NAIVE"]:
             averaged_param_diff = self.torch_aggregation(raw_client_model_or_grad_list)
             global_weights = self.update_global_weights_from_diff(averaged_param_diff)
+        elif self.strategy in ["ULDP-SGD"]:
+            averaged_grads = self.torch_aggregation(raw_client_model_or_grad_list)
+            global_weights = self.update_parameters_from_gradients(averaged_grads)
+        elif self.strategy in ["ULDP-AVG"]:
+            averaged_param_diff = self.torch_aggregation(raw_client_model_or_grad_list)
+            global_weights = self.update_global_weights_from_diff(averaged_param_diff)
         elif self.strategy in ["DEFAULT"]:
             averaged_param_diff = self.torch_aggregation(raw_client_model_or_grad_list)
             global_weights = self.update_global_weights_from_diff(averaged_param_diff)
@@ -196,10 +218,20 @@ class Aggregator:
             averaged_params (dict): the averaged model parameters.
         """
         (_, avg_params) = raw_grad_list[0]
+        w = 1.0 / self.n_silo_per_round
+
+        if type(avg_params) == list:
+            for i in range(0, len(avg_params)):
+                for j in range(0, len(raw_grad_list)):
+                    _, local_model_params = raw_grad_list[j]
+                    if j == 0:
+                        avg_params[i] = local_model_params[i] * w
+                    else:
+                        avg_params[i] += local_model_params[i] * w
+            return avg_params
         for k in avg_params.keys():
             for i in range(0, len(raw_grad_list)):
                 _, local_model_params = raw_grad_list[i]
-                w = 1 / self.n_silo_per_round
                 if i == 0:
                     avg_params[k] = local_model_params[k] * w
                 else:
@@ -289,17 +321,38 @@ class Aggregator:
         )
         return test_acc, test_loss
 
-    def update_global_weights_from_diff(self, local_weights_diff):
+    def update_global_weights_from_diff(self, local_weights_diff) -> Dict:
+        """
+        Update the parameters of the global model with the difference from the local models.
+        """
         global_weights = self.get_global_model_params()
         for key in global_weights.keys():
             global_weights[key] += local_weights_diff[key]
         return global_weights
+
+    def update_parameters_from_gradients(self, grads) -> Dict:
+        """
+        Update the parameters of the global model with the gradients from the local models.
+
+        Input:
+            grads (list): aggregated gradients
+        Return:
+            global_weights (dict): updated global model parameters
+        """
+        with torch.no_grad():
+            for param, grad in zip(self.model.parameters(), grads):
+                param -= self.central_learning_rate * grad
+        return self.model.state_dict()
 
 
 def model_params_to_device(params_obj, device):
     """
     Change the torch model parameters to the device.
     """
+    if type(params_obj) == list:
+        for i in range(len(params_obj)):
+            params_obj[i] = params_obj[i].to(device)
+        return params_obj
     for key in params_obj.keys():
         params_obj[key] = params_obj[key].to(device)
     return params_obj

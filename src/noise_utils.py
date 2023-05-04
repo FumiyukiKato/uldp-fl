@@ -1,24 +1,38 @@
 from collections import OrderedDict
 import numpy as np
 import torch
+import copy
 import warnings
 from opacus.accountants.analysis import rdp as analysis
 
 
-def global_clip(grad, clipping_bound):
+def global_clip(weights, clipping_bound):
     """
     Clip the L2-norm of parameters of the local trained models for DP.
     """
     total_norm = torch.norm(
-        torch.stack([torch.norm(grad[k], 2.0) for k in grad.keys()]),
+        torch.stack([torch.norm(weights[k], 2.0) for k in weights.keys()]),
         2.0,
     )
-    for k in grad.keys():
-        clip_coef = clipping_bound / (total_norm + 1e-6)
-        clip_coef_clamped = torch.clamp(clip_coef, max=1.0)
-        for k in grad.keys():
-            grad[k].mul_(clip_coef_clamped)
-    return grad
+    clip_coef = clipping_bound / (total_norm + 1e-6)
+    clip_coef_clamped = torch.clamp(clip_coef, max=1.0)
+    clipped = copy.deepcopy(weights)
+    for k in weights.keys():
+        clipped[k].mul_(clip_coef_clamped)
+    return clipped
+
+
+def grads_clip(grads, clipping_bound):
+    """
+    Clip the L2-norm of parameters of the local trained models for DP.
+    """
+    total_norm = torch.norm(torch.stack([torch.norm(g, 2.0) for g in grads]), 2.0)
+    clip_coef = clipping_bound / (total_norm + 1e-6)
+    clip_coef_clamped = torch.clamp(clip_coef, max=1.0)
+    clipped = copy.deepcopy(grads)
+    for c in clipped:
+        c.mul_(clip_coef_clamped)
+    return clipped
 
 
 # from typing import List, Tuple

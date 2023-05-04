@@ -31,7 +31,13 @@ class FLSilo:
         local_delta: Optional[float] = None,
         local_clipping_bound: Optional[float] = None,
         group_k: Optional[int] = None,
+        user_weights: Optional[Dict[int, float]] = None,
     ):
+        if agg_strategy in ["ULDP-GROUP", "ULDP-SGD", "ULDP-AVG"]:
+            raise NotImplementedError(
+                "Because coodinator is not implemented yet. Please use Simulator instead."
+            )
+
         local_trainer = ClassificationTrainer(
             base_seed=seed,
             model=model,
@@ -51,6 +57,7 @@ class FLSilo:
             local_delta=local_delta,
             local_clipping_bound=local_clipping_bound,
             group_k=group_k,
+            user_weights=user_weights,
         )
         self.client_manager = SiloManager(
             local_trainer,

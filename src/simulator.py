@@ -57,9 +57,10 @@ class FLSimulator:
             clipping_bound=clipping_bound,
             sigma=sigma,
             delta=delta,
+            central_learning_rate=learning_rate,
         )
 
-        if self.agg_strategy in ["ULDP-GROUP"]:
+        if self.agg_strategy in ["ULDP-GROUP", "ULDP-SGD", "ULDP-AVG"]:
             self.coordinator = Coordinator(
                 base_seed=seed, n_silos=n_silos, n_users=n_users
             )
@@ -92,9 +93,10 @@ class FLSimulator:
                 local_delta=delta,
                 local_clipping_bound=clipping_bound,
                 group_k=group_k,
+                n_silo_per_round=n_silo_per_round,
             )
             self.local_trainer_per_silos[silo_id] = local_trainer
-            if self.agg_strategy in ["ULDP-GROUP"]:
+            if self.agg_strategy in ["ULDP-GROUP", "ULDP-SGD", "ULDP-AVG"]:
                 self.coordinator.original_user_hist_dct[silo_id] = user_hist
 
     def run(self):
@@ -108,6 +110,10 @@ class FLSimulator:
                 self.local_trainer_per_silos[silo_id].bound_user_contributions(
                     bounded_user_hist
                 )
+        elif self.agg_strategy in ["ULDP-SGD", "ULDP-AVG"]:
+            user_weights_per_silo = self.coordinator.build_user_weights(uniform=True)
+            for silo_id, user_weights in user_weights_per_silo.items():
+                self.local_trainer_per_silos[silo_id].set_user_weights(user_weights)
 
         while self.round_idx < self.n_total_round:
             silo_id_list_in_this_round = self.aggregator.silo_selection()
