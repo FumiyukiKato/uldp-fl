@@ -50,8 +50,8 @@ def run_simulation(args, path_project):
 
         def objective(trial: optuna.Trial):
             # Target hyper parameters that wte want to optimize.
-            learning_rate = trial.suggest_loguniform("learning_rate", 1e-5, 10)
-            clipping_bound = trial.suggest_loguniform("clipping_bound", 1e-5, 10)
+            learning_rate = trial.suggest_float("learning_rate", 1e-5, 10)
+            clipping_bound = trial.suggest_float("clipping_bound", 1e-5, 10)
             # learning_rate = 0.02
             # clipping_bound = 0.86
             if args.agg_strategy == "ULDP-AVG":
