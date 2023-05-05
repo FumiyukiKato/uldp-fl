@@ -140,9 +140,9 @@ def run_simulation(args, path_project):
 
 
 if __name__ == "__main__":
-    args = args_parser("simulation")
     src_path = os.path.dirname(os.path.abspath(__file__))
     path_project = os.path.dirname(src_path)
+    args = args_parser(path_project)
     if args.verbose:
         logger_set_debug()
     results = run_simulation(args, path_project)

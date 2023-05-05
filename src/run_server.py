@@ -14,13 +14,13 @@ from mylogger import logger_set_debug
 
 
 if __name__ == "__main__":
-    args = args_parser("server")
+    src_path = os.path.dirname(os.path.abspath(__file__))
+    path_project = os.path.dirname(src_path)
+
+    args = args_parser(path_project)
 
     if args.verbose:
         logger_set_debug()
-
-    src_path = os.path.dirname(os.path.abspath(__file__))
-    path_project = os.path.dirname(src_path)
     if args.gpu_id:
         torch.cuda.set_device(args.gpu_id)
     device = "cuda" if args.gpu_id else "cpu"

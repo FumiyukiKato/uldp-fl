@@ -18,7 +18,7 @@ def pretty_print_args(args):
     logger.info(parameter_info_str)
 
 
-def args_parser(role: str = "server"):
+def args_parser(path_project):
     parser = argparse.ArgumentParser()
     # fmt: off
 
@@ -58,7 +58,7 @@ def args_parser(role: str = "server"):
 
     # fmt: on
 
-    config = load_default_config("default_params.yaml")
+    config = load_default_config(path_project + "/src/default_params.yaml")
     parser.set_defaults(**config)
 
     args = parser.parse_args()
