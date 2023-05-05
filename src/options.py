@@ -53,6 +53,8 @@ def args_parser(role: str = "server"):
     parser.add_argument("--sampling_rate_q", type=float, help="sampling rate q for user-level sub-sampling")
 
     parser.add_argument("--verbose", type=int, help="verbose")
+    parser.add_argument("--hp_tune", type=int, help="is hyper-parameter tuning")
+    parser.add_argument("--times", type=int, help="times of experiments on the different random seeds")
 
     # fmt: on
 

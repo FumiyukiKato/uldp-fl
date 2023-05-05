@@ -10,6 +10,10 @@ import logging
 logging.disable(logging.CRITICAL)
 
 
+src_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+path_project = os.path.dirname(src_path)
+
+
 class TestSimulater(unittest.TestCase):
     def setUp(self) -> None:
         warnings.simplefilter(action="ignore", category=UserWarning)
@@ -52,7 +56,6 @@ class TestSimulater(unittest.TestCase):
 
     def test_default(self):
         args = self.create_args()
-        path_project = os.path.abspath("..")
         results = run_simulation(args, path_project)
         self.assertTupleEqual(
             results["global"]["global_test"][2],
@@ -62,7 +65,6 @@ class TestSimulater(unittest.TestCase):
 
     def test_silo_level(self):
         args = self.create_args()
-        path_project = os.path.abspath("..")
         args.agg_strategy = "SILO-LEVEL-DP"
         args.clipping_bound = 1.0
         args.sigma = 1.0
@@ -86,7 +88,6 @@ class TestSimulater(unittest.TestCase):
 
     def test_record_level(self):
         args = self.create_args()
-        path_project = os.path.abspath("..")
         args.agg_strategy = "RECORD-LEVEL-DP"
         results = run_simulation(args, path_project)
         self.assertTupleEqual(
@@ -102,7 +103,6 @@ class TestSimulater(unittest.TestCase):
 
     def test_uldp_naive(self):
         args = self.create_args()
-        path_project = os.path.abspath("..")
         args.agg_strategy = "ULDP-NAIVE"
         args.clipping_bound = 1.0
         args.sigma = 0.4
@@ -126,7 +126,6 @@ class TestSimulater(unittest.TestCase):
 
     def test_uldp_group_k_2(self):
         args = self.create_args()
-        path_project = os.path.abspath("..")
         args.agg_strategy = "ULDP-GROUP"
         args.group_k = 2
         results = run_simulation(args, path_project)
@@ -143,7 +142,6 @@ class TestSimulater(unittest.TestCase):
 
     def test_uldp_group_k_4(self):
         args = self.create_args()
-        path_project = os.path.abspath("..")
         args.agg_strategy = "ULDP-GROUP"
         args.group_k = 4
         results = run_simulation(args, path_project)
@@ -160,7 +158,6 @@ class TestSimulater(unittest.TestCase):
 
     def test_uldp_group_k_8(self):
         args = self.create_args()
-        path_project = os.path.abspath("..")
         args.agg_strategy = "ULDP-GROUP"
         args.group_k = 8
         results = run_simulation(args, path_project)
@@ -177,7 +174,6 @@ class TestSimulater(unittest.TestCase):
 
     def test_uldp_sgd(self):
         args = self.create_args()
-        path_project = os.path.abspath("..")
         args.agg_strategy = "ULDP-SGD"
         args.learning_rate = 5.0
         args.sigma = 8.0
@@ -196,14 +192,7 @@ class TestSimulater(unittest.TestCase):
 
     def test_uldp_avg(self):
         args = self.create_args()
-        path_project = os.path.abspath("..")
         args.agg_strategy = "ULDP-AVG"
-        args.n_users = 10000
-        args.clipping_bound = 10.0
-        args.learning_rate = 0.1
-        args.epochs = 1
-        args.sigma = 0.01
-        args.n_total_round = 20
         results = run_simulation(args, path_project)
         self.assertTupleEqual(
             results["global"]["global_test"][2],

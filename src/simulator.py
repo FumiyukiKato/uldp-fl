@@ -151,10 +151,28 @@ class FLSimulator:
 
         logger.info("Finish federated learning simulation")
 
+    def set_learning_rate(self, learning_rate):
+        self.aggregator.central_learning_rate = learning_rate
+        for local_trainer in self.local_trainer_per_silos.values():
+            local_trainer.learning_rate = learning_rate
+
+    def set_sigma(self, sigma):
+        self.aggregator.sigma = sigma
+        for local_trainer in self.local_trainer_per_silos.values():
+            local_trainer.local_sigma = sigma
+
+    def set_clipping_bound(self, clipping_bound: float):
+        self.aggregator.clipping_bound = clipping_bound
+        for local_trainer in self.local_trainer_per_silos.values():
+            local_trainer.local_clipping_bound = clipping_bound
+
     def get_results(self) -> Dict:
         results = dict()
         results["global"] = self.aggregator.get_results()
-        results["local"] = dict()
-        for silo_id, lt in self.local_trainer_per_silos.items():
-            results["local"][silo_id] = lt.get_results()
+        # if self.agg_strategy in ["ULDP-SGD", "ULDP-AVG"]:
+        #     pass
+        # else:
+        #     results["local"] = dict()
+        #     for silo_id, lt in self.local_trainer_per_silos.items():
+        #         results["local"][silo_id] = lt.get_results()
         return results

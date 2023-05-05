@@ -193,9 +193,29 @@ class Aggregator:
             global_weights = self.update_global_weights_from_diff(averaged_param_diff)
         elif self.strategy in ["ULDP-SGD"]:
             averaged_grads = self.torch_aggregation(raw_client_model_or_grad_list)
+            total_norm = torch.norm(
+                torch.stack([torch.norm(g, 2.0) for g in averaged_grads]), 2.0
+            )
+            logger.info(
+                "l2 norm of averaged_grads = {}, learning_rate = {}, Delta = {}".format(
+                    total_norm,
+                    self.central_learning_rate,
+                    total_norm * self.central_learning_rate,
+                )
+            )
             global_weights = self.update_parameters_from_gradients(averaged_grads)
         elif self.strategy in ["ULDP-AVG"]:
             averaged_param_diff = self.torch_aggregation(raw_client_model_or_grad_list)
+            total_norm = torch.norm(
+                torch.stack(
+                    [
+                        torch.norm(averaged_param_diff[k], 2.0)
+                        for k in averaged_param_diff.keys()
+                    ]
+                ),
+                2.0,
+            )
+            logger.info("l2 norm of averaged_param_diff = {}".format(total_norm))
             global_weights = self.update_global_weights_from_diff(averaged_param_diff)
         elif self.strategy in ["DEFAULT"]:
             averaged_param_diff = self.torch_aggregation(raw_client_model_or_grad_list)
@@ -208,7 +228,7 @@ class Aggregator:
         self.record_epsilon(round_idx)
         return global_weights
 
-    def torch_aggregation(self, raw_grad_list: List):
+    def torch_aggregation(self, raw_grad_list: List) -> Dict:
         """
         Aggregate the local trained models from the selected silos for Pytorch model.
 

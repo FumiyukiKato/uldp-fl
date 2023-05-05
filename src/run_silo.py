@@ -17,7 +17,8 @@ if __name__ == "__main__":
     if args.verbose:
         logger_set_debug()
 
-    path_project = os.path.abspath("..")
+    src_path = os.path.dirname(os.path.abspath(__file__))
+    path_project = os.path.dirname(src_path)
     if args.gpu_id:
         torch.cuda.set_device(args.gpu_id)
     device = "cuda" if args.gpu_id else "cpu"

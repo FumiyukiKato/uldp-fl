@@ -353,7 +353,7 @@ class ClassificationTrainer:
 
     def diff_weights(self, original_weights, udpated_weights):
         """Diff = Local - Global"""
-        diff_weights = original_weights
+        diff_weights = copy.deepcopy(udpated_weights)
         for key in diff_weights.keys():
             diff_weights[key] = udpated_weights[key] - original_weights[key]
         return diff_weights

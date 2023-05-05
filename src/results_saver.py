@@ -14,10 +14,10 @@ RESULTS_DIR = "exp/results"
 
 def save_resuls(path_project, args, results: dict) -> str:
     hashed_args = args_to_hash(args)
-    timestamp = datetime.datetime.fromtimestamp(time.time()).strftime("%Y%m%d%H%M%S")
-    results_dir = os.path.join(path_project, RESULTS_DIR, hashed_args + "_" + timestamp)
+    timestamp = datetime.datetime.fromtimestamp(time.time()).strftime("%m%d%H%M%S")
+    results_dir = os.path.join(path_project, RESULTS_DIR, timestamp + "_" + hashed_args)
     os.mkdir(results_dir)
-    results["args"] = args
+    results["args"] = str(args)
     with open(os.path.join(results_dir, "results.json"), "w") as f:
         json.dump(results, f)
 
@@ -25,7 +25,10 @@ def save_resuls(path_project, args, results: dict) -> str:
         if args.agg_strategy in [
             "SILO-LEVEL-DP",
             "RECORD-LEVEL-DP",
-            "USER-LEVEL-DP",
+            "ULDP-NAIVE",
+            "ULDP-GROUP",
+            "ULDP-SGD",
+            "ULDP-AVG",
         ]:
             privacy_budget_list = results["global"]["privacy_budget"]
             rounds = [round_idx for round_idx, eps, delta in privacy_budget_list]
