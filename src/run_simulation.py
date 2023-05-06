@@ -109,7 +109,6 @@ def run_simulation(args, path_project):
         results = {
             "best_params": study.best_params,
             "best_value": study.best_value,
-            "trials": study.trials,
         }
     else:
         simulator = FLSimulator(

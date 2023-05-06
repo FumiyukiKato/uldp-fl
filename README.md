@@ -10,6 +10,11 @@
     $ pip install -r requirements.txt
     ```
 
+    [FLamby](https://github.com/owkin/FLamby)
+    ```
+    $ git clone https://github.com/owkin/FLamby.git --branch 0.0.1 
+    ```
+
 
 2. Run simulator mode
 
@@ -53,6 +58,9 @@
 
 - IP setting
     - see `src/ip_utils.py`
+
+
+
 
 --- 
 
