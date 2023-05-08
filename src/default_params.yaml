@@ -1,27 +1,32 @@
 # Default parameter
 
 seed: 0
+# gpu_id: 0
+# silo_id: 0
 dataset_name: "mnist"
 model_name: "cnn"
-n_users: 10000
-n_silos: 3
+n_users: 100
+n_silos: 5
 user_dist: "uniform-iid"
 silo_dist: "uniform"
-user_alpha: 0.5
-silo_alpha: 0.5
-n_labels: 10
-n_silo_per_round: 2
-n_total_round: 3
-epochs: 5
-learning_rate: 0.05
+user_alpha: 0.3
+silo_alpha: 1.5
+n_labels: 1
+# typical_scenaio: 0
+n_silo_per_round: 5
+n_total_round: 10
+epochs: 10
+learning_rate: 0.01
 local_batch_size: 64
 weight_decay: 0.001
 client_optimizer: "sgd"
 agg_strategy: "DEFAULT"
-group_k: 4
-sigma: 1.0
-delta: 0.00001
+group_k: 2
+sigma: 5.0
 clipping_bound: 1.0
+delta: 0.00001
+sampling_rate_q: 0.1
 verbose: 0
-hp_tune: 0
 times: 1
+# hyper_parameter_tuning: 0
+# exp_dist: 0

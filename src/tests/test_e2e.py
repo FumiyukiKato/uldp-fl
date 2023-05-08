@@ -3,6 +3,7 @@ import unittest
 import argparse
 
 import warnings
+
 from run_simulation import run_simulation
 
 import logging
@@ -196,13 +197,13 @@ class TestSimulater(unittest.TestCase):
         results = run_simulation(args, path_project)
         self.assertTupleEqual(
             results["global"]["global_test"][2],
-            (2, 0.0928, 2306.6163182258606),
-            "ULDP-SGD simulation has been changed from verified results",
+            (2, 0.1036, 2284.711371421814),
+            "ULDP-AVG simulation has been changed from verified results",
         )
         self.assertTupleEqual(
             results["global"]["privacy_budget"][2],
-            (2, 16611.77825757886, 1e-05),
-            "ULDP-SGD simulation has been changed from verified results",
+            (2, 9.009958991683897, 1e-05),
+            "ULDP-AVG simulation has been changed from verified results",
         )
 
 

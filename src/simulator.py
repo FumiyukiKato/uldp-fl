@@ -130,6 +130,16 @@ class FLSimulator:
                     self.round_idx
                 )
                 local_trainer.test_local(self.round_idx)
+                if self.agg_strategy in [
+                    "DEFAULT",
+                    "ULDP-AVG",
+                    "ULDP-GROUP",
+                    "ULDP-NAIVE",
+                ]:
+                    # test local model with global test dataset
+                    self.aggregator.test_global(
+                        self.round_idx, model=local_trainer.model, silo_id=silo_id
+                    )
                 self.aggregator.add_local_trained_result(
                     silo_id,
                     local_updated_weights,

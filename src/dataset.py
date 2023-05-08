@@ -483,7 +483,18 @@ def load_dataset(
         n_labels=n_labels,
         user_silo_matrix=user_silo_matrix,
     )
-    logger.info("-- Finish prepare dataset.")
+
+    # statistics of dataset
+    bin_count = sorted(np.bincount(data_indices_of_users))
+    logger.info(
+        "ALL dataset Percentile of #User's record 0%: {}, 25%: {}, 50%: {}, 75%: {}, 100%: {}".format(
+            bin_count[int(len(bin_count) - 1)],
+            bin_count[int(len(bin_count) * 0.75 - 1)],
+            bin_count[int(len(bin_count) * 0.5 - 1)],
+            bin_count[int(len(bin_count) * 0.25 - 1)],
+            bin_count[0],
+        )
+    )
 
     # for simulator
     if is_simulation:
@@ -509,6 +520,27 @@ def load_dataset(
                 local_test_dataset,
                 user_hist,
                 user_ids,
+            )
+
+            # statistics of each silo's dataset
+            logger.info(
+                "Silo id: %d, #records = %d, #users = %d",
+                silo_id,
+                len(local_train_dataset),
+                len(set(user_ids)),
+            )
+            bin_count = np.bincount(list(user_ids) + [0, n_users - 1])
+            bin_count[0] = bin_count[0] - 1
+            bin_count[n_users - 1] = bin_count[n_users - 1] - 1
+            bin_count = sorted(bin_count)
+            logger.info(
+                "Percentile of #User's record 0%: {}, 25%: {}, 50%: {}, 75%: {}, 100%: {}".format(
+                    bin_count[int(len(bin_count) - 1)],
+                    bin_count[int(len(bin_count) * 0.75 - 1)],
+                    bin_count[int(len(bin_count) * 0.5 - 1)],
+                    bin_count[int(len(bin_count) * 0.25 - 1)],
+                    bin_count[0],
+                )
             )
         return train_dataset, test_dataset, dataset_per_silos
     # for silo

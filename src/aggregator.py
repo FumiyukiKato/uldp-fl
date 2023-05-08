@@ -65,7 +65,7 @@ class Aggregator:
             self.flag_client_model_uploaded_dict[idx] = False
 
         self.latest_eps = None
-        self.results = {"privacy_budget": [], "global_test": []}
+        self.results = {"privacy_budget": [], "global_test": [], "local_model_test": []}
 
     def get_results(self):
         return self.results
@@ -284,9 +284,7 @@ class Aggregator:
                     avg_params[k] += local_model_params[k] * w
         return avg_params
 
-    def _test(self, test_data, device):
-        model = self.model
-
+    def _test(self, test_data, device, model):
         model.to(device)
         model.eval()
 
@@ -316,9 +314,12 @@ class Aggregator:
 
         return metrics
 
-    def test_global(self, round_idx: int):
-        # test data
-        metrics = self._test(self.test_dataset, self.device)
+    def test_global(self, round_idx: int, model: nn.Module = None, silo_id: int = None):
+        if model is None:
+            assert silo_id is None
+            model = self.model
+
+        metrics = self._test(self.test_dataset, self.device, model)
 
         test_tot_correct, n_test_sample, test_loss = (
             metrics["test_correct"],
@@ -327,15 +328,28 @@ class Aggregator:
         )
 
         test_acc = test_tot_correct / n_test_sample
-        self.results["global_test"].append(
-            (
-                round_idx,
-                test_acc,
-                test_loss,
+        if silo_id is None:
+            self.results["global_test"].append(
+                (
+                    round_idx,
+                    test_acc,
+                    test_loss,
+                )
             )
-        )
-
-        logger.info("|----- Global test result of round %d" % (round_idx))
+            logger.info("|----- Global test result of round %d" % (round_idx))
+        else:
+            self.results["local_model_test"].append(
+                (
+                    round_idx,
+                    silo_id,
+                    test_acc,
+                    test_loss,
+                )
+            )
+            logger.info(
+                "|----- Global test result for SILO %d of round %d"
+                % (silo_id, round_idx)
+            )
         logger.info(
             f"\t |----- Test/Acc: {test_acc} ({test_tot_correct} / {n_test_sample}), Test/Loss: {test_loss}"
         )

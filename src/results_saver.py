@@ -10,16 +10,39 @@ from mylogger import logger
 
 
 RESULTS_DIR = "exp/results"
+RESULTS = "results.json"
+PARAMETER_DIR = "exp/hyper_parameters"
+BEST_PARAMS = "best_params.json"
 
 
-def save_resuls(path_project, args, results: dict) -> str:
+def save_best_params(args, path_project, best_params):
+    with open(os.path.join(path_project, PARAMETER_DIR, BEST_PARAMS)) as json_file:
+        best_params = json.load(json_file)
+    key = str(args)
+    best_params[key] = best_params
+    with open(os.path.join(path_project, PARAMETER_DIR, BEST_PARAMS), "w") as f:
+        json.dump(best_params, f, indent=2)
+    logger.info(f"save best_params at key = {key}")
+
+
+def load_best_params(args, path_project):
+    with open(os.path.join(path_project, PARAMETER_DIR, BEST_PARAMS)) as json_file:
+        best_params = json.load(json_file)
+    key = str(args)
+    if key not in best_params:
+        logger.info(f"key = {key} is not in best_params")
+        return None
+    return best_params[key]
+
+
+def save_resuls(args, path_project, results: dict) -> str:
     hashed_args = args_to_hash(args)
     timestamp = datetime.datetime.fromtimestamp(time.time()).strftime("%m%d%H%M%S")
     results_dir = os.path.join(path_project, RESULTS_DIR, timestamp + "_" + hashed_args)
     os.mkdir(results_dir)
     results["args"] = str(args)
-    with open(os.path.join(results_dir, "results.json"), "w") as f:
-        json.dump(results, f)
+    with open(os.path.join(results_dir, RESULTS), "w") as f:
+        json.dump(results, f, indent=2)
 
     if results.get("global") is not None:
         if args.agg_strategy in [

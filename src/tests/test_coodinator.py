@@ -8,12 +8,12 @@ seed = 0
 
 class TestCoodinator(unittest.TestCase):
     def test_build_user_bound_histograms_random(self):
-        cood = Coordinator(base_seed=seed)
         n_users = 10
         n_silos = 3
         group_k = 5
+        cood = Coordinator(base_seed=seed, n_silos=n_silos, n_users=n_users)
         user_bound_histograms = cood.build_user_bound_histograms(
-            group_k=group_k, n_silos=n_silos, n_users=n_users
+            group_k=group_k,
         )
         self.assertDictEqual(
             user_bound_histograms,
@@ -25,8 +25,10 @@ class TestCoodinator(unittest.TestCase):
         )
 
     def test_build_user_bound_histograms_given_user_histogram_dct(self):
-        cood = Coordinator(base_seed=seed)
+        n_users = 10
+        n_silos = 3
         group_k = 3
+        cood = Coordinator(base_seed=seed, n_silos=n_silos, n_users=n_users)
         user_histogram_dct = {
             0: {0: 1, 1: 3, 2: 5, 4: 1},
             1: {0: 1, 1: 3, 2: 5, 4: 1},

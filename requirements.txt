@@ -9,3 +9,11 @@ matplotlib==3.7.1
 optuna==3.1.1
 PyYAML==6.0
 scikit-learn==1.2.2
+
+# From remote repository of FLamby. 
+# git+https://github.com/owkin/FLamby.git@0.0.1[all_extra]
+# In the case using pyenv-virtualenv like us, It caused an error.
+# We needed to rewrite the `sys.executable` in setup.py of FLamby.
+
+# From local repository of FLamby, 
+# -e /path/to/local/FLamby/Repo[all_extra]

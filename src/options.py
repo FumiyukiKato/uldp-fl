@@ -1,16 +1,20 @@
+import os
 import argparse
 import yaml
 
 from mylogger import logger
 
 
-def load_default_config(path):
+DEFAULT_CONFIG_PATH = "src/default_params.yaml"
+
+
+def load_config(path):
     with open(path, "r") as f:
         config = yaml.safe_load(f)
     return config
 
 
-def pretty_print_args(args):
+def pretty_print_args(args: argparse.Namespace):
     parameter_info_str = "\n Parameters:"
     for key, value in vars(args).items():
         parameter_info_str += "\n"
@@ -18,7 +22,14 @@ def pretty_print_args(args):
     logger.info(parameter_info_str)
 
 
-def args_parser(path_project):
+def update_args(args: argparse.Namespace, path: str):
+    config = load_config(path)
+    for key, value in config.items():
+        setattr(args, key, value)
+    return args
+
+
+def args_parser(path_project: str) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     # fmt: off
 
@@ -53,14 +64,14 @@ def args_parser(path_project):
     parser.add_argument("--sampling_rate_q", type=float, help="sampling rate q for user-level sub-sampling")
 
     parser.add_argument("--verbose", type=int, help="verbose")
-    parser.add_argument("--hp_tune", type=int, help="is hyper-parameter tuning")
-    parser.add_argument("--times", type=int, help="times of experiments on the different random seeds")
+    parser.add_argument("--hyper_parameter_tuning", type=int, help="is hyper-parameter tuning")
+    parser.add_argument("--times", type=int, help="times of experiments in different random seeds")
+    parser.add_argument("--exp_dist", type=int, help="0 (iid), 1 (non-iid based on zipf)")
 
     # fmt: on
 
-    config = load_default_config(path_project + "/src/default_params.yaml")
+    config = load_config(os.path.join(path_project, DEFAULT_CONFIG_PATH))
     parser.set_defaults(**config)
-
     args = parser.parse_args()
 
     assert (
