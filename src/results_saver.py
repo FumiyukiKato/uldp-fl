@@ -16,17 +16,23 @@ BEST_PARAMS = "best_params.json"
 
 
 def save_best_params(args, path_project, best_params):
-    with open(os.path.join(path_project, PARAMETER_DIR, BEST_PARAMS)) as json_file:
+    file_path = os.path.join(path_project, PARAMETER_DIR, BEST_PARAMS)
+    if not os.path.exists(file_path):
+        with open(file_path, "w") as f:
+            json.dump({}, f)
+
+    with open(file_path, "r") as json_file:
         best_params_dct = json.load(json_file)
     key = str(args)
     best_params_dct[key] = best_params
-    with open(os.path.join(path_project, PARAMETER_DIR, BEST_PARAMS), "w") as f:
+    with open(file_path, "w") as f:
         json.dump(best_params_dct, f, indent=2)
     logger.info(f"save best_params at key = {key}")
 
 
 def load_best_params(args, path_project):
-    with open(os.path.join(path_project, PARAMETER_DIR, BEST_PARAMS)) as json_file:
+    file_path = os.path.join(path_project, PARAMETER_DIR, BEST_PARAMS)
+    with open(file_path, "r") as json_file:
         best_params_dct = json.load(json_file)
     key = str(args)
     if key not in best_params_dct:
