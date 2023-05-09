@@ -27,12 +27,12 @@ def save_best_params(args, path_project, best_params):
 
 def load_best_params(args, path_project):
     with open(os.path.join(path_project, PARAMETER_DIR, BEST_PARAMS)) as json_file:
-        best_params = json.load(json_file)
+        best_params_dct = json.load(json_file)
     key = str(args)
-    if key not in best_params:
+    if key not in best_params_dct:
         logger.info(f"key = {key} is not in best_params")
         return None
-    return best_params[key]
+    return best_params_dct[key]
 
 
 def save_resuls(args, path_project, results: dict) -> str:

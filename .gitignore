@@ -7,11 +7,10 @@ __pycache__/
 .ipynb_checkpoints
 
 log/*
-save/imgs/*
-save/objects/*
 dataset/*
 
 exp/results/*
+exp/hyper_parameters/*
 exp/img/*
 
 !*/**/.gitkeep

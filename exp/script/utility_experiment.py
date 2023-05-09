@@ -125,11 +125,16 @@ def hyper_parameter_tuning(args):
         sampler=optuna.samplers.TPESampler(seed=args.seed),
     )
     study.optimize(objective, n_trials=N_TRIALS)
+    try:
+        best_params = study.best_params
+    except ValueError:
+        logger.warning("No trials are completed yet.")
+        best_params = "Too Bad."
 
-    save_best_params(original_args, path_project, study.best_params)
+    save_best_params(original_args, path_project, best_params)
 
     return {
-        "best_params": study.best_params,
+        "best_params": best_params,
         "best_value": study.best_value,
         "result_details": result_details,
     }
@@ -152,7 +157,7 @@ if __name__ == "__main__":
         results = {"hp_results": hp_results}
     else:
         best_params = load_best_params(args, path_project)
-        if best_params:
+        if type(best_params) is dict:
             args.learning_rate = best_params["learning_rate"]
             args.clipping_bound = best_params["clipping_bound"]
             if args.agg_strategy in ["ULDP-AVG", "ULDP-GROUP", "DEFAULT"]:

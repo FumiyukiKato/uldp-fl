@@ -11,7 +11,7 @@ from mylogger import logger
 
 # Heuristic early pruning conditions for hyper-parameter tuning
 TEST_ACC_THRESHOLDS = {
-    "mnist": (3, 0.12),
+    "mnist": (3, 0.11),
 }
 
 
