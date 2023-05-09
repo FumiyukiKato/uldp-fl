@@ -1,4 +1,5 @@
 #! /bin/bash
+set -eux
 
 
 methods=("DEFAULT" "ULDP-NAIVE" "ULDP-GROUP" "ULDP-SGD" "ULDP-AVG")

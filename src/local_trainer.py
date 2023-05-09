@@ -1,5 +1,5 @@
 import time
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 import numpy as np
 from torch import nn
 import torch
@@ -164,7 +164,9 @@ class ClassificationTrainer:
         )
         self.test_loader = DataLoader(new_local_test_dataset)
 
-    def train(self, global_round_index: int):
+    def train(
+        self, global_round_index: int, loss_callback: Callable = lambda loss: None
+    ):
         """
         Train the model on the local dataset.
         """
@@ -205,6 +207,7 @@ class ClassificationTrainer:
                 log_probs = model(x)
                 labels = labels.long()
                 loss = criterion(log_probs, labels)
+                loss_callback(loss)
                 loss.backward()  # calculate gradients
 
                 # Due to different batch size for each user
@@ -252,6 +255,7 @@ class ClassificationTrainer:
                     log_probs = model_u(x)
                     labels = labels.long()
                     loss = criterion(log_probs, labels)
+                    loss_callback(loss)
                     loss.backward()
                     optimizer_u.step()
                 weights = model_u.cpu().state_dict()
@@ -287,6 +291,7 @@ class ClassificationTrainer:
                     log_probs = model(x)
                     labels = labels.long()
                     loss = criterion(log_probs, labels)
+                    loss_callback(loss)
                     loss.backward()
                     optimizer.step()
                     batch_loss.append(loss.item())

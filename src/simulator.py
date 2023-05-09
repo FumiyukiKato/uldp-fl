@@ -1,11 +1,18 @@
-from typing import List, Optional, Tuple, Dict
+from typing import Callable, List, Optional, Tuple, Dict
 import torch
 import copy
+import optuna
 
 from aggregator import Aggregator
 from coordinator import Coordinator
 from local_trainer import ClassificationTrainer
 from mylogger import logger
+
+
+# Heuristic early pruning conditions for hyper-parameter tuning
+TEST_ACC_THRESHOLDS = {
+    "mnist": (3, 0.12),
+}
 
 
 class FLSimulator:
@@ -39,11 +46,14 @@ class FLSimulator:
         sigma: Optional[float] = None,
         delta: Optional[float] = None,
         group_k: Optional[int] = None,
+        trial: optuna.Trial = None,
+        dataset_name: str = None,
     ):
         self.n_total_round = n_total_round
         self.round_idx = 0
         model.to(device)
         self.agg_strategy = agg_strategy
+        self.dataset_name = dataset_name
 
         self.aggregator = Aggregator(
             model=copy.deepcopy(model),
@@ -99,6 +109,8 @@ class FLSimulator:
             if self.agg_strategy in ["ULDP-GROUP", "ULDP-SGD", "ULDP-AVG"]:
                 self.coordinator.original_user_hist_dct[silo_id] = user_hist
 
+            self.trial = trial
+
     def run(self):
         logger.info("Start federated learning simulation")
 
@@ -126,8 +138,10 @@ class FLSimulator:
                 local_trainer.set_model_params(
                     self.aggregator.get_global_model_params()
                 )
+
                 local_updated_weights, n_local_sample = local_trainer.train(
-                    self.round_idx
+                    self.round_idx,
+                    loss_callback=build_loss_callback(self.trial),
                 )
                 local_trainer.test_local(self.round_idx)
                 if self.agg_strategy in [
@@ -151,13 +165,26 @@ class FLSimulator:
                 "============  AGGREGATION: ROUND %d ============" % (self.round_idx)
             )
             self.aggregator.aggregate(silo_id_list_in_this_round, self.round_idx)
-            self.aggregator.test_global(self.round_idx)
+            test_acc, _ = self.aggregator.test_global(self.round_idx)
             logger.info(
                 "\n\n========== end {}-th round training ===========\n".format(
                     self.round_idx
                 )
             )
             self.round_idx += 1
+
+            if self.trial is not None:
+                self.trial.report(1.0 - test_acc, self.round_idx)
+                if self.trial.should_prune():
+                    logger.warning(
+                        "PRUNED BECAUSE OF TOO LOW ACCURACY COMPARED TO MEDIAN"
+                    )
+                    raise optuna.exceptions.TrialPruned()
+
+                threshould = TEST_ACC_THRESHOLDS[self.dataset_name]
+                if self.round_idx + 1 >= threshould[0] and test_acc <= threshould[1]:
+                    logger.warning("PRUNED BECAUSE OF TOO LOW ACCURACY")
+                    raise optuna.exceptions.TrialPruned()
 
         logger.info("Finish federated learning simulation")
 
@@ -186,3 +213,21 @@ class FLSimulator:
         #     for silo_id, lt in self.local_trainer_per_silos.items():
         #         results["local"][silo_id] = lt.get_results()
         return results
+
+
+def build_loss_callback(trial) -> Callable:
+    if trial is None:
+
+        def loss_callback(loss):
+            if torch.isnan(loss):
+                raise ValueError("Stop because Loss is NaN")
+
+    else:
+
+        def loss_callback(loss):
+            # check if loss is nan
+            if torch.isnan(loss):
+                logger.warning("PRUNED LOSS IS NAN")
+                raise optuna.exceptions.TrialPruned()
+
+    return loss_callback

@@ -17,6 +17,9 @@ from mylogger import logger_set_debug, logger
 
 def build_exp_paramerters(default_args, dataset, dist, method, n_users):
     copy_args = copy.deepcopy(default_args)
+
+    copy_args.n_total_round = 5
+
     if dataset == "mnist":
         copy_args.dataset_name = dataset
     else:
@@ -58,7 +61,7 @@ def build_exp_paramerters(default_args, dataset, dist, method, n_users):
 def hyper_parameter_tuning(args):
     import optuna
 
-    N_SEED = 5
+    N_SEED = 2  # Baysian searching like `optuna` is relatively robust for seed
     N_TRIALS = 100
 
     original_args = copy.deepcopy(args)
@@ -68,14 +71,14 @@ def hyper_parameter_tuning(args):
         # Target hyper parameters that wte want to optimize.
         hyper_params = {}
 
-        learning_rate = trial.suggest_float("learning_rate", 1e-5, 10)
+        learning_rate = trial.suggest_float("learning_rate", 1e-3, 100, log=True)
         args.learning_rate = learning_rate
         logger.info(
             "++++++++ Optuna setting: learning_rate={} ++++++++".format(learning_rate)
         )
         hyper_params["learning_rate"] = learning_rate
 
-        clipping_bound = trial.suggest_float("clipping_bound", 1e-5, 10)
+        clipping_bound = trial.suggest_float("clipping_bound", 1e-3, 100, log=True)
         args.clipping_bound = clipping_bound
         logger.info(
             "++++++++ Optuna setting: clipping_bound={} ++++++++".format(clipping_bound)
@@ -83,16 +86,21 @@ def hyper_parameter_tuning(args):
         hyper_params["clipping_bound"] = clipping_bound
 
         if args.agg_strategy in ["ULDP-AVG", "ULDP-GROUP", "DEFAULT"]:
-            epochs = trial.suggest_int("epochs", 1, 10)
+            epochs = trial.suggest_int("epochs", 1, 30, step=5)
             args.epochs = epochs
             logger.info("++++++++ Optuna setting: epochs={} ++++++++".format(epochs))
             hyper_params["epochs"] = epochs
 
         error_rate_list = []
-        base_seed = args.seed
         for i in range(N_SEED):
-            args.seed = base_seed + i
-            results = run_simulation(args, path_project)
+            args.seed = original_args.seed + i
+            results = run_simulation(
+                args,
+                path_project,
+                trial,
+                # Using only trainig data in hyper parameter search
+                data_seed=original_args.seed,
+            )
             test_acc = results["global"]["global_test"][-1][1]
             error_rate = 1 - test_acc
             error_rate_list.append(error_rate)
@@ -112,7 +120,10 @@ def hyper_parameter_tuning(args):
         )
         return error_rate
 
-    study = optuna.create_study()
+    study = optuna.create_study(
+        pruner=optuna.pruners.MedianPruner(),
+        sampler=optuna.samplers.TPESampler(seed=args.seed),
+    )
     study.optimize(objective, n_trials=N_TRIALS)
 
     save_best_params(original_args, path_project, study.best_params)
