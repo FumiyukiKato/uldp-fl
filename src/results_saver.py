@@ -17,11 +17,11 @@ BEST_PARAMS = "best_params.json"
 
 def save_best_params(args, path_project, best_params):
     with open(os.path.join(path_project, PARAMETER_DIR, BEST_PARAMS)) as json_file:
-        best_params = json.load(json_file)
+        best_params_dct = json.load(json_file)
     key = str(args)
-    best_params[key] = best_params
+    best_params_dct[key] = best_params
     with open(os.path.join(path_project, PARAMETER_DIR, BEST_PARAMS), "w") as f:
-        json.dump(best_params, f, indent=2)
+        json.dump(best_params_dct, f, indent=2)
     logger.info(f"save best_params at key = {key}")
 
 

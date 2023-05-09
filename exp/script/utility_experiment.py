@@ -85,7 +85,7 @@ def hyper_parameter_tuning(args):
         )
         hyper_params["clipping_bound"] = clipping_bound
 
-        if args.agg_strategy in ["ULDP-AVG", "ULDP-GROUP", "DEFAULT"]:
+        if args.agg_strategy in ["ULDP-AVG", "ULDP-GROUP", "DEFAULT", "ULDP-NAIVE"]:
             epochs = trial.suggest_int("epochs", 1, 30, step=5)
             args.epochs = epochs
             logger.info("++++++++ Optuna setting: epochs={} ++++++++".format(epochs))
