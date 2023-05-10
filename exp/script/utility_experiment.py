@@ -154,7 +154,7 @@ if __name__ == "__main__":
 
     if args.hyper_parameter_tuning:
         hp_results = hyper_parameter_tuning(args)
-        results = {"hp_results": hp_results}
+        exp_results = {"hp_results": hp_results}
     else:
         best_params = load_best_params(args, path_project)
         if type(best_params) is dict:
@@ -174,5 +174,6 @@ if __name__ == "__main__":
             args.seed = args.seed + i
             sim_results = run_simulation(args, path_project)
             results_list.append(sim_results["global"])
+        exp_results = results_list
 
-    save_resuls(original_args, path_project, {"exp": results_list})
+    save_resuls(original_args, path_project, {"exp": exp_results})

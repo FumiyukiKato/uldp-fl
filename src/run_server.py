@@ -44,7 +44,6 @@ if __name__ == "__main__":
         args.n_labels,
         user_silo_matrix,
         is_simulation=False,
-        agg_strategy=args.agg_strategy,
     )
 
     # load model
@@ -67,6 +66,7 @@ if __name__ == "__main__":
         clipping_bound=args.clipping_bound,
         sigma=args.sigma,
         delta=args.delta,
+        dataset_name=args.dataset_name,
     )
     server.run()
 

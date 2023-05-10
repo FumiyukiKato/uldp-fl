@@ -1,63 +1,63 @@
 from collections import OrderedDict
+from typing import Dict, List
 import numpy as np
 import torch
-import copy
 import warnings
 from opacus.accountants.analysis import rdp as analysis
 
 
-def global_clip(weights, clipping_bound):
+def torch_aggregation(raw_grad_list: List[Dict], N: int) -> Dict:
+    """
+    Aggregate the local trained models from the selected silos for Pytorch model.
+
+    Params:
+        raw_grad_list (list): the list of local trained models from the selected silos.
+    Return:
+        averaged_params (dict): the averaged model parameters.
+    """
+    avg_params = raw_grad_list[0]
+    w = 1.0 / N
+
+    for k in avg_params.keys():
+        for i in range(0, len(raw_grad_list)):
+            local_model_params = raw_grad_list[i]
+            if i == 0:
+                avg_params[k] = local_model_params[k] * w
+            else:
+                avg_params[k] += local_model_params[k] * w
+    return avg_params
+
+
+def global_clip(
+    model: torch.nn.Module, params: Dict, clipping_bound: float
+) -> OrderedDict:
     """
     Clip the L2-norm of parameters of the local trained models for DP.
     """
+    sensitive_params = [
+        params[name] for name, param in model.named_parameters() if param.requires_grad
+    ]
     total_norm = torch.norm(
-        torch.stack([torch.norm(weights[k], 2.0) for k in weights.keys()]),
-        2.0,
+        torch.stack([torch.norm(g, 2.0) for g in sensitive_params]), 2.0
     )
     clip_coef = clipping_bound / (total_norm + 1e-6)
     clip_coef_clamped = torch.clamp(clip_coef, max=1.0)
-    clipped = copy.deepcopy(weights)
-    for k in weights.keys():
-        clipped[k].mul_(clip_coef_clamped)
-    return clipped
+    clipped_params = OrderedDict()
+    for name, param in model.named_parameters():
+        if param.requires_grad:
+            clipped_params[name] = params[name] * clip_coef_clamped
+        else:
+            clipped_params[name] = params[name]
+    return clipped_params
 
 
-def grads_clip(grads, clipping_bound):
-    """
-    Clip the L2-norm of parameters of the local trained models for DP.
-    """
-    total_norm = torch.norm(torch.stack([torch.norm(g, 2.0) for g in grads]), 2.0)
-    clip_coef = clipping_bound / (total_norm + 1e-6)
-    clip_coef_clamped = torch.clamp(clip_coef, max=1.0)
-    clipped = copy.deepcopy(grads)
-    for c in clipped:
-        c.mul_(clip_coef_clamped)
-    return clipped
-
-
-# from typing import List, Tuple
-# def global_clip_list(
-#     raw_client_model_or_grad_list: List[Tuple[float, OrderedDict]],
-#     clipping_bound: float,
-# ):
-#     """
-#     Clip the L2-norm of parameters of the local trained models for DP.
-
-#     Param:
-#         raw_client_model_or_grad_list (list): the list of local trained models from the selected silos.
-#         clipping_bound (float): the L2 clipping bound.
-#     """
-#     new_grad_list = []
-#     for n_sample, local_grad in raw_client_model_or_grad_list:
-#         local_grad = global_clip(local_grad, clipping_bound)
-#         new_grad_list.append((n_sample, local_grad))
-#     return new_grad_list
-
-
-def add_global_noise(grad, random_state: np.random.RandomState, std_dev: float):
+def add_global_noise(model, grad, random_state: np.random.RandomState, std_dev: float):
     new_grad = OrderedDict()
-    for k in grad.keys():
-        new_grad[k] = _compute_new_grad(grad[k], random_state, std_dev)
+    for name, param in model.named_parameters():
+        if param.requires_grad:
+            new_grad[name] = _compute_new_grad(grad[name], random_state, std_dev)
+        else:
+            new_grad[name] = grad[name]
     return new_grad
 
 

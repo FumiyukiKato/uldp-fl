@@ -375,6 +375,24 @@ def build_user_histogram(local_train_indices, data_indices_of_users) -> Dict[int
     return user_histogram, user_ids_of_local_train_dataset
 
 
+def load_pre_seperated_dataset(dataset_name: str, silo_id: int = None) -> Tuple:
+    if dataset_name == "heart_disease":
+        from flamby_utils import heart_disease
+
+        dataset = heart_disease.custom_load_dataset(silo_id=silo_id)
+    elif dataset_name == "isic":
+        from flamby_utils import isic
+
+        dataset = isic.custom_load_dataset(silo_id=silo_id)
+    elif dataset_name == "tcga_brca":
+        from flamby_utils import tcga_brca
+
+        dataset = tcga_brca.custom_load_dataset(silo_id=silo_id)
+    else:
+        raise ValueError("Invalid dataset name.")
+    return dataset
+
+
 def load_dataset(
     random_state: np.random.RandomState,
     dataset_name: str,
@@ -390,9 +408,21 @@ def load_dataset(
     user_silo_matrix: np.ndarray = None,
     silo_id: int = None,
     is_simulation: bool = False,
-    agg_strategy: str = None,
 ) -> Tuple[List[Tuple[torch.Tensor, int]], List[Tuple[torch.Tensor, int]]]:
     logger.info("Start prepare dataset...")
+    if dataset_name in ["heart_disease", "isic", "tcga_brca"]:
+        # for simulator
+        if is_simulation:
+            return load_pre_seperated_dataset(dataset_name)
+        # for silo
+        if silo_id is not None:
+            return load_pre_seperated_dataset(dataset_name, silo_id)
+        # for server
+        all_training_dataset, all_test_dataset, _ = load_pre_seperated_dataset(
+            dataset_name
+        )
+        return all_training_dataset, all_test_dataset
+
     if dataset_name == "cifar10":
         data_dir = os.path.join(path_project, DATA_SET_DIR, "cifar10")
         apply_transform = transforms.Compose(
@@ -407,11 +437,12 @@ def load_dataset(
         test_dataset = datasets.CIFAR10(
             data_dir, train=False, download=True, transform=apply_transform
         )
-        labels = np.array(train_dataset.targets)
-        # labels = [label for _, label in train_dataset]
+        train_dataset.targets = torch.tensor(train_dataset.targets)
+        test_dataset.targets = torch.tensor(test_dataset.targets)
+        labels = train_dataset.targets.numpy()
 
-    elif dataset_name == "mnist" or dataset_name == "fmnist":
-        data_dir = os.path.join(path_project, DATA_SET_DIR, dataset_name)
+    elif dataset_name == "mnist":
+        data_dir = os.path.join(path_project, DATA_SET_DIR, "mnist")
         apply_transform = transforms.Compose(
             [
                 transforms.ToTensor(),
@@ -462,6 +493,9 @@ def load_dataset(
         test_dataset = datasets.CIFAR100(
             data_dir, train=False, download=True, transform=transform_test
         )
+        train_dataset.targets = torch.tensor(train_dataset.targets)
+        test_dataset.targets = torch.tensor(test_dataset.targets)
+        labels = train_dataset.targets.numpy()
     else:
         raise ValueError("Dataset not supported")
 

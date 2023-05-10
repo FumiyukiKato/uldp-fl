@@ -1,5 +1,5 @@
 import time
-from typing import List, Tuple, Dict
+from typing import List, Optional, Tuple, Dict
 import torch
 
 from message_type import FLMessage, GRPCMessage
@@ -25,6 +25,7 @@ class FLServer:
         clipping_bound: float = None,
         sigma: float = None,
         delta: float = None,
+        dataset_name: Optional[str] = None,
     ):
         if agg_strategy in ["ULDP-GROUP", "ULDP-SGD", "ULDP-AVG"]:
             raise NotImplementedError(
@@ -43,6 +44,7 @@ class FLServer:
             clipping_bound=clipping_bound,
             sigma=sigma,
             delta=delta,
+            dataset_name=dataset_name,
         )
 
         self.server_manger = ServerManager(

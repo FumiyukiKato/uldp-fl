@@ -18,52 +18,32 @@ def create_model(model_name: str, dataset_name: str, seed: int = None) -> nn.Mod
     """
     if seed is not None:
         torch.manual_seed(seed)
+
+    if dataset_name == "heart_disease":
+        import flamby_utils.heart_disease as heart_disease
+
+        return heart_disease.custom_model()
+
+    elif dataset_name == "tcga_brca":
+        import flamby_utils.tcga_brca as tcga_brca
+
+        return tcga_brca.custom_model()
+
+    elif dataset_name == "isic":
+        import flamby_utils.isic as isic
+
+        return isic.custom_model()
+
     if model_name == "cnn":
         # Convolutional neural network
         if dataset_name == "mnist":
-            global_model = CNNMnist()
-        elif dataset_name == "fmnist":
-            global_model = CNNFashion_Mnist()
+            return CNNMnist()
         elif dataset_name == "cifar10":
-            global_model = CNNCifar(10)
+            return CNNCifar(10)
         elif dataset_name == "cifar100":
-            global_model = ResNetCifar(100)
+            return ResNetCifar(100)
         else:
             raise NotImplementedError
-    return global_model
-
-
-class MLP(nn.Module):
-    def __init__(self, dim_in, dim_hidden, dim_out):
-        super(MLP, self).__init__()
-        self.layer_input = nn.Linear(dim_in, dim_hidden)
-        self.relu = nn.ReLU()
-        self.dropout = nn.Dropout()
-        self.layer_hidden = nn.Linear(dim_hidden, dim_out)
-
-    def forward(self, x):
-        x = x.view(-1, x.shape[1] * x.shape[-2] * x.shape[-1])
-        x = self.layer_input(x)
-        x = self.dropout(x)
-        x = self.relu(x)
-        x = self.layer_hidden(x)
-        return F.log_softmax(x, dim=1)
-
-
-class MLPPurchase100(nn.Module):
-    def __init__(self, dim_in, dim_hidden, dim_out):
-        super(MLPPurchase100, self).__init__()
-        self.layer_input = nn.Linear(dim_in, dim_hidden)
-        self.relu = nn.ReLU()
-        self.dropout = nn.Dropout()
-        self.layer_hidden = nn.Linear(dim_hidden, dim_out)
-
-    def forward(self, x):
-        x = self.layer_input(x)
-        x = self.dropout(x)
-        x = self.relu(x)
-        x = self.layer_hidden(x)
-        return F.log_softmax(x, dim=1)
 
 
 class CNNMnist(nn.Module):
@@ -83,35 +63,6 @@ class CNNMnist(nn.Module):
         x = F.dropout(x, training=self.training)
         x = self.fc2(x)
         return F.log_softmax(x, dim=1)
-
-
-class CNNFashion_Mnist(nn.Module):
-    def __init__(self):
-        super(CNNFashion_Mnist, self).__init__()
-        self.conv1 = nn.Conv2d(in_channels=1, out_channels=16, kernel_size=5, padding=2)
-        self.bn1 = nn.BatchNorm2d(16)
-        self.relu1 = nn.ReLU()
-        self.mp1 = nn.MaxPool2d(2)
-        self.conv2 = nn.Conv2d(
-            in_channels=16, out_channels=32, kernel_size=5, padding=2
-        )
-        self.bn2 = nn.BatchNorm2d(32)
-        self.relu2 = nn.ReLU()
-        self.mp2 = nn.MaxPool2d(2)
-        self.fc = nn.Linear(7 * 7 * 32, 10)
-
-    def forward(self, x):
-        x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.relu1(x)
-        x = self.mp1(x)
-        x = self.conv2(x)
-        x = self.bn2(x)
-        x = self.relu2(x)
-        x = self.mp2(x)
-        x = x.view(x.size(0), -1)
-        out = self.fc(x)
-        return F.log_softmax(out, dim=1)
 
 
 class CNNCifar(nn.Module):

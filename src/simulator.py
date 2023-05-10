@@ -68,6 +68,7 @@ class FLSimulator:
             sigma=sigma,
             delta=delta,
             central_learning_rate=learning_rate,
+            dataset_name=dataset_name,
         )
 
         if self.agg_strategy in ["ULDP-GROUP", "ULDP-SGD", "ULDP-AVG"]:
@@ -104,6 +105,7 @@ class FLSimulator:
                 local_clipping_bound=clipping_bound,
                 group_k=group_k,
                 n_silo_per_round=n_silo_per_round,
+                dataset_name=dataset_name,
             )
             self.local_trainer_per_silos[silo_id] = local_trainer
             if self.agg_strategy in ["ULDP-GROUP", "ULDP-SGD", "ULDP-AVG"]:

@@ -38,7 +38,6 @@ def run_simulation(args, path_project, trial=None, data_seed=None):
         args.n_labels,
         user_silo_matrix,
         is_simulation=True,
-        agg_strategy=args.agg_strategy,
     )
 
     # load model
@@ -81,5 +80,17 @@ if __name__ == "__main__":
     args = args_parser(path_project)
     if args.verbose:
         logger_set_debug()
+    if args.dataset_name == "heart_disease":
+        from flamby_utils.heart_disease import update_args
+
+        args = update_args(args)
+    elif args.dataset_name == "isic":
+        from flamby_utils.isic import update_args
+
+        args = update_args(args)
+    elif args.dataset_name == "tcga_brca":
+        from flamby_utils.tcga_brca import update_args
+
+        args = update_args(args)
     results = run_simulation(args, path_project)
-    save_resuls(path_project, args, results)
+    save_resuls(args, path_project, results)

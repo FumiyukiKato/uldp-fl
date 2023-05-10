@@ -75,6 +75,7 @@ if __name__ == "__main__":
         local_delta=args.delta,
         local_clipping_bound=args.clipping_bound,
         group_k=args.group_k,
+        dataset_name=args.dataset_name,
     )
     silo.run()
 

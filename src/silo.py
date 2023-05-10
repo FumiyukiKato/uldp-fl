@@ -32,6 +32,7 @@ class FLSilo:
         local_clipping_bound: Optional[float] = None,
         group_k: Optional[int] = None,
         user_weights: Optional[Dict[int, float]] = None,
+        dataset_name: Optional[str] = None,
     ):
         if agg_strategy in ["ULDP-GROUP", "ULDP-SGD", "ULDP-AVG"]:
             raise NotImplementedError(
@@ -58,6 +59,7 @@ class FLSilo:
             local_clipping_bound=local_clipping_bound,
             group_k=group_k,
             user_weights=user_weights,
+            dataset_name=dataset_name,
         )
         self.client_manager = SiloManager(
             local_trainer,

@@ -1,3 +1,4 @@
+from collections import OrderedDict
 import time
 from typing import Callable, Dict, List, Optional, Tuple
 import numpy as np
@@ -37,6 +38,7 @@ class ClassificationTrainer:
         group_k: Optional[int] = None,
         user_weights: Optional[Dict[int, float]] = None,
         n_silo_per_round: Optional[int] = None,
+        dataset_name: Optional[str] = None,
     ):
         self.random_state = np.random.RandomState(seed=base_seed + silo_id + 1)
         self.model: nn.Module = model
@@ -47,6 +49,7 @@ class ClassificationTrainer:
         self.user_weights = user_weights
         self.n_silo_per_round = n_silo_per_round
         self.learning_rate = learning_rate
+        self.dataset_name = dataset_name
 
         self.results = {"local_test": [], "train_time": [], "epsilon": []}
 
@@ -69,7 +72,55 @@ class ClassificationTrainer:
             self.local_sigma = local_sigma
             self.local_clipping_bound = local_clipping_bound
 
-        self.criterion = nn.CrossEntropyLoss().to(self.device)
+        if self.dataset_name == "heart_disease":
+            from flamby_utils.heart_disease import (
+                custom_loss,
+                custom_optimizer,
+                custom_metric,
+            )
+
+            self.criterion = custom_loss()
+            self.optimizer = custom_optimizer(self.model)
+            self.metric = custom_metric()
+        elif self.dataset_name == "tcga_brca":
+            from flamby_utils.tcga_brca import (
+                custom_loss,
+                custom_optimizer,
+                custom_metric,
+            )
+
+            self.criterion = custom_loss()
+            self.optimizer = custom_optimizer(self.model)
+            self.metric = custom_metric()
+        elif self.dataset_name == "isic":
+            from flamby_utils.isic import (
+                custom_loss,
+                custom_optimizer,
+                custom_metric,
+                custom_scheduler,
+            )
+
+            self.criterion = custom_loss(local_train_dataset, self.device)
+            self.optimizer = custom_optimizer(self.model)
+            self.metric = custom_metric()
+            self.scheduler = custom_scheduler(self.optimizer)
+        else:
+            self.criterion = nn.CrossEntropyLoss().to(self.device)
+            if client_optimizer == "sgd":
+                self.optimizer = torch.optim.SGD(
+                    filter(lambda p: p.requires_grad, self.model.parameters()),
+                    lr=learning_rate,
+                )
+            elif client_optimizer == "adam":
+                self.optimizer = torch.optim.Adam(
+                    filter(lambda p: p.requires_grad, self.model.parameters()),
+                    lr=learning_rate,
+                    weight_decay=weight_decay,
+                    amsgrad=True,
+                )
+            else:
+                raise ValueError("Unknown client optimizer")
+
         self.train_loader = DataLoader(
             local_train_dataset, batch_size=local_batch_size, shuffle=True
         )
@@ -77,21 +128,6 @@ class ClassificationTrainer:
         self.user_user_histogram = user_histogram
         self.user_ids_of_local_train_dataset = user_ids_of_local_train_dataset
         self.distinct_users = list(set(user_ids_of_local_train_dataset))
-
-        if client_optimizer == "sgd":
-            self.optimizer = torch.optim.SGD(
-                filter(lambda p: p.requires_grad, self.model.parameters()),
-                lr=learning_rate,
-            )
-        elif client_optimizer == "adam":
-            self.optimizer = torch.optim.Adam(
-                filter(lambda p: p.requires_grad, self.model.parameters()),
-                lr=learning_rate,
-                weight_decay=weight_decay,
-                amsgrad=True,
-            )
-        else:
-            raise ValueError("Unknown client optimizer")
 
     def get_results(self):
         return self.results
@@ -200,45 +236,42 @@ class ClassificationTrainer:
             train_loader = self.make_user_level_data_loader()
             grads_list = []  # TODO: memory optimization (use online aggregation)
             for user_id, user_data in train_loader:
+                model_u = copy.deepcopy(model)
                 x = torch.stack([data[0] for data in user_data])
                 labels = torch.stack([torch.tensor(data[1]) for data in user_data])
                 x, labels = x.to(self.device), labels.to(self.device)
                 optimizer.zero_grad()
-                log_probs = model(x)
-                labels = labels.long()
+                log_probs = model_u(x)
                 loss = criterion(log_probs, labels)
                 loss_callback(loss)
                 loss.backward()  # calculate gradients
+                # Don't optimize (i.e., Don't call step())
 
-                # Due to different batch size for each user
-                for param in model.parameters():
-                    param.grad /= len(x)
+                new_grad = OrderedDict()
+                for name, param in model_u.named_parameters():
+                    # Due to different batch size for each user
+                    new_grad[name] = param.grad / len(x)
 
-                grads = [param.grad for param in model.parameters()]
-                clipped_grads = noise_utils.grads_clip(
-                    grads, self.user_weights[user_id] * self.local_clipping_bound
+                clipped_grads = noise_utils.global_clip(
+                    model_u,
+                    new_grad,
+                    self.user_weights[user_id] * self.local_clipping_bound,
                 )
                 grads_list.append(clipped_grads)
 
             # calculate the average gradient
             U = len(train_loader)
-            avg_grads = []
-            for i in range(len(grads_list[0])):
-                avg_grads.append(
-                    (
-                        torch.sum(
-                            torch.stack([grads[i] for grads in grads_list]), dim=0
-                        )
-                        + torch.normal(
-                            0,
-                            self.local_sigma
-                            * self.local_clipping_bound
-                            / self.n_silo_per_round,
-                            size=grads_list[0][i].shape,
-                        )
-                    )
-                    / U
-                )
+            avg_grads = noise_utils.torch_aggregation(grads_list, U)
+            noisy_avg_grads = noise_utils.add_global_noise(
+                self.model,
+                avg_grads,
+                self.random_state,
+                self.local_sigma
+                * self.local_clipping_bound
+                / self.n_silo_per_round
+                / U,
+            )
+
         elif self.agg_strategy in ["ULDP-AVG"]:
             train_loader = self.make_user_level_data_loader()
             weights_diff_list = []  # TODO: memory optimization (use online aggregation)
@@ -253,7 +286,6 @@ class ClassificationTrainer:
                     labels = torch.stack([torch.tensor(data[1]) for data in user_data])
                     optimizer_u.zero_grad()
                     log_probs = model_u(x)
-                    labels = labels.long()
                     loss = criterion(log_probs, labels)
                     loss_callback(loss)
                     loss.backward()
@@ -261,27 +293,23 @@ class ClassificationTrainer:
                 weights = model_u.cpu().state_dict()
                 weights_diff = self.diff_weights(global_weights, weights)
                 clipped_weights_diff = noise_utils.global_clip(
-                    weights_diff, self.user_weights[user_id] * self.local_clipping_bound
+                    model_u,
+                    weights_diff,
+                    self.user_weights[user_id] * self.local_clipping_bound,
                 )
                 weights_diff_list.append(clipped_weights_diff)
 
             U = len(train_loader)
-            sum_diff = weights_diff_list[0]
-            for k in sum_diff.keys():
-                for i in range(1, len(weights_diff_list)):
-                    sum_diff[k] += weights_diff_list[i][k]
-            for k in sum_diff.keys():
-                sum_diff[k] = (
-                    sum_diff[k]
-                    + torch.normal(
-                        0,
-                        self.local_sigma
-                        * self.local_clipping_bound
-                        / self.n_silo_per_round,
-                        size=sum_diff[k].shape,
-                    )
-                ) / U
-            avg_weights_diff = sum_diff
+            avg_weights_diff = noise_utils.torch_aggregation(weights_diff_list, U)
+            noisy_avg_weights_diff = noise_utils.add_global_noise(
+                self.model,
+                avg_weights_diff,
+                self.random_state,
+                self.local_sigma
+                * self.local_clipping_bound
+                / self.n_silo_per_round
+                / U,
+            )
         else:
             for epoch in range(self.epochs):
                 batch_loss = []
@@ -289,11 +317,12 @@ class ClassificationTrainer:
                     x, labels = x.to(self.device), labels.to(self.device)
                     optimizer.zero_grad()
                     log_probs = model(x)
-                    labels = labels.long()
                     loss = criterion(log_probs, labels)
                     loss_callback(loss)
                     loss.backward()
                     optimizer.step()
+                    if self.dataset_name in ["isic"]:
+                        self.scheduler.step()
                     batch_loss.append(loss.item())
                 logger.info(
                     "Silo Id = {}\tEpoch: {}\tLoss: {:.6f}".format(
@@ -334,9 +363,10 @@ class ClassificationTrainer:
             return weights_dff, len(train_loader)
         elif self.agg_strategy in ["ULDP-NAIVE"]:
             clipped_weights_diff = noise_utils.global_clip(
-                weights_dff, self.local_clipping_bound
+                self.model, weights_dff, self.local_clipping_bound
             )
             noised_clipped_weights_diff = noise_utils.add_global_noise(
+                self.model,
                 clipped_weights_diff,
                 self.random_state,
                 self.local_sigma * self.local_clipping_bound,
@@ -344,13 +374,13 @@ class ClassificationTrainer:
             return noised_clipped_weights_diff, len(train_loader)
         elif self.agg_strategy in ["SILO-LEVEL-DP"]:
             clipped_weights_diff = noise_utils.global_clip(
-                weights_dff, self.local_clipping_bound
+                self.model, weights_dff, self.local_clipping_bound
             )
             return clipped_weights_diff, len(train_loader)
         elif self.agg_strategy in ["ULDP-SGD"]:
-            return avg_grads, len(self.train_loader)
+            return noisy_avg_grads, len(self.train_loader)
         elif self.agg_strategy in ["ULDP-AVG"]:
-            return avg_weights_diff, len(self.train_loader)
+            return noisy_avg_weights_diff, len(self.train_loader)
         elif self.agg_strategy in ["DEFAULT"]:
             return weights_dff, len(train_loader)
         else:
@@ -372,14 +402,6 @@ class ClassificationTrainer:
         model.to(self.device)
         model.eval()
 
-        metrics = {
-            "test_correct": 0,
-            "test_loss": 0,
-            "test_precision": 0,
-            "test_recall": 0,
-            "test_total": 0,
-        }
-
         if self.agg_strategy in ["ULDP-SGD", "ULDP-AVG"]:
             logger.info("Skip local test as model is not trained locally")
             return
@@ -388,23 +410,47 @@ class ClassificationTrainer:
             logger.info("Skip local test as dataset size is too small")
             return
 
-        with torch.no_grad():
-            for idx, (x, labels) in enumerate(self.test_loader):
-                x, labels = x.to(self.device), labels.to(self.device)
-                pred = model(x)
+        if self.dataset_name in ["heart_disease", "tcga_brca", "isic"]:
+            with torch.no_grad():
+                y_pred_final = []
+                y_true_final = []
+                n_total_data = 0
+                test_loss = 0
+                for idx, (x, y) in enumerate(self.test_loader):
+                    x, y = x.to(self.device), y.to(self.device)
+                    y_pred = model(x)
+                    loss = self.criterion(y_pred, y)
+                    test_loss += loss.item()
+                    if self.dataset_name == "isic":
+                        _, y_pred = torch.max(y_pred, 1)
+                    y_pred_final.append(y_pred.numpy())
+                    y_true_final.append(y.numpy())
+                    n_total_data += len(y)
 
-                loss = self.criterion(pred, labels)
-                metrics["test_loss"] += loss.item()
+            y_true_final = np.concatenate(y_true_final)
+            y_pred_final = np.concatenate(y_pred_final)
+            test_metric = self.metric(y_true_final, y_pred_final)
+            logger.info("|----- Local test result of round %d" % (round_idx))
+            logger.info(
+                f"\t |----- Local Test/Acc: {test_metric} ({n_total_data}), Local Test/Loss: {test_loss}"
+            )
+        else:
+            with torch.no_grad():
+                n_total_data = 0
+                test_loss = 0
+                test_correct = 0
+                for idx, (x, labels) in enumerate(self.test_loader):
+                    x, labels = x.to(self.device), labels.to(self.device)
+                    pred = model(x)
+                    loss = self.criterion(pred, labels)
+                    test_loss += loss.item()
+                    _, predicted = torch.max(pred, 1)
+                    test_correct += torch.sum(torch.eq(predicted, labels)).item()
+                    n_total_data += len(labels)
 
-                _, predicted = torch.max(pred, 1)
-                metrics["test_correct"] += torch.sum(torch.eq(predicted, labels)).item()
-
-                metrics["test_total"] += len(labels)
-
-        test_acc = metrics["test_correct"] / metrics["test_total"]
-        test_loss = metrics["test_loss"]
-        logger.info("|----- Local test result of round %d" % (round_idx))
-        logger.info(
-            f"\t |----- Local Test/Acc: {test_acc} ({metrics['test_correct']} / {metrics['test_total']}), Local Test/Loss: {test_loss}"
-        )
-        self.results["local_test"].append((round_idx, test_acc, test_loss))
+            test_metric = test_correct / n_total_data
+            logger.info("|----- Local test result of round %d" % (round_idx))
+            logger.info(
+                f"\t |----- Local Test/Acc: {test_metric} ({test_correct} / {n_total_data}), Local Test/Loss: {test_loss}"
+            )
+        self.results["local_test"].append((round_idx, test_metric, test_loss))

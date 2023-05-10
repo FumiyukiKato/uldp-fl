@@ -27,6 +27,7 @@ class Aggregator:
         sigma: Optional[float] = None,
         delta: Optional[float] = None,
         central_learning_rate: Optional[float] = None,
+        dataset_name: str = None,
     ):
         self.random_state = np.random.RandomState(seed=base_seed + 1000000)
         self.model: nn.Module = model
@@ -35,6 +36,7 @@ class Aggregator:
         self.n_silos = n_silos
         self.n_silo_per_round = n_silo_per_round
         self.device = device
+        self.dataset_name = dataset_name
         self.strategy = strategy
         if self.strategy in [
             "SILO-LEVEL-DP",
@@ -75,9 +77,6 @@ class Aggregator:
 
     def get_global_model_params(self):
         return self.model.state_dict()
-
-    def set_global_model_params(self, model_parameters):
-        self.model.load_state_dict(model_parameters)
 
     def record_epsilon(self, round_idx):
         if self.strategy in ["SILO-LEVEL-DP"]:
@@ -124,7 +123,7 @@ class Aggregator:
         self.flag_client_model_uploaded_dict[silo_id] = True
         self.latest_eps = eps
 
-    def silo_selection(self):
+    def silo_selection(self) -> List[int]:
         """
         Randomly select n_silo_per_round silos from all silos for each round of FL training.
 
@@ -133,12 +132,14 @@ class Aggregator:
         """
 
         if self.n_silos == self.n_silo_per_round:
-            return np.arange(self.n_silo_per_round)
+            return np.arange(self.n_silo_per_round).tolist()
         silo_id_list_in_this_round = self.random_state.choice(
-            self.n_silos, self.n_silo_per_round, replace=False
+            self.n_silos,
+            self.n_silo_per_round,
+            replace=False,
         )
         logger.info("Silo selection reuslt: {}".format(silo_id_list_in_this_round))
-        return silo_id_list_in_this_round
+        return list(silo_id_list_in_this_round)
 
     def check_whether_all_receive(self, silo_id_list_in_this_round: List[int]):
         """
@@ -169,15 +170,32 @@ class Aggregator:
         """
         raw_client_model_or_grad_list = []
         for silo_id in silo_id_list_in_this_round:
-            raw_client_model_or_grad_list.append(
-                (self.n_sample_dict[silo_id], self.model_dict[silo_id])
-            )
+            raw_client_model_or_grad_list.append(self.model_dict[silo_id])
 
-        if self.strategy in ["SILO-LEVEL-DP"]:
+        if self.strategy in [
+            "DEFAULT",
+            "RECORD-LEVEL-DP",
+            "ULDP-GROUP",
+            "ULDP-NAIVE",
+            "ULDP-AVG",
+        ]:
+            averaged_param_diff = noise_utils.torch_aggregation(
+                raw_client_model_or_grad_list, self.n_silo_per_round
+            )
+            global_weights = self.update_global_weights_from_diff(averaged_param_diff)
+        elif self.strategy in ["ULDP-SGD"]:
+            averaged_grads = noise_utils.torch_aggregation(
+                raw_client_model_or_grad_list, self.n_silo_per_round
+            )
+            global_weights = self.update_parameters_from_gradients(averaged_grads)
+        elif self.strategy in ["SILO-LEVEL-DP"]:
             # https://arxiv.org/abs/1812.06210
             # Usually, this is used in cross-device FL, where the number of participants is large.
-            averaged_param_diff = self.torch_aggregation(raw_client_model_or_grad_list)
+            averaged_param_diff = noise_utils.torch_aggregation(
+                raw_client_model_or_grad_list, self.n_silo_per_round
+            )
             noised_averaged_param_diff = noise_utils.add_global_noise(
+                self.model,
                 averaged_param_diff,
                 random_state=self.random_state,
                 std_dev=(self.sigma * self.clipping_bound) / self.n_silo_per_round,
@@ -185,41 +203,6 @@ class Aggregator:
             global_weights = self.update_global_weights_from_diff(
                 noised_averaged_param_diff
             )
-        elif self.strategy in ["RECORD-LEVEL-DP", "ULDP-GROUP"]:
-            averaged_param_diff = self.torch_aggregation(raw_client_model_or_grad_list)
-            global_weights = self.update_global_weights_from_diff(averaged_param_diff)
-        elif self.strategy in ["ULDP-NAIVE"]:
-            averaged_param_diff = self.torch_aggregation(raw_client_model_or_grad_list)
-            global_weights = self.update_global_weights_from_diff(averaged_param_diff)
-        elif self.strategy in ["ULDP-SGD"]:
-            averaged_grads = self.torch_aggregation(raw_client_model_or_grad_list)
-            total_norm = torch.norm(
-                torch.stack([torch.norm(g, 2.0) for g in averaged_grads]), 2.0
-            )
-            logger.info(
-                "l2 norm of averaged_grads = {}, learning_rate = {}, Delta = {}".format(
-                    total_norm,
-                    self.central_learning_rate,
-                    total_norm * self.central_learning_rate,
-                )
-            )
-            global_weights = self.update_parameters_from_gradients(averaged_grads)
-        elif self.strategy in ["ULDP-AVG"]:
-            averaged_param_diff = self.torch_aggregation(raw_client_model_or_grad_list)
-            total_norm = torch.norm(
-                torch.stack(
-                    [
-                        torch.norm(averaged_param_diff[k], 2.0)
-                        for k in averaged_param_diff.keys()
-                    ]
-                ),
-                2.0,
-            )
-            logger.info("l2 norm of averaged_param_diff = {}".format(total_norm))
-            global_weights = self.update_global_weights_from_diff(averaged_param_diff)
-        elif self.strategy in ["DEFAULT"]:
-            averaged_param_diff = self.torch_aggregation(raw_client_model_or_grad_list)
-            global_weights = self.update_global_weights_from_diff(averaged_param_diff)
         else:
             raise NotImplementedError(
                 "strategy = {} is not implemented".format(self.strategy)
@@ -228,89 +211,70 @@ class Aggregator:
         self.record_epsilon(round_idx)
         return global_weights
 
-    def torch_aggregation(self, raw_grad_list: List) -> Dict:
-        """
-        Aggregate the local trained models from the selected silos for Pytorch model.
-
-        Params:
-            raw_grad_list (list): the list of local trained models from the selected silos.
-        Return:
-            averaged_params (dict): the averaged model parameters.
-        """
-        (_, avg_params) = raw_grad_list[0]
-        w = 1.0 / self.n_silo_per_round
-
-        if type(avg_params) == list:
-            for i in range(0, len(avg_params)):
-                for j in range(0, len(raw_grad_list)):
-                    _, local_model_params = raw_grad_list[j]
-                    if j == 0:
-                        avg_params[i] = local_model_params[i] * w
-                    else:
-                        avg_params[i] += local_model_params[i] * w
-            return avg_params
-        for k in avg_params.keys():
-            for i in range(0, len(raw_grad_list)):
-                _, local_model_params = raw_grad_list[i]
-                if i == 0:
-                    avg_params[k] = local_model_params[k] * w
-                else:
-                    avg_params[k] += local_model_params[k] * w
-        return avg_params
-
-    def torch_weighted_aggregation(self, raw_grad_list: List):
-        """
-        Aggregate the local trained models from the selected silos
-        for Pytorch model with weights based on local sample size.
-
-        Params:
-            raw_grad_list (list): the list of local trained models from the selected silos.
-        Return:
-            averaged_params (dict): the averaged model parameters.
-        """
-        n_total_sample = 0
-        for i in range(len(raw_grad_list)):
-            n_local_sample, _ = raw_grad_list[i]
-            n_total_sample += n_local_sample
-
-        (_, avg_params) = raw_grad_list[0]
-        for k in avg_params.keys():
-            for i in range(0, len(raw_grad_list)):
-                n_local_sample, local_model_params = raw_grad_list[i]
-                w = n_local_sample / n_total_sample
-                if i == 0:
-                    avg_params[k] = local_model_params[k] * w
-                else:
-                    avg_params[k] += local_model_params[k] * w
-        return avg_params
-
     def _test(self, test_data, device, model):
         model.to(device)
         model.eval()
 
         metrics = {
-            "test_correct": 0,
+            "test_metric": 0,
             "test_loss": 0,
-            "test_precision": 0,
-            "test_recall": 0,
             "test_total": 0,
         }
 
         test_loader = DataLoader(test_data, batch_size=10)
-        criterion = nn.CrossEntropyLoss().to(device)
 
-        with torch.no_grad():
-            for x, labels in test_loader:
-                x, labels = x.to(device), labels.to(device)
-                pred = model(x)
+        if self.dataset_name in ["heart_disease", "tcga_brca", "isic"]:
+            if self.dataset_name == "heart_disease":
+                from flamby_utils.heart_disease import (
+                    custom_loss,
+                    custom_metric,
+                )
+            elif self.dataset_name == "tcga_brca":
+                from flamby_utils.tcga_brca import (
+                    custom_loss,
+                    custom_metric,
+                )
+            elif self.dataset_name == "isic":
+                from flamby_utils.isic import (
+                    custom_loss,
+                    custom_metric,
+                )
 
-                loss = criterion(pred, labels)
-                metrics["test_loss"] += loss.item()
+            criterion = custom_loss()
+            metric = custom_metric()
 
-                _, predicted = torch.max(pred, 1)
-                metrics["test_correct"] += torch.sum(torch.eq(predicted, labels)).item()
+            with torch.no_grad():
+                y_pred_final = []
+                y_true_final = []
+                for x, y in test_loader:
+                    x, y = x.to(self.device), y.to(self.device)
+                    y_pred = model(x)
+                    loss = criterion(y_pred, y)
+                    metrics["test_loss"] += loss.item()
+                    if self.dataset_name == "isic":
+                        _, y_pred = torch.max(y_pred, 1)
+                    y_pred_final.append(y_pred.numpy())
+                    y_true_final.append(y.numpy())
+                    metrics["test_total"] += len(y)
 
-                metrics["test_total"] += len(labels)
+            y_true_final = np.concatenate(y_true_final)
+            y_pred_final = np.concatenate(y_pred_final)
+            metrics["test_metric"] = metric(y_true_final, y_pred_final)
+        else:
+            criterion = nn.CrossEntropyLoss().to(device)
+
+            with torch.no_grad():
+                for x, labels in test_loader:
+                    x, labels = x.to(device), labels.to(device)
+                    pred = model(x)
+                    loss = criterion(pred, labels)
+                    metrics["test_loss"] += loss.item()
+                    _, predicted = torch.max(pred, 1)
+                    metrics["test_metric"] += torch.sum(
+                        torch.eq(predicted, labels)
+                    ).item()
+                    metrics["test_total"] += len(labels)
+            metrics["test_metric"] /= metrics["test_total"]
 
         return metrics
 
@@ -320,19 +284,17 @@ class Aggregator:
             model = self.model
 
         metrics = self._test(self.test_dataset, self.device, model)
-
-        test_tot_correct, n_test_sample, test_loss = (
-            metrics["test_correct"],
+        test_metric, n_test_sample, test_loss = (
+            metrics["test_metric"],
             metrics["test_total"],
             metrics["test_loss"],
         )
 
-        test_acc = test_tot_correct / n_test_sample
         if silo_id is None:
             self.results["global_test"].append(
                 (
                     round_idx,
-                    test_acc,
+                    test_metric,
                     test_loss,
                 )
             )
@@ -342,7 +304,7 @@ class Aggregator:
                 (
                     round_idx,
                     silo_id,
-                    test_acc,
+                    test_metric,
                     test_loss,
                 )
             )
@@ -351,17 +313,18 @@ class Aggregator:
                 % (silo_id, round_idx)
             )
         logger.info(
-            f"\t |----- Test/Acc: {test_acc} ({test_tot_correct} / {n_test_sample}), Test/Loss: {test_loss}"
+            f"\t |----- Test/Acc: {test_metric} ({n_test_sample}), Test/Loss: {test_loss}"
         )
-        return test_acc, test_loss
+        return test_metric, test_loss
 
     def update_global_weights_from_diff(self, local_weights_diff) -> Dict:
         """
         Update the parameters of the global model with the difference from the local models.
         """
         global_weights = self.get_global_model_params()
-        for key in global_weights.keys():
-            global_weights[key] += local_weights_diff[key]
+        for name, param in self.model.named_parameters():
+            if param.requires_grad:
+                global_weights[name] += local_weights_diff[name]
         return global_weights
 
     def update_parameters_from_gradients(self, grads) -> Dict:
@@ -374,8 +337,9 @@ class Aggregator:
             global_weights (dict): updated global model parameters
         """
         with torch.no_grad():
-            for param, grad in zip(self.model.parameters(), grads):
-                param -= self.central_learning_rate * grad
+            for name, param in self.model.named_parameters():
+                if param.requires_grad:
+                    param.data -= self.central_learning_rate * grads[name]
         return self.model.state_dict()
 
 
