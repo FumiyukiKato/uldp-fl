@@ -42,7 +42,7 @@ tested at Python 3.9.2, OSX, Ubuntu18.04
 
 4. Medical dataset
 
-    This repository accesses the medical dataset for cross-silo FL reseaches through [FLamby](https://github.com/owkin/FLamby), but does not contain the data itself. If users want to use the data, please carefully read yourself with the license stated in FLamby.
+    This repository accesses the medical dataset for cross-silo FL reseaches through [FLamby](https://github.com/owkin/FLamby), but does not contain the data itself. **If users want to use the data, please carefully read yourself with the license stated in FLamby.**
 
     We tested at release version 0.0.1 in [FLamby](https://github.com/owkin/FLamby). If you use the medical dataset. You try, for example,
     ```bash
