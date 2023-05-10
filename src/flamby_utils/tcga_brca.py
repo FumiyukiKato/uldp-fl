@@ -13,7 +13,7 @@ from flamby.datasets.fed_tcga_brca import (
     FedTcgaBrca,
 )
 
-N_SILO = 5
+N_SILO = 6
 TRAIN_SIZE_LIST = [248, 156, 164, 129, 129, 40]
 
 
@@ -57,6 +57,7 @@ def build_user_dist(
             if user_id not in user_hist_per_silo[silo_id]:
                 user_hist_per_silo[silo_id][user_id] = 0
             user_hist_per_silo[silo_id][user_id] += 1
+            record_id += 1
 
     user_dist = {}
     for silo_id in range(N_SILO):

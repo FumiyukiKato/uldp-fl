@@ -22,11 +22,9 @@ def pretty_print_args(args: argparse.Namespace):
     logger.info(parameter_info_str)
 
 
-def update_args(args: argparse.Namespace, path: str):
-    config = load_config(path)
-    for key, value in config.items():
-        setattr(args, key, value)
-    return args
+def build_default_args(path_project):
+    config = load_config(os.path.join(path_project, DEFAULT_CONFIG_PATH))
+    return argparse.Namespace(**config)
 
 
 def args_parser(path_project: str) -> argparse.Namespace:
