@@ -1,3 +1,62 @@
 {
-    "best_params": {}
+  "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='heart_disease', model_name='cnn', n_users=10, n_silos=4, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=4, n_total_round=5, epochs=10, learning_rate=0.001, local_batch_size=4, weight_decay=0.001, client_optimizer='sgd', agg_strategy='DEFAULT', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None)": {
+    "learning_rate": 0.0027267573880087295,
+    "clipping_bound": 0.0012620948285169307,
+    "epochs": 21
+  },
+  "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='heart_disease', model_name='cnn', n_users=100, n_silos=4, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=4, n_total_round=5, epochs=10, learning_rate=0.001, local_batch_size=4, weight_decay=0.001, client_optimizer='sgd', agg_strategy='DEFAULT', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None)": {
+    "learning_rate": 0.0027267573880087295,
+    "clipping_bound": 0.0012620948285169307,
+    "epochs": 21
+  },
+  "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='heart_disease', model_name='cnn', n_users=1100, n_silos=4, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=4, n_total_round=5, epochs=10, learning_rate=0.001, local_batch_size=4, weight_decay=0.001, client_optimizer='sgd', agg_strategy='DEFAULT', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None)": {
+    "learning_rate": 0.0027267573880087295,
+    "clipping_bound": 0.0012620948285169307,
+    "epochs": 21
+  },
+  "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='tcga_brca', model_name='cnn', n_users=10, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=5, epochs=10, learning_rate=0.1, local_batch_size=8, weight_decay=0.001, client_optimizer='sgd', agg_strategy='DEFAULT', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None)": {
+    "learning_rate": 0.5547119471592125,
+    "clipping_bound": 3.7665768415992953,
+    "epochs": 16
+  },
+  "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='tcga_brca', model_name='cnn', n_users=100, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=5, epochs=10, learning_rate=0.1, local_batch_size=8, weight_decay=0.001, client_optimizer='sgd', agg_strategy='DEFAULT', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None)": {
+    "learning_rate": 0.5547119471592125,
+    "clipping_bound": 3.7665768415992953,
+    "epochs": 16
+  },
+  "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='tcga_brca', model_name='cnn', n_users=1100, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=5, epochs=10, learning_rate=0.1, local_batch_size=8, weight_decay=0.001, client_optimizer='sgd', agg_strategy='DEFAULT', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None)": {
+    "learning_rate": 0.5547119471592125,
+    "clipping_bound": 3.7665768415992953,
+    "epochs": 16
+  },
+  "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='heart_disease', model_name='cnn', n_users=10, n_silos=4, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=4, n_total_round=5, epochs=10, learning_rate=0.001, local_batch_size=4, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-NAIVE', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None)": {
+    "learning_rate": 0.015222963851026021,
+    "clipping_bound": 0.0472360203961891,
+    "epochs": 6
+  },
+  "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='heart_disease', model_name='cnn', n_users=100, n_silos=4, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=4, n_total_round=5, epochs=10, learning_rate=0.001, local_batch_size=4, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-NAIVE', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None)": {
+    "learning_rate": 0.015222963851026021,
+    "clipping_bound": 0.0472360203961891,
+    "epochs": 6
+  },
+  "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='heart_disease', model_name='cnn', n_users=1100, n_silos=4, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=4, n_total_round=5, epochs=10, learning_rate=0.001, local_batch_size=4, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-NAIVE', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None)": {
+    "learning_rate": 0.015222963851026021,
+    "clipping_bound": 0.0472360203961891,
+    "epochs": 6
+  },
+  "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='tcga_brca', model_name='cnn', n_users=10, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=5, epochs=10, learning_rate=0.1, local_batch_size=8, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-NAIVE', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None)": {
+    "learning_rate": 0.0010816083727936067,
+    "clipping_bound": 0.0010435767101303205,
+    "epochs": 1
+  },
+  "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='tcga_brca', model_name='cnn', n_users=100, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=5, epochs=10, learning_rate=0.1, local_batch_size=8, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-NAIVE', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None)": {
+    "learning_rate": 0.0010816083727936067,
+    "clipping_bound": 0.0010435767101303205,
+    "epochs": 1
+  },
+  "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='tcga_brca', model_name='cnn', n_users=1100, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=5, epochs=10, learning_rate=0.1, local_batch_size=8, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-NAIVE', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None)": {
+    "learning_rate": 0.0010816083727936067,
+    "clipping_bound": 0.0010435767101303205,
+    "epochs": 1
+  }
 }

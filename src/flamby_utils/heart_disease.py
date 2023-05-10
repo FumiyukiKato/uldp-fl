@@ -31,19 +31,29 @@ def update_args(args):
 
 # とりあえず適当に作った
 def build_user_dist(
-    all_training_dataset: FedHeartDisease,
-    all_test_dataset: FedHeartDisease,
+    all_train_dataset: FedHeartDisease,
     n_users: int = 500,
+    random_state: np.random.RandomState = np.random.RandomState(seed=0),
 ) -> Dict:
-    n_all_dataset = len(all_training_dataset) + len(all_test_dataset)
-    user_id_of_records = np.random.RandomState(seed=0).choice(
-        n_users, size=n_all_dataset, replace=True
-    )
+    n_train_dataset = len(all_train_dataset)
+    user_list = np.arange(n_users)
+    if n_train_dataset < n_users:
+        user_id_of_records = np.arange(n_train_dataset)
+    else:
+        user_id_of_records = np.concatenate(
+            [
+                user_list,
+                random_state.choice(user_list, n_train_dataset - len(user_list)),
+            ]
+        )
+    random_state.shuffle(user_id_of_records)
+    user_id_of_records = user_id_of_records.tolist()
+
     user_ids_per_silo = {}
     user_hist_per_silo = {}
     for record_id, user_id in enumerate(user_id_of_records):
-        if record_id < len(all_training_dataset):
-            silo_id = all_training_dataset.centers[record_id]
+        if record_id < len(all_train_dataset):
+            silo_id = all_train_dataset.centers[record_id]
 
             if silo_id not in user_ids_per_silo:
                 user_ids_per_silo[silo_id] = []
@@ -52,9 +62,6 @@ def build_user_dist(
                 user_hist_per_silo[silo_id][user_id] = 0
             user_ids_per_silo[silo_id].append(user_id)
             user_hist_per_silo[silo_id][user_id] += 1
-        else:
-            # not using test_dataset
-            silo_id = all_test_dataset[record_id - len(all_training_dataset)]
 
     user_dist = {}
     for silo_id in range(N_SILO):
@@ -63,10 +70,16 @@ def build_user_dist(
     return user_dist
 
 
-def custom_load_dataset(silo_id: int = None) -> Tuple:
-    all_training_dataset = FedHeartDisease(train=True, pooled=True, debug=False)
+def custom_load_dataset(
+    random_state: np.random.RandomState, silo_id: int = None, n_users: int = None
+) -> Tuple:
+    all_train_dataset = FedHeartDisease(train=True, pooled=True, debug=False)
     all_test_dataset = FedHeartDisease(train=False, pooled=True, debug=False)
-    user_dist_per_silo = build_user_dist(all_training_dataset, all_test_dataset)
+    user_dist_per_silo = build_user_dist(
+        all_train_dataset,
+        n_users=n_users,
+        random_state=random_state,
+    )
 
     dataset_for_each_silo = {}
     for i in range(N_SILO):
@@ -79,7 +92,7 @@ def custom_load_dataset(silo_id: int = None) -> Tuple:
 
     if silo_id is not None:
         return dataset_for_each_silo[silo_id]
-    return all_training_dataset, all_test_dataset, dataset_for_each_silo
+    return all_train_dataset, all_test_dataset, dataset_for_each_silo
 
 
 def custom_model():

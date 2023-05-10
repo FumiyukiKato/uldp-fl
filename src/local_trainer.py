@@ -175,6 +175,7 @@ class ClassificationTrainer:
     def bound_user_contributions(self, bounded_user_histogram):
         new_local_train_dataset = []
         new_local_test_dataset = self.test_loader.dataset
+        new_user_ids_of_local_train_dataset = []
 
         user_counter = {}
         remove_counter = 0
@@ -190,15 +191,19 @@ class ClassificationTrainer:
                 and user_counter[user_id] <= bounded_user_histogram[user_id]
             ):
                 new_local_train_dataset.append(data)
+                new_user_ids_of_local_train_dataset.append(user_id)
             else:
                 remove_counter += 1
-                new_local_test_dataset.append(data)
+                if self.dataset_name not in ["heart_disease", "tcga_brca", "isic"]:
+                    new_local_test_dataset.append(data)
         logger.info("{} data is removed from training dataset".format(remove_counter))
 
         self.train_loader = DataLoader(
             new_local_train_dataset, batch_size=self.local_batch_size, shuffle=True
         )
         self.test_loader = DataLoader(new_local_test_dataset)
+        self.user_ids_of_local_train_dataset = new_user_ids_of_local_train_dataset
+        self.distinct_users = list(set(new_user_ids_of_local_train_dataset))
 
     def train(
         self, global_round_index: int, loss_callback: Callable = lambda loss: None
@@ -314,6 +319,8 @@ class ClassificationTrainer:
             for epoch in range(self.epochs):
                 batch_loss = []
                 for idx, (x, labels) in enumerate(train_loader):
+                    if len(x) == 0:  # this is possible in poisson sampling in DP-SGD
+                        continue
                     x, labels = x.to(self.device), labels.to(self.device)
                     optimizer.zero_grad()
                     log_probs = model(x)

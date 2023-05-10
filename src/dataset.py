@@ -375,19 +375,30 @@ def build_user_histogram(local_train_indices, data_indices_of_users) -> Dict[int
     return user_histogram, user_ids_of_local_train_dataset
 
 
-def load_pre_seperated_dataset(dataset_name: str, silo_id: int = None) -> Tuple:
+def load_pre_seperated_dataset(
+    dataset_name: str,
+    random_state: np.random.RandomState,
+    silo_id: int = None,
+    n_users: int = None,
+) -> Tuple:
     if dataset_name == "heart_disease":
         from flamby_utils import heart_disease
 
-        dataset = heart_disease.custom_load_dataset(silo_id=silo_id)
+        dataset = heart_disease.custom_load_dataset(
+            random_state=random_state, silo_id=silo_id, n_users=n_users
+        )
     elif dataset_name == "isic":
         from flamby_utils import isic
 
-        dataset = isic.custom_load_dataset(silo_id=silo_id)
+        dataset = isic.custom_load_dataset(
+            random_state=random_state, silo_id=silo_id, n_users=n_users
+        )
     elif dataset_name == "tcga_brca":
         from flamby_utils import tcga_brca
 
-        dataset = tcga_brca.custom_load_dataset(silo_id=silo_id)
+        dataset = tcga_brca.custom_load_dataset(
+            random_state=random_state, silo_id=silo_id, n_users=n_users
+        )
     else:
         raise ValueError("Invalid dataset name.")
     return dataset
@@ -413,13 +424,17 @@ def load_dataset(
     if dataset_name in ["heart_disease", "isic", "tcga_brca"]:
         # for simulator
         if is_simulation:
-            return load_pre_seperated_dataset(dataset_name)
+            return load_pre_seperated_dataset(
+                dataset_name, random_state, n_users=n_users
+            )
         # for silo
         if silo_id is not None:
-            return load_pre_seperated_dataset(dataset_name, silo_id)
+            return load_pre_seperated_dataset(
+                dataset_name, random_state, silo_id=silo_id, n_users=n_users
+            )
         # for server
         all_training_dataset, all_test_dataset, _ = load_pre_seperated_dataset(
-            dataset_name
+            dataset_name, random_state, n_users=n_users
         )
         return all_training_dataset, all_test_dataset
 

@@ -20,20 +20,31 @@ def build_exp_paramerters(default_args, dataset, dist, method, n_users):
 
     copy_args.n_total_round = 5
 
-    if dataset == "mnist":
-        copy_args.dataset_name = dataset
-    else:
-        raise NotImplementedError
+    copy_args.dataset_name = dataset
+    if dataset in ["mnist", "cifar10", "cifar100"]:
+        if dist == 0:
+            copy_args.user_dist = "uniform-iid"
+            copy_args.silo_dist = "uniform"
+        elif dist == 1:
+            copy_args.user_dist = "zipf-noniid"
+            copy_args.user_alpha = 0.3
+            copy_args.silo_dist = "zipf"
+            copy_args.silo_alpha = 1.5
+            copy_args.n_labels = 1
+        else:
+            raise NotImplementedError
+    elif dataset == "heart_disease":
+        from flamby_utils.heart_disease import update_args
 
-    if dist == 0:
-        copy_args.user_dist = "uniform-iid"
-        copy_args.silo_dist = "uniform"
-    elif dist == 1:
-        copy_args.user_dist = "zipf-noniid"
-        copy_args.user_alpha = 0.3
-        copy_args.silo_dist = "zipf"
-        copy_args.silo_alpha = 1.5
-        copy_args.n_labels = 1
+        copy_args = update_args(copy_args)
+    elif dataset == "isic":
+        from flamby_utils.isic import update_args
+
+        copy_args = update_args(copy_args)
+    elif dataset == "tcga_brca":
+        from flamby_utils.tcga_brca import update_args
+
+        copy_args = update_args(copy_args)
     else:
         raise NotImplementedError
 
@@ -127,15 +138,17 @@ def hyper_parameter_tuning(args):
     study.optimize(objective, n_trials=N_TRIALS)
     try:
         best_params = study.best_params
-    except ValueError:
-        logger.warning("No trials are completed yet.")
+        best_value = study.best_value
+    except ValueError as e:
+        logger.warning(f"No trials are completed yet. {str(e)}")
         best_params = "Too Bad."
+        best_value = 0.0
 
     save_best_params(original_args, path_project, best_params)
 
     return {
         "best_params": best_params,
-        "best_value": study.best_value,
+        "best_value": best_value,
         "result_details": result_details,
     }
 
@@ -160,7 +173,7 @@ if __name__ == "__main__":
         if type(best_params) is dict:
             args.learning_rate = best_params["learning_rate"]
             args.clipping_bound = best_params["clipping_bound"]
-            if args.agg_strategy in ["ULDP-AVG", "ULDP-GROUP", "DEFAULT"]:
+            if args.agg_strategy in ["ULDP-AVG", "ULDP-GROUP", "DEFAULT", "ULDP-NAIVE"]:
                 args.epochs = best_params["epochs"]
             logger.info(
                 "++++++++ Using Best params: learning_rate={}, clipping_bound={}, epochs={} ++++++++".format(
