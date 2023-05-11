@@ -9,7 +9,7 @@ from scenario import create_dist_params
 import models
 from simulator import FLSimulator
 
-from mylogger import logger_set_debug
+from mylogger import logger_set_debug, logger_set_warning
 
 
 def run_simulation(args, path_project, trial=None, data_seed=None):
@@ -80,6 +80,8 @@ if __name__ == "__main__":
     args = args_parser(path_project)
     if args.verbose:
         logger_set_debug()
+    else:
+        logger_set_warning()
     if args.dataset_name == "heart_disease":
         from flamby_utils.heart_disease import update_args
 

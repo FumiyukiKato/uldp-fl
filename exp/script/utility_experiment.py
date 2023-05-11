@@ -53,7 +53,6 @@ def build_exp_paramerters(default_args, dataset, dist, method, n_users):
     if method == "DEFAULT":
         pass
     elif method == "ULDP-GROUP":
-        copy_args.group_k = 2
         copy_args.sigma = 5.0
         copy_args.clipping_bound = 1.0
         copy_args.delta = 0.00001
@@ -69,7 +68,7 @@ def build_exp_paramerters(default_args, dataset, dist, method, n_users):
     return copy_args
 
 
-def hyper_parameter_tuning(args):
+def hyper_parameter_tuning(args, path_project):
     import optuna
 
     N_SEED = 2  # Baysian searching like `optuna` is relatively robust for seed
@@ -133,7 +132,7 @@ def hyper_parameter_tuning(args):
 
     study = optuna.create_study(
         pruner=optuna.pruners.MedianPruner(),
-        sampler=optuna.samplers.TPESampler(seed=args.seed),
+        sampler=optuna.samplers.TPESampler(seed=original_args.seed),
     )
     study.optimize(objective, n_trials=N_TRIALS)
     try:
@@ -166,7 +165,7 @@ if __name__ == "__main__":
         logger_set_debug()
 
     if args.hyper_parameter_tuning:
-        hp_results = hyper_parameter_tuning(args)
+        hp_results = hyper_parameter_tuning(args, path_project)
         exp_results = {"hp_results": hp_results}
     else:
         best_params = load_best_params(args, path_project)
@@ -182,6 +181,7 @@ if __name__ == "__main__":
             )
         else:
             logger.warning("++++++++ Best params Not Found ++++++++")
+            raise ValueError("Best params Not Found")
         results_list = []
         for i in range(args.times):
             args.seed = args.seed + i

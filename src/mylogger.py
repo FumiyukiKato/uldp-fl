@@ -19,3 +19,8 @@ logger.propagate = False
 def logger_set_debug():
     logger.setLevel(logging.DEBUG)
     warnings.simplefilter(action="default", category=UserWarning)
+
+
+def logger_set_warning():
+    logger.setLevel(logging.WARNING)
+    warnings.simplefilter(action="default", category=UserWarning)
