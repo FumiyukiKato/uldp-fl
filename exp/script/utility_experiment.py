@@ -12,7 +12,7 @@ sys.path.append(src_path)
 from options import args_parser
 from results_saver import load_best_params, save_resuls, save_best_params
 from run_simulation import run_simulation
-from mylogger import logger_set_debug, logger
+from mylogger import logger_set_debug, logger, logger_set_warning
 
 
 def build_exp_paramerters(default_args, dataset, dist, method, n_users):
@@ -163,6 +163,8 @@ if __name__ == "__main__":
     )
     if args.verbose:
         logger_set_debug()
+    # else:
+    #     logger_set_warning()
 
     if args.hyper_parameter_tuning:
         hp_results = hyper_parameter_tuning(args, path_project)
@@ -175,9 +177,13 @@ if __name__ == "__main__":
             if args.agg_strategy in ["ULDP-AVG", "ULDP-GROUP", "DEFAULT", "ULDP-NAIVE"]:
                 args.epochs = best_params["epochs"]
             logger.info(
-                "++++++++ Using Best params: learning_rate={}, clipping_bound={}, epochs={} ++++++++".format(
+                "++++++++ Load Best params: learning_rate={}, clipping_bound={}, epochs={} ++++++++".format(
                     args.learning_rate, args.clipping_bound, args.epochs
                 )
+            )
+        elif type(best_params) is str:
+            logger.warning(
+                "++++++++ All params are too Bad and use default params ++++++++"
             )
         else:
             logger.warning("++++++++ Best params Not Found ++++++++")
@@ -185,8 +191,17 @@ if __name__ == "__main__":
         results_list = []
         for i in range(args.times):
             args.seed = args.seed + i
-            sim_results = run_simulation(args, path_project)
-            results_list.append(sim_results["global"])
+            try:
+                sim_results = run_simulation(args, path_project)
+                results_list.append(sim_results["global"])
+            except OverflowError as e:
+                logger.error(f"OverflowError: {str(e)}")
+                results_list.append("LOSS IS NAN")
         exp_results = results_list
 
-    save_resuls(original_args, path_project, {"exp": exp_results})
+    save_resuls(
+        original_args,
+        path_project,
+        {"exp": exp_results},
+        hp=original_args.hyper_parameter_tuning,
+    )

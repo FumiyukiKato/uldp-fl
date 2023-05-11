@@ -227,7 +227,7 @@ def build_loss_callback(trial) -> Callable:
 
         def loss_callback(loss):
             if torch.isnan(loss):
-                raise ValueError("Stop because Loss is NaN")
+                raise OverflowError("Stop because Loss is NaN")
 
     else:
 

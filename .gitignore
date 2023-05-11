@@ -10,7 +10,6 @@ log/*
 dataset/*
 
 exp/results/*
-exp/hyper_parameters/*
 exp/img/*
 
 !*/**/.gitkeep
