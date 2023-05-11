@@ -137,7 +137,7 @@ class FLSimulator:
         while self.round_idx < self.n_total_round:
             silo_id_list_in_this_round = self.aggregator.silo_selection()
             for silo_id in silo_id_list_in_this_round:
-                logger.info(
+                logger.debug(
                     "============ TRAINING: SILO_ID = %d (ROUND %d) ============"
                     % (silo_id, self.round_idx)
                 )
@@ -167,12 +167,12 @@ class FLSimulator:
                     local_trainer.get_latest_epsilon(),
                 )
 
-            logger.info(
-                "============  AGGREGATION: ROUND %d ============" % (self.round_idx)
+            logger.debug(
+                "============ AGGREGATION: ROUND %d ============" % (self.round_idx)
             )
             self.aggregator.aggregate(silo_id_list_in_this_round, self.round_idx)
             test_acc, _ = self.aggregator.test_global(self.round_idx)
-            logger.info(
+            logger.debug(
                 "\n\n========== end {}-th round training ===========\n".format(
                     self.round_idx
                 )

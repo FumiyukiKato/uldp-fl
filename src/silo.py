@@ -170,7 +170,7 @@ class SiloManager(GRPCCommManager):
         self.local_round_idx += 1
 
     def handle_message_receive_model_from_server(self, msg_params):
-        logger.info("handle_message_receive_model_from_server.")
+        logger.debug("handle_message_receive_model_from_server.")
         model_params = msg_params.get(FLMessage.MSG_ARG_KEY_MODEL_PARAMS)
         global_round_idx = msg_params.get(FLMessage.MSG_ARG_KEY_ROUND_IDX)
         self.local_trainer.set_model_params(model_params)
@@ -185,14 +185,14 @@ class SiloManager(GRPCCommManager):
             super().finish()
 
     def handle_message_finish(self, msg_params):
-        logger.info(" ==================== cleanup ====================")
+        logger.debug(" ==================== cleanup ====================")
         self.cleanup()
 
     def cleanup(self):
         self.finish()
 
     def send_client_status(self, receive_id, status=ONLINE_STATUS_FLAG):
-        logger.info("send_client_status")
+        logger.debug("send_client_status")
         message = GRPCMessage(
             FLMessage.MSG_TYPE_C2S_CLIENT_STATUS, self.client_id, receive_id
         )

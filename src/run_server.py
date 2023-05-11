@@ -21,6 +21,7 @@ if __name__ == "__main__":
 
     if args.verbose:
         logger_set_debug()
+
     if args.gpu_id:
         torch.cuda.set_device(args.gpu_id)
     device = "cuda" if args.gpu_id else "cpu"

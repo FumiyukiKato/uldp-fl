@@ -119,7 +119,7 @@ class ServerManager(GRPCCommManager):
 
     def handle_message_connection_ready(self, msg_params):
         if not self.is_initialized:
-            logger.info("Start the round 0 and check client status...")
+            logger.debug("Start the round 0 and check client status...")
             self.silo_id_list_in_this_round = self.aggregator.silo_selection()
 
             # check silo status in case that some silos start earlier than the server
@@ -129,12 +129,12 @@ class ServerManager(GRPCCommManager):
                         self.silo_client_id_mapping[silo_id],
                         silo_id,
                     )
-                    logger.info(
+                    logger.debug(
                         "Connection ready for client"
                         + str(self.silo_client_id_mapping[silo_id])
                     )
                 except Exception as e:
-                    logger.info(
+                    logger.debug(
                         str(e)
                         + ": Connection not ready for client"
                         + str(self.silo_client_id_mapping[silo_id])
@@ -142,7 +142,7 @@ class ServerManager(GRPCCommManager):
 
     def handle_message_client_status_update(self, msg_params):
         client_status = msg_params.get(FLMessage.MSG_ARG_KEY_CLIENT_STATUS)
-        logger.info(
+        logger.debug(
             f"received client status {client_status} from client_id = {msg_params.get_sender_id()}"
         )
         if client_status == ServerManager.ONLINE_STATUS_FLAG:
@@ -196,7 +196,7 @@ class ServerManager(GRPCCommManager):
                 all_client_is_finished = False
                 break
 
-        logger.info(
+        logger.debug(
             "sender_id = %d, all_client_is_finished = %s"
             % (msg_params.get_sender_id(), str(all_client_is_finished))
         )
@@ -207,7 +207,7 @@ class ServerManager(GRPCCommManager):
 
     def send_init_msg(self):
         global_model_params = self.aggregator.get_global_model_params()
-        logger.info("Start global FL round 0...")
+        logger.debug("Start global FL round 0...")
         for silo_id in self.silo_id_list_in_this_round:
             client_id = self.silo_client_id_mapping[silo_id]
             self.send_message_init_config(
@@ -243,7 +243,7 @@ class ServerManager(GRPCCommManager):
         )
         logger.debug("b_all_received = " + str(b_all_received))
         if b_all_received:
-            logger.info("all received, start aggregate for round %d" % self.round_idx)
+            logger.debug("all received, start aggregate for round %d" % self.round_idx)
             global_model_params = self.aggregator.aggregate(
                 self.silo_id_list_in_this_round,
                 self.round_idx,
@@ -258,12 +258,12 @@ class ServerManager(GRPCCommManager):
             self.round_idx += 1
 
             if self.round_idx == self.n_total_round:
-                logger.info("all round finished, send finish message to all silos")
+                logger.debug("all round finished, send finish message to all silos")
                 self.send_finish_message_to_all_client()
                 super().finish()
                 return
 
-            logger.info("Start global FL round {}...".format(self.round_idx))
+            logger.debug("Start global FL round {}...".format(self.round_idx))
 
             self.silo_id_list_in_this_round = self.aggregator.silo_selection()
 
@@ -287,7 +287,7 @@ class ServerManager(GRPCCommManager):
         silo_id,
         round_idx,
     ):
-        logger.info("send_message_sync_model_to_client. receive_id = %d" % receive_id)
+        logger.debug("send_message_sync_model_to_client. receive_id = %d" % receive_id)
         message = GRPCMessage(
             FLMessage.MSG_TYPE_S2C_SYNC_MODEL_TO_CLIENT,
             self.get_sender_id(),
@@ -302,7 +302,7 @@ class ServerManager(GRPCCommManager):
         self,
         receive_id,
     ):
-        logger.info("send_finish_message. receive_id = %d" % receive_id)
+        logger.debug("send_finish_message. receive_id = %d" % receive_id)
         message = GRPCMessage(
             FLMessage.MSG_TYPE_S2C_FINISH,
             self.get_sender_id(),

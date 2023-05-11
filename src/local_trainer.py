@@ -196,7 +196,7 @@ class ClassificationTrainer:
                 remove_counter += 1
                 if self.dataset_name not in ["heart_disease", "tcga_brca", "isic"]:
                     new_local_test_dataset.append(data)
-        logger.info("{} data is removed from training dataset".format(remove_counter))
+        logger.debug("{} data is removed from training dataset".format(remove_counter))
 
         self.train_loader = DataLoader(
             new_local_train_dataset, batch_size=self.local_batch_size, shuffle=True
@@ -331,7 +331,14 @@ class ClassificationTrainer:
                     if self.dataset_name in ["isic"]:
                         self.scheduler.step()
                     batch_loss.append(loss.item())
-                logger.info(
+                if len(batch_loss) == 0:
+                    logger.debug(
+                        "Silo Id = {}\tEpoch: {}\t NO SAMPLES".format(
+                            self.silo_id, epoch
+                        )
+                    )
+                    continue
+                logger.debug(
                     "Silo Id = {}\tEpoch: {}\tLoss: {:.6f}".format(
                         self.silo_id, epoch, sum(batch_loss) / len(batch_loss)
                     )
@@ -341,13 +348,13 @@ class ClassificationTrainer:
             weights_dff = self.diff_weights(global_weights, weights)
 
         train_time = time.time() - tick
-        logger.info("Train/Time : %s", train_time)
+        logger.debug("Train/Time : %s", train_time)
         self.results["train_time"].append((global_round_index, train_time))
 
         if self.agg_strategy in ["RECORD-LEVEL-DP"]:
             model.remove_hooks()
             eps = self.privacy_engine.get_epsilon(delta=self.local_delta)
-            logger.info(
+            logger.debug(
                 "Silo Id = {}\tEpsilon: {:.6f} (delta: {:6f})".format(
                     self.silo_id, eps, self.local_delta
                 )
@@ -361,7 +368,7 @@ class ClassificationTrainer:
                 accountant_history=self.privacy_engine.accountant.history,
                 delta=self.local_delta,
             )
-            logger.info(
+            logger.debug(
                 "Silo Id = {}\t (Group-Privacy) Epsilon: {:.6f} (delta: {:6f})".format(
                     self.silo_id, group_eps, self.local_delta
                 )
@@ -410,11 +417,11 @@ class ClassificationTrainer:
         model.eval()
 
         if self.agg_strategy in ["ULDP-SGD", "ULDP-AVG"]:
-            logger.info("Skip local test as model is not trained locally")
+            logger.debug("Skip local test as model is not trained locally")
             return
 
         if len(self.test_loader) == 0:
-            logger.info("Skip local test as dataset size is too small")
+            logger.debug("Skip local test as dataset size is too small")
             return
 
         if self.dataset_name in ["heart_disease", "tcga_brca", "isic"]:
@@ -437,8 +444,8 @@ class ClassificationTrainer:
             y_true_final = np.concatenate(y_true_final)
             y_pred_final = np.concatenate(y_pred_final)
             test_metric = self.metric(y_true_final, y_pred_final)
-            logger.info("|----- Local test result of round %d" % (round_idx))
-            logger.info(
+            logger.debug("|----- Local test result of round %d" % (round_idx))
+            logger.debug(
                 f"\t |----- Local Test/Acc: {test_metric} ({n_total_data}), Local Test/Loss: {test_loss}"
             )
         else:
@@ -456,8 +463,8 @@ class ClassificationTrainer:
                     n_total_data += len(labels)
 
             test_metric = test_correct / n_total_data
-            logger.info("|----- Local test result of round %d" % (round_idx))
-            logger.info(
+            logger.debug("|----- Local test result of round %d" % (round_idx))
+            logger.debug(
                 f"\t |----- Local Test/Acc: {test_metric} ({test_correct} / {n_total_data}), Local Test/Loss: {test_loss}"
             )
         self.results["local_test"].append((round_idx, test_metric, test_loss))

@@ -50,7 +50,7 @@ def save_best_params(args, path_project, best_params):
     best_params_dct[key] = {"params": best_params, "args": str(args)}
     with open(file_path, "w") as f:
         json.dump(best_params_dct, f, indent=2)
-    logger.info(f"save best_params at key = {key}")
+    logger.info(f"Save best_params at key = {key}")
 
 
 def load_best_params(args, path_project):
@@ -60,7 +60,7 @@ def load_best_params(args, path_project):
 
     key = args_to_hash(args)
     if key not in best_params_dct:
-        logger.info(f"key = {key} is not in best_params")
+        logger.warning(f"key = {key} is not in best_params")
         return None
     return best_params_dct[key]["params"]
 
@@ -83,12 +83,14 @@ def args_to_hash(args) -> str:
     return hash_obj.hexdigest()[:10]
 
 
-# def str_to_namespace(input_str):
-#     # Remove the 'Namespace(' at the beginning and ')' at the end
-#     cleaned_str = input_str[10:-1]
+def str_to_namespace(input_str):
+    import argparse
 
-#     # Convert the string to a dictionary
-#     str_dict = eval(f"dict({cleaned_str})")
-#     namespace = argparse.Namespace(**str_dict)
-#     print(namespace)
-#     return namespace
+    # Remove the 'Namespace(' at the beginning and ')' at the end
+    cleaned_str = input_str[10:-1]
+
+    # Convert the string to a dictionary
+    str_dict = eval(f"dict({cleaned_str})")
+    namespace = argparse.Namespace(**str_dict)
+    print(namespace)
+    return namespace

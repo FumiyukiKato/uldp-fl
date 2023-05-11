@@ -420,7 +420,7 @@ def load_dataset(
     silo_id: int = None,
     is_simulation: bool = False,
 ) -> Tuple[List[Tuple[torch.Tensor, int]], List[Tuple[torch.Tensor, int]]]:
-    logger.info("Start prepare dataset...")
+    logger.debug("Start prepare dataset...")
     if dataset_name in ["heart_disease", "isic", "tcga_brca"]:
         # for simulator
         if is_simulation:
@@ -535,7 +535,7 @@ def load_dataset(
 
     # statistics of dataset
     bin_count = sorted(np.bincount(data_indices_of_users))
-    logger.info(
+    logger.debug(
         "ALL dataset Percentile of #User's record 0%: {}, 25%: {}, 50%: {}, 75%: {}, 100%: {}".format(
             bin_count[int(len(bin_count) - 1)],
             bin_count[int(len(bin_count) * 0.75 - 1)],
@@ -572,7 +572,7 @@ def load_dataset(
             )
 
             # statistics of each silo's dataset
-            logger.info(
+            logger.debug(
                 "Silo id: %d, #records = %d, #users = %d",
                 silo_id,
                 len(local_train_dataset),
@@ -582,7 +582,7 @@ def load_dataset(
             bin_count[0] = bin_count[0] - 1
             bin_count[n_users - 1] = bin_count[n_users - 1] - 1
             bin_count = sorted(bin_count)
-            logger.info(
+            logger.debug(
                 "Percentile of #User's record 0%: {}, 25%: {}, 50%: {}, 75%: {}, 100%: {}".format(
                     bin_count[int(len(bin_count) - 1)],
                     bin_count[int(len(bin_count) * 0.75 - 1)],

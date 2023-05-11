@@ -12,7 +12,7 @@ sys.path.append(src_path)
 from options import args_parser
 from results_saver import load_best_params, save_resuls, save_best_params
 from run_simulation import run_simulation
-from mylogger import logger_set_debug, logger, logger_set_warning
+from mylogger import logger_set_debug, logger
 
 
 def build_exp_paramerters(default_args, dataset, dist, method, n_users):
@@ -84,14 +84,14 @@ def hyper_parameter_tuning(args, path_project):
 
         learning_rate = trial.suggest_float("learning_rate", 1e-3, 100, log=True)
         args.learning_rate = learning_rate
-        logger.info(
+        logger.debug(
             "++++++++ Optuna setting: learning_rate={} ++++++++".format(learning_rate)
         )
         hyper_params["learning_rate"] = learning_rate
 
         clipping_bound = trial.suggest_float("clipping_bound", 1e-3, 100, log=True)
         args.clipping_bound = clipping_bound
-        logger.info(
+        logger.debug(
             "++++++++ Optuna setting: clipping_bound={} ++++++++".format(clipping_bound)
         )
         hyper_params["clipping_bound"] = clipping_bound
@@ -99,7 +99,7 @@ def hyper_parameter_tuning(args, path_project):
         if args.agg_strategy in ["ULDP-AVG", "ULDP-GROUP", "DEFAULT", "ULDP-NAIVE"]:
             epochs = trial.suggest_int("epochs", 1, 30, step=5)
             args.epochs = epochs
-            logger.info("++++++++ Optuna setting: epochs={} ++++++++".format(epochs))
+            logger.debug("++++++++ Optuna setting: epochs={} ++++++++".format(epochs))
             hyper_params["epochs"] = epochs
 
         error_rate_list = []
@@ -117,7 +117,7 @@ def hyper_parameter_tuning(args, path_project):
             error_rate_list.append(error_rate)
         error_rate = np.mean(error_rate_list)
         error_std = np.std(error_rate_list)
-        logger.info(
+        logger.debug(
             "++++++ Optuna result: error_rate={}, error_std={} ++++++".format(
                 error_rate, error_std
             )
@@ -162,8 +162,6 @@ if __name__ == "__main__":
     )
     if args.verbose:
         logger_set_debug()
-    # else:
-    #     logger_set_warning()
 
     if args.hyper_parameter_tuning:
         hp_results = hyper_parameter_tuning(args, path_project)

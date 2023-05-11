@@ -139,7 +139,7 @@ class Aggregator:
             self.n_silo_per_round,
             replace=False,
         )
-        logger.info("Silo selection reuslt: {}".format(silo_id_list_in_this_round))
+        logger.debug("Silo selection reuslt: {}".format(silo_id_list_in_this_round))
         return list(silo_id_list_in_this_round)
 
     def check_whether_all_receive(self, silo_id_list_in_this_round: List[int]):
@@ -300,6 +300,9 @@ class Aggregator:
                 )
             )
             logger.info("|----- Global test result of round %d" % (round_idx))
+            logger.info(
+                f"\t |----- Test/Acc: {test_metric} ({n_test_sample}), Test/Loss: {test_loss}"
+            )
         else:
             self.results["local_model_test"].append(
                 (
@@ -309,13 +312,13 @@ class Aggregator:
                     test_loss,
                 )
             )
-            logger.info(
+            logger.debug(
                 "|----- Global test result for SILO %d of round %d"
                 % (silo_id, round_idx)
             )
-        logger.info(
-            f"\t |----- Test/Acc: {test_metric} ({n_test_sample}), Test/Loss: {test_loss}"
-        )
+            logger.debug(
+                f"\t |----- Test/Acc: {test_metric} ({n_test_sample}), Test/Loss: {test_loss}"
+            )
         return test_metric, test_loss
 
     def update_global_weights_from_diff(self, local_weights_diff) -> Dict:

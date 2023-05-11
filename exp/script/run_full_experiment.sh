@@ -3,7 +3,7 @@ set -eux
 
 TIMES=1
 
-methods=("ULDP-AVG" "DEFAULT" "ULDP-SGD") # "ULDP-NAIVE" is too bad.
+methods=("ULDP-AVG" "DEFAULT" "ULDP-SGD" "ULDP-NAIVE") # "ULDP-NAIVE" is too bad.
 dists=(0 1)
 n_users=(100 10000)
 
@@ -18,6 +18,7 @@ do
     done
 done
 
+# ULDP-GROUP
 group_k_list=(2 4 8)
 
 for group_k in "${group_k_list[@]}"
@@ -47,7 +48,7 @@ do
     done
 done
 
-
+# ULDP-GROUP
 group_k_list=(2 4 8)
 
 for group_k in "${group_k_list[@]}"
