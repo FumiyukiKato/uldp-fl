@@ -21,9 +21,12 @@ group_k_list=(2 4 8)
 
 for group_k in "${group_k_list[@]}"
 do
-    for n_users in "${n_users_list[@]}"
+    for dist in "${dists[@]}"
     do
-        python script/utility_experiment.py --hyper_parameter_tuning=1 --dataset_name=mnist --agg_strategy=ULDP-GROUP --n_users=$n_users --group_k=$group_k
+        for n_user in "${n_users[@]}"
+        do
+            python script/utility_experiment.py --hyper_parameter_tuning=1 --dataset_name=mnist --exp_dist=$dist --agg_strategy=ULDP-GROUP --n_users=$n_user
+        done
     done
 done
 

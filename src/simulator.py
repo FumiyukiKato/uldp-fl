@@ -153,7 +153,6 @@ class FLSimulator:
                 local_trainer.test_local(self.round_idx)
                 if self.agg_strategy in [
                     "DEFAULT",
-                    "ULDP-AVG",
                     "ULDP-GROUP",
                     "ULDP-NAIVE",
                 ]:

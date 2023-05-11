@@ -66,7 +66,7 @@ class Aggregator:
         for idx in range(self.n_silos):
             self.flag_client_model_uploaded_dict[idx] = False
 
-        self.latest_eps = None
+        self.latest_eps = 0.0
         self.results = {"privacy_budget": [], "global_test": [], "local_model_test": []}
 
     def get_results(self):
@@ -87,6 +87,7 @@ class Aggregator:
             eps = self.accountant.get_epsilon(self.delta)
         elif self.strategy in ["RECORD-LEVEL-DP", "ULDP-GROUP"]:
             eps = self.latest_eps
+            self.latest_eps = 0.0
         elif self.strategy in ["ULDP-NAIVE"]:
             self.accountant.step(noise_multiplier=self.sigma, sample_rate=1.0)
             eps = self.accountant.get_epsilon(self.delta)
@@ -121,7 +122,7 @@ class Aggregator:
         self.model_dict[silo_id] = model_params
         self.n_sample_dict[silo_id] = n_sample
         self.flag_client_model_uploaded_dict[silo_id] = True
-        self.latest_eps = eps
+        self.latest_eps = max(self.latest_eps, eps)
 
     def silo_selection(self) -> List[int]:
         """

@@ -18,7 +18,8 @@ from mylogger import logger_set_debug, logger, logger_set_warning
 def build_exp_paramerters(default_args, dataset, dist, method, n_users):
     copy_args = copy.deepcopy(default_args)
 
-    copy_args.n_total_round = 5
+    if default_args.hyper_parameter_tuning:
+        copy_args.n_total_round = 5
 
     copy_args.dataset_name = dataset
     if dataset in ["mnist", "cifar10", "cifar100"]:
