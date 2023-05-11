@@ -71,7 +71,7 @@ def build_exp_paramerters(default_args, dataset, dist, method, n_users):
 def hyper_parameter_tuning(args, path_project):
     import optuna
 
-    N_SEED = 2  # Baysian searching like `optuna` is relatively robust for seed
+    N_SEED = 1  # Baysian searching like `optuna` is relatively robust for seed
     N_TRIALS = 100
 
     original_args = copy.deepcopy(args)
@@ -143,8 +143,6 @@ def hyper_parameter_tuning(args, path_project):
         best_params = "Too Bad."
         best_value = 0.0
 
-    save_best_params(original_args, path_project, best_params)
-
     return {
         "best_params": best_params,
         "best_value": best_value,
@@ -168,6 +166,7 @@ if __name__ == "__main__":
 
     if args.hyper_parameter_tuning:
         hp_results = hyper_parameter_tuning(args, path_project)
+        save_best_params(args, path_project, hp_results["best_params"])
         exp_results = {"hp_results": hp_results}
     else:
         best_params = load_best_params(args, path_project)
@@ -200,7 +199,7 @@ if __name__ == "__main__":
         exp_results = results_list
 
     save_resuls(
-        original_args,
+        args,
         path_project,
         {"exp": exp_results},
         hp=original_args.hyper_parameter_tuning,

@@ -3,7 +3,7 @@ set -eux
 
 TIMES=1
 
-methods=("ULDP-SGD" "ULDP-AVG" "DEFAULT") # "ULDP-NAIVE" is too bad.
+methods=("ULDP-AVG" "DEFAULT" "ULDP-SGD") # "ULDP-NAIVE" is too bad.
 dists=(0 1)
 n_users=(100 10000)
 

@@ -76,6 +76,7 @@ def args_to_hash(args) -> str:
     args_dct.pop("verbose")
     args_dct.pop("hyper_parameter_tuning")
     args_dct.pop("times")
+    args_dct.pop("n_total_round")
     str_args = str(args_dct)
     hash_obj = hashlib.md5()
     hash_obj.update(str_args.encode())

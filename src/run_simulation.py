@@ -94,4 +94,6 @@ if __name__ == "__main__":
 
         args = update_args(args)
     results = run_simulation(args, path_project)
-    save_resuls(args, path_project, results, hp=args.hyper_parameter_tuning)
+    save_resuls(
+        args, path_project, {"exp": [results["global"]]}, hp=args.hyper_parameter_tuning
+    )
