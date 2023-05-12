@@ -25,7 +25,6 @@ def update_args(args):
     updated_args.n_silos = N_SILO
     updated_args.n_silo_per_round = N_SILO
     updated_args.local_batch_size = BATCH_SIZE
-    updated_args.learning_rate = LR
     return updated_args
 
 

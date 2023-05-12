@@ -104,7 +104,7 @@ class Aggregator:
                 "strategy = {} is not implemented".format(self.strategy)
             )
 
-        logger.info("Privacy spent: epsilon = {} (round {})".format(eps, round_idx))
+        logger.debug("Privacy spent: epsilon = {} (round {})".format(eps, round_idx))
         self.results["privacy_budget"].append((round_idx, eps, self.delta))
 
     def add_local_trained_result(self, silo_id, model_params, n_sample, eps):
@@ -299,8 +299,8 @@ class Aggregator:
                     test_loss,
                 )
             )
-            logger.info("|----- Global test result of round %d" % (round_idx))
-            logger.info(
+            logger.debug("|----- Global test result of round %d" % (round_idx))
+            logger.debug(
                 f"\t |----- Test/Acc: {test_metric} ({n_test_sample}), Test/Loss: {test_loss}"
             )
         else:

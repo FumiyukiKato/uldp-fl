@@ -5,7 +5,7 @@ import os
 from options import args_parser
 from dataset import load_dataset
 
-# from results_saver import save_resulss
+# from results_saver import save_one_shot_results
 from scenario import create_dist_params
 import models
 from server import FLServer
@@ -72,4 +72,4 @@ if __name__ == "__main__":
     server.run()
 
     # results = server.get_results()
-    # save_resuls(args, path_project, results)
+    # save_one_shot_results(args, path_project, results, "server")

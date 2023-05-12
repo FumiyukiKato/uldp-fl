@@ -5,7 +5,7 @@ import os
 from options import args_parser
 from dataset import load_dataset
 
-# from results_saver import save_resuls
+# from results_saver import save_one_shot_results
 from scenario import create_dist_params
 import models
 from silo import FLSilo
@@ -65,7 +65,7 @@ if __name__ == "__main__":
         learning_rate=args.learning_rate,
         local_batch_size=args.local_batch_size,
         client_optimizer=args.client_optimizer,
-        epochs=args.epochs,
+        local_epochs=args.local_epochs,
         device=device,
         silo_id=args.silo_id,
         client_id=client_id,
@@ -80,4 +80,4 @@ if __name__ == "__main__":
     silo.run()
 
     # results = silo.get_results()
-    # save_resuls(args, path_project, results)
+    # save_one_shot_results(args, path_project, results, f"silo-{args.silo_id}")

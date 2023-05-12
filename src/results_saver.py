@@ -2,6 +2,7 @@ import json
 import os
 import glob
 import hashlib
+import datetime
 
 from mylogger import logger
 
@@ -33,6 +34,21 @@ def save_resuls(args, path_project, results: dict, hp: bool = False) -> str:
     os.makedirs(results_dir, exist_ok=True)
     file_name = HP_DETAIL if hp else EXP_RESULTS
     results["args"] = str(args)
+    with open(os.path.join(results_dir, file_name), "w") as f:
+        json.dump(results, f, indent=2)
+    logger.info(f"Results saved to {results_dir}/{file_name}")
+
+
+def save_one_shot_results(
+    args, path_project, results: dict, prefix: str = "sim"
+) -> str:
+    hashed_args = args_to_hash(args)
+    results_dir = os.path.join(path_project, RESULTS_DIR, hashed_args)
+    os.makedirs(results_dir, exist_ok=True)
+    results["args"] = str(args)
+    file_name = (
+        prefix + datetime.datetime.now().strftime("-%Y%m%d%H%M%S-") + EXP_RESULTS
+    )
     with open(os.path.join(results_dir, file_name), "w") as f:
         json.dump(results, f, indent=2)
     logger.info(f"Results saved to {results_dir}/{file_name}")
@@ -70,13 +86,12 @@ def args_to_hash(args) -> str:
     args_dct.pop("seed")
     args_dct.pop("gpu_id")
     args_dct.pop("silo_id")
-    args_dct.pop("epochs")
+    args_dct.pop("local_epochs")
     args_dct.pop("learning_rate")
     args_dct.pop("clipping_bound")
     args_dct.pop("verbose")
     args_dct.pop("hyper_parameter_tuning")
     args_dct.pop("times")
-    args_dct.pop("n_total_round")
     str_args = str(args_dct)
     hash_obj = hashlib.md5()
     hash_obj.update(str_args.encode())

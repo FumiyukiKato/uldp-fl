@@ -31,7 +31,7 @@ class ClassificationTrainer:
         learning_rate: float = 0.001,
         local_batch_size: int = 1,
         weight_decay: float = 0.001,
-        epochs: int = 5,
+        local_epochs: int = 5,
         local_delta: Optional[float] = None,
         local_sigma: Optional[float] = None,
         local_clipping_bound: Optional[float] = None,
@@ -44,7 +44,7 @@ class ClassificationTrainer:
         self.model: nn.Module = model
         self.silo_id = silo_id
         self.device = device
-        self.epochs = epochs
+        self.local_epochs = local_epochs
         self.local_batch_size = local_batch_size
         self.user_weights = user_weights
         self.n_silo_per_round = n_silo_per_round
@@ -286,7 +286,7 @@ class ClassificationTrainer:
                     filter(lambda p: p.requires_grad, model_u.parameters()),
                     lr=self.learning_rate,
                 )
-                for epoch in range(self.epochs):
+                for epoch in range(self.local_epochs):
                     x = torch.stack([data[0] for data in user_data])
                     labels = torch.stack([torch.tensor(data[1]) for data in user_data])
                     optimizer_u.zero_grad()
@@ -316,7 +316,7 @@ class ClassificationTrainer:
                 / U,
             )
         else:
-            for epoch in range(self.epochs):
+            for epoch in range(self.local_epochs):
                 batch_loss = []
                 for idx, (x, labels) in enumerate(train_loader):
                     if len(x) == 0:  # this is possible in poisson sampling in DP-SGD

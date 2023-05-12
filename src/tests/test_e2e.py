@@ -39,7 +39,7 @@ class TestSimulater(unittest.TestCase):
 
         test_args.n_silo_per_round = 2
         test_args.n_total_round = 3
-        test_args.epochs = 5
+        test_args.local_epochs = 5
         test_args.learning_rate = 0.05
         test_args.local_batch_size = 64
         test_args.weight_decay = 0.001
@@ -70,7 +70,7 @@ class TestSimulater(unittest.TestCase):
         args.clipping_bound = 1.0
         args.sigma = 1.0
         args.local_batch_size = 32
-        args.epochs = 10
+        args.local_epochs = 10
         args.n_silos = 1000
         args.n_silo_per_round = 100
         args.n_total_round = 5
@@ -108,7 +108,7 @@ class TestSimulater(unittest.TestCase):
         args.clipping_bound = 1.0
         args.sigma = 0.4
         args.local_batch_size = 32
-        args.epochs = 10
+        args.local_epochs = 10
         args.n_silos = 1000
         args.n_silo_per_round = 100
         args.n_total_round = 5

@@ -18,9 +18,6 @@ from mylogger import logger_set_debug, logger
 def build_exp_paramerters(default_args, dataset, dist, method, n_users):
     copy_args = copy.deepcopy(default_args)
 
-    if default_args.hyper_parameter_tuning:
-        copy_args.n_total_round = 5
-
     copy_args.dataset_name = dataset
     if dataset in ["mnist", "cifar10", "cifar100"]:
         if dist == 0:
@@ -82,14 +79,14 @@ def hyper_parameter_tuning(args, path_project):
         # Target hyper parameters that wte want to optimize.
         hyper_params = {}
 
-        learning_rate = trial.suggest_float("learning_rate", 1e-3, 100, log=True)
+        learning_rate = trial.suggest_float("learning_rate", 1e-4, 100, log=True)
         args.learning_rate = learning_rate
         logger.debug(
             "++++++++ Optuna setting: learning_rate={} ++++++++".format(learning_rate)
         )
         hyper_params["learning_rate"] = learning_rate
 
-        clipping_bound = trial.suggest_float("clipping_bound", 1e-3, 100, log=True)
+        clipping_bound = trial.suggest_float("clipping_bound", 1e-4, 100, log=True)
         args.clipping_bound = clipping_bound
         logger.debug(
             "++++++++ Optuna setting: clipping_bound={} ++++++++".format(clipping_bound)
@@ -97,10 +94,12 @@ def hyper_parameter_tuning(args, path_project):
         hyper_params["clipping_bound"] = clipping_bound
 
         if args.agg_strategy in ["ULDP-AVG", "ULDP-GROUP", "DEFAULT", "ULDP-NAIVE"]:
-            epochs = trial.suggest_int("epochs", 1, 30, step=5)
-            args.epochs = epochs
-            logger.debug("++++++++ Optuna setting: epochs={} ++++++++".format(epochs))
-            hyper_params["epochs"] = epochs
+            local_epochs = trial.suggest_int("local_epochs", 1, 40, step=2)
+            args.local_epochs = local_epochs
+            logger.debug(
+                "++++++++ Optuna setting: local_epochs={} ++++++++".format(local_epochs)
+            )
+            hyper_params["local_epochs"] = local_epochs
 
         error_rate_list = []
         for i in range(N_SEED):
@@ -173,10 +172,10 @@ if __name__ == "__main__":
             args.learning_rate = best_params["learning_rate"]
             args.clipping_bound = best_params["clipping_bound"]
             if args.agg_strategy in ["ULDP-AVG", "ULDP-GROUP", "DEFAULT", "ULDP-NAIVE"]:
-                args.epochs = best_params["epochs"]
+                args.local_epochs = best_params["local_epochs"]
             logger.info(
-                "++++++++ Load Best params: learning_rate={}, clipping_bound={}, epochs={} ++++++++".format(
-                    args.learning_rate, args.clipping_bound, args.epochs
+                "++++++++ Load Best params: learning_rate={}, clipping_bound={}, local_epochs={} ++++++++".format(
+                    args.learning_rate, args.clipping_bound, args.local_epochs
                 )
             )
         elif type(best_params) is str:

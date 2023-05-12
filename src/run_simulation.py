@@ -4,7 +4,7 @@ import os
 
 from options import args_parser
 from dataset import load_dataset
-from results_saver import save_resuls
+from results_saver import save_one_shot_results
 from scenario import create_dist_params
 import models
 from simulator import FLSimulator
@@ -60,7 +60,7 @@ def run_simulation(args, path_project, trial=None, data_seed=None):
         local_batch_size=args.local_batch_size,
         weight_decay=args.weight_decay,
         client_optimizer=args.client_optimizer,
-        epochs=args.epochs,
+        local_epochs=args.local_epochs,
         agg_strategy=args.agg_strategy,
         clipping_bound=args.clipping_bound,
         sigma=args.sigma,
@@ -94,6 +94,4 @@ if __name__ == "__main__":
 
         args = update_args(args)
     results = run_simulation(args, path_project)
-    save_resuls(
-        args, path_project, {"exp": [results["global"]]}, hp=args.hyper_parameter_tuning
-    )
+    save_one_shot_results(args, path_project, {"exp": [results["global"]]}, "sim")

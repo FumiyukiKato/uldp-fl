@@ -15,7 +15,7 @@ n_labels: 1
 typical_scenaio: null
 n_silo_per_round: 5
 n_total_round: 10
-epochs: 10
+local_epochs: 10
 learning_rate: 0.01
 local_batch_size: 64
 weight_decay: 0.001
