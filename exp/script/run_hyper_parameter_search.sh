@@ -2,7 +2,7 @@
 set -eux
 
 
-methods=("ULDP-SGD" "ULDP-AVG" "DEFAULT" "ULDP-NAIVE")
+methods=("ULDP-SGD" "ULDP-AVG" "ULDP-SGD-w" "ULDP-AVG-w" "DEFAULT" "ULDP-NAIVE")
 dists=(0 1)
 n_users_list=(100 10000)
 n_total_round_list=(10 50)

@@ -76,7 +76,13 @@ class FLSimulator:
             dataset_name=dataset_name,
         )
 
-        if self.agg_strategy in ["ULDP-GROUP", "ULDP-SGD", "ULDP-AVG"]:
+        if self.agg_strategy in [
+            "ULDP-GROUP",
+            "ULDP-SGD",
+            "ULDP-SGD-w",
+            "ULDP-AVG",
+            "ULDP-AVG-w",
+        ]:
             self.coordinator = Coordinator(
                 base_seed=seed, n_silos=n_silos, n_users=n_users
             )
@@ -113,7 +119,13 @@ class FLSimulator:
                 dataset_name=dataset_name,
             )
             self.local_trainer_per_silos[silo_id] = local_trainer
-            if self.agg_strategy in ["ULDP-GROUP", "ULDP-SGD", "ULDP-AVG"]:
+            if self.agg_strategy in [
+                "ULDP-GROUP",
+                "ULDP-SGD",
+                "ULDP-SGD-w",
+                "ULDP-AVG",
+                "ULDP-AVG-w",
+            ]:
                 self.coordinator.original_user_hist_dct[silo_id] = user_hist
 
             self.trial = trial
@@ -129,8 +141,15 @@ class FLSimulator:
                 self.local_trainer_per_silos[silo_id].bound_user_contributions(
                     bounded_user_hist
                 )
-        elif self.agg_strategy in ["ULDP-SGD", "ULDP-AVG"]:
-            user_weights_per_silo = self.coordinator.build_user_weights(uniform=True)
+        elif self.agg_strategy in ["ULDP-SGD", "ULDP-AVG", "ULDP-SGD-w", "ULDP-AVG-w"]:
+            if self.agg_strategy in ["ULDP-SGD-w", "ULDP-AVG-w"]:
+                user_weights_per_silo = self.coordinator.build_user_weights(
+                    weighted=True
+                )
+            else:
+                user_weights_per_silo = self.coordinator.build_user_weights(
+                    weighted=False
+                )
             for silo_id, user_weights in user_weights_per_silo.items():
                 self.local_trainer_per_silos[silo_id].set_user_weights(user_weights)
 
@@ -212,7 +231,7 @@ class FLSimulator:
     def get_results(self) -> Dict:
         results = dict()
         results["global"] = self.aggregator.get_results()
-        # if self.agg_strategy in ["ULDP-SGD", "ULDP-AVG"]:
+        # if self.agg_strategy in ["ULDP-SGD", "ULDP-AVG", "ULDP-SGD-w", "ULDP-AVG-w"]:
         #     pass
         # else:
         #     results["local"] = dict()

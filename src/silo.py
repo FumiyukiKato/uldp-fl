@@ -34,11 +34,6 @@ class FLSilo:
         user_weights: Optional[Dict[int, float]] = None,
         dataset_name: Optional[str] = None,
     ):
-        if agg_strategy in ["ULDP-GROUP", "ULDP-SGD", "ULDP-AVG"]:
-            raise NotImplementedError(
-                "Because coodinator is not implemented yet. Please use Simulator instead."
-            )
-
         local_trainer = ClassificationTrainer(
             base_seed=seed,
             model=model,

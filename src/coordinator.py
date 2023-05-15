@@ -5,7 +5,7 @@ import numpy as np
 class Coordinator:
     """
     Coordinator class for federated learning.
-    Receive user distribution from silos and decide strategies.
+    Receive user distribution from silos and decide weighting strategies on shared paramters for each silo.
     """
 
     def __init__(
@@ -19,17 +19,12 @@ class Coordinator:
         self.n_silos = n_silos
         self.original_user_hist_dct = {silo_id: {} for silo_id in range(n_silos)}
 
-    def build_user_weights(self, uniform: bool = True) -> Dict[int, Dict[int, float]]:
+    def build_user_weights(self, weighted: bool = False) -> Dict[int, Dict[int, float]]:
         """
-        Build user weights for ULDP-SGD.
+        Build user weights for ULDP-SGD/AVG.
         """
         user_weights_per_silo = {silo_id: {} for silo_id in range(self.n_silos)}
-        if uniform:
-            for silo_id in range(self.n_silos):
-                user_weights_per_silo[silo_id] = {
-                    user_id: 1.0 / self.n_silos for user_id in range(self.n_users)
-                }
-        else:
+        if weighted:
             # Weighting in proportion to the number of users
             # calculate total user count for each user
             total_user_count = {}
@@ -44,6 +39,11 @@ class Coordinator:
                     user_weights_per_silo[silo_id][user_id] = (
                         user_count / total_user_count[user_id]
                     )
+        else:
+            for silo_id in range(self.n_silos):
+                user_weights_per_silo[silo_id] = {
+                    user_id: 1.0 / self.n_silos for user_id in range(self.n_users)
+                }
         return user_weights_per_silo
 
     def build_user_bound_histograms(

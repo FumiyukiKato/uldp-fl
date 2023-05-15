@@ -27,11 +27,6 @@ class FLServer:
         delta: float = None,
         dataset_name: Optional[str] = None,
     ):
-        if agg_strategy in ["ULDP-GROUP", "ULDP-SGD", "ULDP-AVG"]:
-            raise NotImplementedError(
-                "Because coodinator is not implemented yet. Please use Simulator instead."
-            )
-
         aggregator = Aggregator(
             model=model,
             train_dataset=train_dataset,

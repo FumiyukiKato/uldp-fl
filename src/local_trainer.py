@@ -67,7 +67,9 @@ class ClassificationTrainer:
             "ULDP-NAIVE",
             "SILO-LEVEL-DP",
             "ULDP-SGD",
+            "ULDP-SGD-w",
             "ULDP-AVG",
+            "ULDP-AVG-w",
         ]:
             self.local_sigma = local_sigma
             self.local_clipping_bound = local_clipping_bound
@@ -237,7 +239,7 @@ class ClassificationTrainer:
                 noise_generator=noise_generator,
             )
 
-        if self.agg_strategy in ["ULDP-SGD"]:
+        if self.agg_strategy in ["ULDP-SGD", "ULDP-SGD-w"]:
             train_loader = self.make_user_level_data_loader()
             grads_list = []  # TODO: memory optimization (use online aggregation)
             for user_id, user_data in train_loader:
@@ -277,7 +279,7 @@ class ClassificationTrainer:
                 / U,
             )
 
-        elif self.agg_strategy in ["ULDP-AVG"]:
+        elif self.agg_strategy in ["ULDP-AVG", "ULDP-AVG-w"]:
             train_loader = self.make_user_level_data_loader()
             weights_diff_list = []  # TODO: memory optimization (use online aggregation)
             for user_id, user_data in train_loader:
@@ -391,9 +393,9 @@ class ClassificationTrainer:
                 self.model, weights_dff, self.local_clipping_bound
             )
             return clipped_weights_diff, len(train_loader)
-        elif self.agg_strategy in ["ULDP-SGD"]:
+        elif self.agg_strategy in ["ULDP-SGD", "ULDP-SGD-w"]:
             return noisy_avg_grads, len(self.train_loader)
-        elif self.agg_strategy in ["ULDP-AVG"]:
+        elif self.agg_strategy in ["ULDP-AVG", "ULDP-AVG-w"]:
             return noisy_avg_weights_diff, len(self.train_loader)
         elif self.agg_strategy in ["DEFAULT"]:
             return weights_dff, len(train_loader)
@@ -416,7 +418,7 @@ class ClassificationTrainer:
         model.to(self.device)
         model.eval()
 
-        if self.agg_strategy in ["ULDP-SGD", "ULDP-AVG"]:
+        if self.agg_strategy in ["ULDP-SGD", "ULDP-SGD-w", "ULDP-AVG", "ULDP-AVG-w"]:
             logger.debug("Skip local test as model is not trained locally")
             return
 

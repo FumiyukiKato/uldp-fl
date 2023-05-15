@@ -54,7 +54,7 @@ def args_parser(path_project: str) -> argparse.Namespace:
     parser.add_argument("--weight_decay", type=float, help="weight_decay")
     parser.add_argument("--client_optimizer", type=str, help="local of optimizer")
 
-    parser.add_argument("--agg_strategy", type=str, help="aggregation strategy [DEFAULT, SILO-LEVEL-DP, RECORD-LEVEL-DP, ULDP-NAIVE, ULDP-GROUP, ULDP-SGD, ULDP-AVG]")
+    parser.add_argument("--agg_strategy", type=str, help="aggregation strategy [DEFAULT, SILO-LEVEL-DP, RECORD-LEVEL-DP, ULDP-NAIVE, ULDP-GROUP, ULDP-SGD, ULDP-AVG, ULDP-SGD-w, ULDP-AVG-w]")
     parser.add_argument("--group_k", type=int, help="k (maximum number of user contribution) of group privacy")
     parser.add_argument("--sigma", type=float, help="noise multiplier (Note: std_dev = sigma * clipping_bound))")
     parser.add_argument("--clipping_bound", type=float, help="clipping bound for differential privacy")
