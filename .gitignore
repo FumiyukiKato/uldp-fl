@@ -16,4 +16,6 @@ exp/img/*
 
 **/target
 
+*.db
+
 .DS_Store
