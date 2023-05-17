@@ -12,6 +12,7 @@ EXP_RESULTS = "results.json"
 HP_DETAIL = "hp_detail.json"
 PARAMETER_DIR = "exp"
 BEST_PARAMS = "best_params.json"
+HP_STORAGE = "hp-search.db"
 
 
 def load_results(args, path_project, hp: bool = False):
@@ -79,6 +80,14 @@ def load_best_params(args, path_project):
         logger.warning(f"key = {key} is not in best_params")
         return None
     return best_params_dct[key]["params"]
+
+
+def get_storage_path(args, path_project):
+    key = args_to_hash(args)
+    storage_dir = os.path.join(path_project, "exp", "results", key)
+    os.makedirs(storage_dir, exist_ok=True)
+    storage_path = os.path.join(storage_dir, HP_STORAGE)
+    return key, storage_path
 
 
 def args_to_hash(args) -> str:

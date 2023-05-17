@@ -10,7 +10,13 @@ src_path = os.path.join(path_project, "src")
 sys.path.append(src_path)
 
 from options import args_parser
-from results_saver import load_best_params, save_resuls, save_best_params, args_to_hash
+from results_saver import (
+    get_storage_path,
+    load_best_params,
+    save_resuls,
+    save_best_params,
+    args_to_hash,
+)
 from run_simulation import run_simulation
 from mylogger import logger_set_debug, logger
 
@@ -75,7 +81,14 @@ def hyper_parameter_tuning(args, path_project):
     original_args = copy.deepcopy(args)
     result_details = []
 
-    hash_args = args_to_hash(args)
+    hash_args, storage_path = get_storage_path(args, path_project)
+    study = optuna.create_study(
+        study_name=f"{hash_args}",
+        storage=f"sqlite:///{storage_path}",
+        pruner=optuna.pruners.MedianPruner(),
+        sampler=optuna.samplers.TPESampler(seed=original_args.seed),
+        load_if_exists=True,
+    )
 
     def objective(trial: optuna.Trial):
         # Target hyper parameters that wte want to optimize.
@@ -132,13 +145,6 @@ def hyper_parameter_tuning(args, path_project):
         )
         return error_rate
 
-    study = optuna.create_study(
-        study_name=f"{hash_args}",
-        storage=f"sqlite:///{hash_args}-storage.db",
-        pruner=optuna.pruners.MedianPruner(),
-        sampler=optuna.samplers.TPESampler(seed=original_args.seed),
-        load_if_exists=True,
-    )
     study.optimize(objective, n_trials=N_TRIALS)
     try:
         best_params = study.best_params

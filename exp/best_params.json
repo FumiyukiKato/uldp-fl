@@ -730,5 +730,21 @@
       "clipping_bound": 1.7894646015582816
     },
     "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='tcga_brca', model_name='cnn', n_users=1000, n_silos=6, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=6, n_total_round=50, local_epochs=10, learning_rate=0.014967163437503454, local_batch_size=8, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-AVG-w', group_k=2, sigma=5.0, clipping_bound=1.271966235422421, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None)"
+  },
+  "7c6372178d": {
+    "params": {
+      "clipping_bound": 22.420123713724433,
+      "learning_rate": 0.042220489831498315,
+      "local_epochs": 39
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=10, local_epochs=10, learning_rate=0.01, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='DEFAULT', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0)"
+  },
+  "60a3c39c24": {
+    "params": "Too Bad.",
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=10, learning_rate=0.01, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='DEFAULT', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0)"
+  },
+  "631ee31abc": {
+    "params": "Too Bad.",
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=10000, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=10, local_epochs=10, learning_rate=0.01, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='DEFAULT', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0)"
   }
 }
