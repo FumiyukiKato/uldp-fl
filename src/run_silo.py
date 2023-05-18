@@ -22,7 +22,7 @@ if __name__ == "__main__":
 
     if args.gpu_id:
         torch.cuda.set_device(args.gpu_id)
-    device = "cuda" if args.gpu_id else "cpu"
+    device = "cuda" if args.gpu_id is not None else "cpu"
     data_random_state = np.random.RandomState(seed=args.seed)
     assert (
         args.silo_id < args.n_silos

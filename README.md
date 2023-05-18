@@ -28,15 +28,15 @@ tested at Python 3.9.2, OSX, Ubuntu18.04
     Wake up server
     ```bash
     $ cd src
-    $ python run_server.py --n_silos=3 --n_silo_per_round=2 --n_total_round=5
+    $ python run_server.py --n_silos=3 --n_silo_per_round=2 --n_total_round=3
     ```
 
     Wake up 3 silos
     ```bash
     $ cd src
-    $ python run_silo.py --n_silos=3 --n_silo_per_round=2 --silo_id=0 --n_total_round=1
-    $ python run_silo.py --n_silos=3 --n_silo_per_round=2 --silo_id=1 --n_total_round=1
-    $ python run_silo.py --n_silos=3 --n_silo_per_round=2 --silo_id=2 --n_total_round=1
+    $ python run_silo.py --n_silos=3 --n_silo_per_round=2 --silo_id=0 --n_total_round=3
+    $ python run_silo.py --n_silos=3 --n_silo_per_round=2 --silo_id=1 --n_total_round=3
+    $ python run_silo.py --n_silos=3 --n_silo_per_round=2 --silo_id=2 --n_total_round=3
     ```
 
 

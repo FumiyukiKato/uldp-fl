@@ -15,7 +15,7 @@ from mylogger import logger_set_debug
 def run_simulation(args, path_project, trial=None, data_seed=None):
     if args.gpu_id:
         torch.cuda.set_device(args.gpu_id)
-    device = "cuda" if args.gpu_id else "cpu"
+    device = "cuda" if args.gpu_id is not None else "cpu"
     if data_seed is None:
         data_seed = args.seed
     data_random_state = np.random.RandomState(seed=data_seed)

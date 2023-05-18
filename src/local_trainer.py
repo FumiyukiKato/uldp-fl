@@ -138,7 +138,7 @@ class ClassificationTrainer:
         return {}
 
     def get_model_params(self):
-        return self.model.cpu().state_dict()
+        return self.model.state_dict()
 
     def get_torch_manual_seed(self):
         return self.random_state.randint(9223372036854775807)
@@ -291,6 +291,7 @@ class ClassificationTrainer:
                 for epoch in range(self.local_epochs):
                     x = torch.stack([data[0] for data in user_data])
                     labels = torch.stack([torch.tensor(data[1]) for data in user_data])
+                    x, labels = x.to(self.device), labels.to(self.device)
                     optimizer_u.zero_grad()
                     log_probs = model_u(x)
                     loss = criterion(log_probs, labels)

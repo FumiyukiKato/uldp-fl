@@ -602,7 +602,7 @@ def load_dataset(
             train_dataset,
             data_indices_per_silos,
             silo_id,
-            silo_random_state,
+            random_state,
         )
         user_hist, user_ids = build_user_histogram(
             local_train_indices, data_indices_of_users

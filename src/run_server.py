@@ -24,7 +24,7 @@ if __name__ == "__main__":
 
     if args.gpu_id:
         torch.cuda.set_device(args.gpu_id)
-    device = "cuda" if args.gpu_id else "cpu"
+    device = "cuda" if args.gpu_id is not None else "cpu"
     data_random_state = np.random.RandomState(seed=args.seed)
     p_list, user_silo_matrix, n_silos, n_users = create_dist_params(
         args.typical_scenaio, args.n_silos, args.n_users

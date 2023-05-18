@@ -110,10 +110,11 @@ class SiloManager(GRPCCommManager):
             % (global_round_index, self.local_round_idx)
         )
         weights, n_local_sample = self.local_trainer.train(global_round_index)
+        cpu_weights = {k: v.to("cpu") for k, v in weights.items()}
         self.local_trainer.test_local(global_round_index)
         self.send_model_to_server(
             ip_utils.AGGREGATION_SERVER_ID,
-            weights,
+            cpu_weights,
             n_local_sample,
             self.local_trainer.get_latest_epsilon(),
         )

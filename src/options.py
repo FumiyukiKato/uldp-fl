@@ -32,7 +32,7 @@ def args_parser(path_project: str) -> argparse.Namespace:
     # fmt: off
 
     parser.add_argument("--seed", type=int, help="random seed")
-    parser.add_argument("--gpu_id", help="To use cuda, set to a specific GPU ID. Default set to use CPU.")
+    parser.add_argument("--gpu_id", type=int, help="To use cuda, set to a specific GPU ID. Default set to use CPU.")
     parser.add_argument("--silo_id", type=int, help="silo_id, used for communication")
 
     parser.add_argument("--dataset_name", type=str, help="name of dataset")

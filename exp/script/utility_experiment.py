@@ -3,6 +3,7 @@ import os
 import sys
 import numpy as np
 import copy
+import torch
 
 exp_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 path_project = os.path.dirname(exp_path)
@@ -163,6 +164,10 @@ def hyper_parameter_tuning(args, path_project):
 
 if __name__ == "__main__":
     original_args = args_parser(path_project)
+    if original_args.gpu_id:
+        torch.cuda.set_device(original_args.gpu_id)
+    device = "cuda" if original_args.gpu_id is not None else "cpu"
+
     args = build_exp_paramerters(
         original_args,
         original_args.dataset_name,
