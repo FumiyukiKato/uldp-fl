@@ -16,7 +16,6 @@ from results_saver import (
     load_best_params,
     save_resuls,
     save_best_params,
-    args_to_hash,
 )
 from run_simulation import run_simulation
 from mylogger import logger_set_debug, logger

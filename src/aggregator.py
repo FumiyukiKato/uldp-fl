@@ -203,6 +203,7 @@ class Aggregator:
                 averaged_param_diff,
                 random_state=self.random_state,
                 std_dev=(self.sigma * self.clipping_bound) / self.n_silo_per_round,
+                device=self.device,
             )
             global_weights = self.update_global_weights_from_diff(
                 noised_averaged_param_diff

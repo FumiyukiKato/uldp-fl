@@ -270,13 +270,14 @@ class ClassificationTrainer:
             U = len(train_loader)
             avg_grads = noise_utils.torch_aggregation(grads_list, U)
             noisy_avg_grads = noise_utils.add_global_noise(
-                self.model,
+                model,
                 avg_grads,
                 self.random_state,
                 self.local_sigma
                 * self.local_clipping_bound
                 / self.n_silo_per_round
                 / U,
+                device=self.device,
             )
 
         elif self.agg_strategy in ["ULDP-AVG", "ULDP-AVG-w"]:
@@ -298,7 +299,7 @@ class ClassificationTrainer:
                     loss_callback(loss)
                     loss.backward()
                     optimizer_u.step()
-                weights = model_u.cpu().state_dict()
+                weights = model_u.state_dict()
                 weights_diff = self.diff_weights(global_weights, weights)
                 clipped_weights_diff = noise_utils.global_clip(
                     model_u,
@@ -310,13 +311,14 @@ class ClassificationTrainer:
             U = len(train_loader)
             avg_weights_diff = noise_utils.torch_aggregation(weights_diff_list, U)
             noisy_avg_weights_diff = noise_utils.add_global_noise(
-                self.model,
+                model,
                 avg_weights_diff,
                 self.random_state,
                 self.local_sigma
                 * self.local_clipping_bound
                 / self.n_silo_per_round
                 / U,
+                device=self.device,
             )
         else:
             for epoch in range(self.local_epochs):
@@ -387,6 +389,7 @@ class ClassificationTrainer:
                 clipped_weights_diff,
                 self.random_state,
                 self.local_sigma * self.local_clipping_bound,
+                device=self.device,
             )
             return noised_clipped_weights_diff, len(train_loader)
         elif self.agg_strategy in ["SILO-LEVEL-DP"]:

@@ -51,19 +51,27 @@ def global_clip(
     return clipped_params
 
 
-def add_global_noise(model, grad, random_state: np.random.RandomState, std_dev: float):
+def add_global_noise(
+    model, grad, random_state: np.random.RandomState, std_dev: float, device: str
+):
     new_grad = OrderedDict()
     for name, param in model.named_parameters():
         if param.requires_grad:
-            new_grad[name] = _compute_new_grad(grad[name], random_state, std_dev)
+            new_grad[name] = _compute_new_grad(
+                grad[name], random_state, std_dev, device
+            )
         else:
             new_grad[name] = grad[name]
     return new_grad
 
 
-def _compute_new_grad(grad, random_state: np.random.RandomState, std_dev: float):
+def _compute_new_grad(
+    grad, random_state: np.random.RandomState, std_dev: float, device: str
+):
     # Gaussian noise
-    noise = torch.Tensor(random_state.normal(0, std_dev, size=grad.shape))
+    noise = torch.tensor(
+        random_state.normal(0, std_dev, size=grad.shape), device=torch.device(device)
+    )
     return noise + grad
 
 
