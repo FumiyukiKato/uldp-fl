@@ -746,5 +746,395 @@
       "local_epochs": 37
     },
     "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=10000, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=10, local_epochs=35, learning_rate=0.021373147916211442, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='DEFAULT', group_k=2, sigma=5.0, clipping_bound=2.8854903891715478, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0)"
+  },
+  "889aa659c4": {
+    "params": {
+      "clipping_bound": 2.4792700492355353,
+      "learning_rate": 0.024340784495800762,
+      "local_epochs": 37
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=10, local_epochs=37, learning_rate=0.010160158201970635, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='DEFAULT', group_k=2, sigma=5.0, clipping_bound=58.162383822197164, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1)"
+  },
+  "ef1e9434ad": {
+    "params": {
+      "clipping_bound": 74.11958132121906,
+      "learning_rate": 0.017916156385559844,
+      "local_epochs": 31
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=10000, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=10, local_epochs=10, learning_rate=0.01, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='DEFAULT', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1)"
+  },
+  "f1d5d42941": {
+    "params": {
+      "learning_rate": 94.93295927443285,
+      "clipping_bound": 0.026749812247081166
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=10, local_epochs=10, learning_rate=98.84071909384627, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-SGD', group_k=2, sigma=5.0, clipping_bound=0.015547713571363884, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0)"
+  },
+  "4fb256d308": {
+    "params": {
+      "learning_rate": 62.21500881292569,
+      "clipping_bound": 0.03261319540078484
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=10, learning_rate=98.87422352145413, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-SGD', group_k=2, sigma=5.0, clipping_bound=0.006697092952745138, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0)"
+  },
+  "0f87e3a6db": {
+    "params": {
+      "learning_rate": 3.1359554572231594,
+      "clipping_bound": 0.021254499477071958,
+      "local_epochs": 27
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=10, local_epochs=31, learning_rate=0.07824111059675043, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-GROUP', group_k=2, sigma=5.0, clipping_bound=0.19172079865643324, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0)"
+  },
+  "d71435400d": {
+    "params": {
+      "learning_rate": 0.09821184970851553,
+      "clipping_bound": 0.6140017088526109,
+      "local_epochs": 15
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=13, learning_rate=0.9753783856036415, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-GROUP', group_k=2, sigma=5.0, clipping_bound=1.7210931105125309, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0)"
+  },
+  "fb39698810": {
+    "params": {
+      "learning_rate": 1.4259361693086017,
+      "clipping_bound": 26.156598117760204
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=10000, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=10, local_epochs=10, learning_rate=3.632223943050038, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-SGD', group_k=2, sigma=5.0, clipping_bound=9.898012666944899, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0)"
+  },
+  "72256a4333": {
+    "params": {
+      "learning_rate": 0.01632800455863958,
+      "clipping_bound": 1.06496992261273,
+      "local_epochs": 29
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=10000, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=10, local_epochs=25, learning_rate=0.044474527745248765, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-GROUP', group_k=2, sigma=5.0, clipping_bound=1.7210931105125309, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0)"
+  },
+  "94b01c6f71": {
+    "params": {
+      "learning_rate": 4.665954567021848,
+      "clipping_bound": 16.59865466307128
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=10000, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=10, learning_rate=5.060104898419123, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-SGD', group_k=2, sigma=5.0, clipping_bound=4.986478897060373, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0)"
+  },
+  "6506313e23": {
+    "params": {
+      "learning_rate": 75.2816648325585,
+      "clipping_bound": 0.04608761236250002
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=10, local_epochs=10, learning_rate=14.610896159205396, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-SGD', group_k=2, sigma=5.0, clipping_bound=0.1042472735191035, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1)"
+  },
+  "1ed098e4f1": {
+    "params": {
+      "learning_rate": 98.1852295340565,
+      "clipping_bound": 0.019247162571149418
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=10, learning_rate=98.67626434941201, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-SGD', group_k=2, sigma=5.0, clipping_bound=0.014238000365848408, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1)"
+  },
+  "6533c43ea7": {
+    "params": {
+      "learning_rate": 1.7565462845079791,
+      "clipping_bound": 19.549112955502675
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=10000, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=10, local_epochs=10, learning_rate=15.364078027291786, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-SGD', group_k=2, sigma=5.0, clipping_bound=14.18333034693923, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1)"
+  },
+  "14fdcf88c2": {
+    "params": {
+      "learning_rate": 4.665954567021848,
+      "clipping_bound": 16.59865466307128
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=10000, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=10, learning_rate=7.236425313600648, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-SGD', group_k=2, sigma=5.0, clipping_bound=1.2715172615210708, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1)"
+  },
+  "ddaaf89a97": {
+    "params": {
+      "learning_rate": 0.14868846753419707,
+      "clipping_bound": 5.234319705464694,
+      "local_epochs": 31
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=10, local_epochs=33, learning_rate=0.0696150332735172, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-AVG', group_k=2, sigma=5.0, clipping_bound=27.37041796644298, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0)"
+  },
+  "b9584174c8": {
+    "params": {
+      "learning_rate": 0.10331745178854622,
+      "clipping_bound": 0.10573751732328418,
+      "local_epochs": 39
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=10000, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=39, learning_rate=0.15569383645770057, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-GROUP', group_k=2, sigma=5.0, clipping_bound=0.027827900475664875, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0)"
+  },
+  "f30022c849": {
+    "params": {
+      "learning_rate": 4.301390446198597,
+      "clipping_bound": 0.022161776336706924,
+      "local_epochs": 25
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=10, local_epochs=23, learning_rate=0.2462494772485736, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-GROUP', group_k=2, sigma=5.0, clipping_bound=0.036251296741943016, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1)"
+  },
+  "c2ba0799a1": {
+    "params": {
+      "learning_rate": 0.40924207221905956,
+      "clipping_bound": 0.07855396449748143,
+      "local_epochs": 25
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=15, learning_rate=0.96399457847114, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-GROUP', group_k=2, sigma=5.0, clipping_bound=0.11277124999299125, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1)"
+  },
+  "b5eedffcdc": {
+    "params": {
+      "learning_rate": 0.0028449172398690983,
+      "clipping_bound": 5.40676135866854,
+      "local_epochs": 37
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=10000, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=10, local_epochs=35, learning_rate=0.0021245045413653407, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-GROUP', group_k=2, sigma=5.0, clipping_bound=11.805855893421539, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1)"
+  },
+  "e332f8904a": {
+    "params": {
+      "learning_rate": 0.11870475954565476,
+      "clipping_bound": 4.210397824473029,
+      "local_epochs": 31
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=37, learning_rate=0.35575158513983884, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-AVG', group_k=2, sigma=5.0, clipping_bound=25.363307660469385, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0)"
+  },
+  "bbdbbea254": {
+    "params": {
+      "learning_rate": 0.2173299776117074,
+      "clipping_bound": 0.06154349060288273,
+      "local_epochs": 37
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=10000, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=39, learning_rate=0.1616057417929193, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-GROUP', group_k=2, sigma=5.0, clipping_bound=0.09057823354866089, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1)"
+  },
+  "f9a838effd": {
+    "params": {
+      "learning_rate": 0.2560161525002872,
+      "clipping_bound": 35.775015430826976,
+      "local_epochs": 3
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=10000, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=10, local_epochs=35, learning_rate=0.06793995548623019, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-AVG', group_k=2, sigma=5.0, clipping_bound=41.63199266428328, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0)"
+  },
+  "911a37cfa7": {
+    "params": {
+      "clipping_bound": 5.627949975223147,
+      "learning_rate": 0.019982467392329464,
+      "local_epochs": 21
+    },
+    "args": "Namespace(seed=0, gpu_id=1, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=10000, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=37, learning_rate=0.02618990361118121, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='DEFAULT', group_k=2, sigma=5.0, clipping_bound=19.873049659995903, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0)"
+  },
+  "60a3c39c24": {
+    "params": {
+      "clipping_bound": 39.9547975025715,
+      "learning_rate": 0.049315776705605684,
+      "local_epochs": 37
+    },
+    "args": "Namespace(seed=0, gpu_id=0, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=39, learning_rate=0.05647677095141455, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='DEFAULT', group_k=2, sigma=5.0, clipping_bound=6.608011472536602, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0)"
+  },
+  "7860efb365": {
+    "params": {
+      "clipping_bound": 0.24287983741290106,
+      "learning_rate": 0.03176285075361903,
+      "local_epochs": 35
+    },
+    "args": "Namespace(seed=0, gpu_id=0, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=19, learning_rate=0.08341337704426716, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='DEFAULT', group_k=2, sigma=5.0, clipping_bound=0.38519717643737383, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1)"
+  },
+  "15ccaabeb7": {
+    "params": {
+      "clipping_bound": 1.329964307245684,
+      "learning_rate": 0.033323882946714706,
+      "local_epochs": 31
+    },
+    "args": "Namespace(seed=0, gpu_id=1, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=10000, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=37, learning_rate=0.030505099207482626, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='DEFAULT', group_k=2, sigma=5.0, clipping_bound=31.180494242129626, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1)"
+  },
+  "fc69fc6db8": {
+    "params": {
+      "clipping_bound": 5.166935078634636,
+      "learning_rate": 0.1532280618510179,
+      "local_epochs": 37
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=10, local_epochs=37, learning_rate=0.04485335130898735, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-AVG', group_k=2, sigma=5.0, clipping_bound=7.317574803905495, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1)"
+  },
+  "a4578c7a5d": {
+    "params": "Too Bad.",
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='cifar10', model_name='cnn', n_users=100, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=10, local_epochs=10, learning_rate=0.01, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-SGD', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0)"
+  },
+  "0c2605aca4": {
+    "params": "Too Bad.",
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='cifar10', model_name='cnn', n_users=100, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=10, learning_rate=0.01, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-SGD', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0)"
+  },
+  "1e9833d027": {
+    "params": "Too Bad.",
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='cifar10', model_name='cnn', n_users=10000, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=10, local_epochs=10, learning_rate=0.01, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-SGD', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0)"
+  },
+  "a2686ab86a": {
+    "params": "Too Bad.",
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='cifar10', model_name='cnn', n_users=10000, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=10, learning_rate=0.01, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-SGD', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0)"
+  },
+  "c7ba9f4cea": {
+    "params": {
+      "clipping_bound": 2.788434793523154,
+      "learning_rate": 0.021497981912653893,
+      "local_epochs": 21
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='cifar10', model_name='cnn', n_users=100, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=10, local_epochs=27, learning_rate=0.13231791561439243, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='DEFAULT', group_k=2, sigma=5.0, clipping_bound=4.183255298722456, delta=1e-05, sampling_rate_q=0.1, verbose=1, hyper_parameter_tuning=1, times=1, exp_dist=0)"
+  },
+  "f9a1c88dc0": {
+    "params": {
+      "clipping_bound": 79.22687541690979,
+      "learning_rate": 0.008664253185104337,
+      "local_epochs": 13
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='cifar10', model_name='cnn', n_users=100, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=10, local_epochs=21, learning_rate=0.13231791561439243, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='DEFAULT', group_k=2, sigma=5.0, clipping_bound=8.617409822275498, delta=1e-05, sampling_rate_q=0.1, verbose=1, hyper_parameter_tuning=1, times=1, exp_dist=1)"
+  },
+  "f299317ded": {
+    "params": {
+      "clipping_bound": 3.4139067988815257,
+      "learning_rate": 0.07827728238089239,
+      "local_epochs": 29
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='cifar10', model_name='cnn', n_users=100, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=10, local_epochs=25, learning_rate=0.23317941487021368, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-AVG', group_k=2, sigma=5.0, clipping_bound=1.8066632473131923, delta=1e-05, sampling_rate_q=0.1, verbose=1, hyper_parameter_tuning=1, times=1, exp_dist=0)"
+  },
+  "0f0cb9bdf9": {
+    "params": "Too Bad.",
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='cifar10', model_name='cnn', n_users=10000, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=10, local_epochs=3, learning_rate=0.000582339570275707, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-AVG', group_k=2, sigma=5.0, clipping_bound=0.0005104361238838668, delta=1e-05, sampling_rate_q=0.1, verbose=1, hyper_parameter_tuning=1, times=1, exp_dist=0)"
+  },
+  "2831038dff": {
+    "params": {
+      "clipping_bound": 0.01310820146952889,
+      "learning_rate": 99.54416633576943
+    },
+    "args": "Namespace(seed=0, gpu_id=3, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=10, learning_rate=37.30064476806607, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-SGD-w', group_k=2, sigma=5.0, clipping_bound=0.024186175999903626, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1)"
+  },
+  "537b9060ff": {
+    "params": {
+      "clipping_bound": 24.504770030891645,
+      "learning_rate": 0.07379183523425349
+    },
+    "args": "Namespace(seed=0, gpu_id=2, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=10000, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=10, local_epochs=10, learning_rate=0.0647760883547524, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-AVG-w', group_k=2, sigma=5.0, clipping_bound=24.366249311517493, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0)"
+  },
+  "631ef14040": {
+    "params": {
+      "clipping_bound": 8.173813772330815,
+      "learning_rate": 2.713625885104766
+    },
+    "args": "Namespace(seed=0, gpu_id=0, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=10000, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=10, local_epochs=10, learning_rate=7.577957192602035, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-SGD-w', group_k=2, sigma=5.0, clipping_bound=33.702588744894854, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1)"
+  },
+  "7ead633b10": {
+    "params": {
+      "clipping_bound": 27.541508989852243,
+      "learning_rate": 0.08372925338133425
+    },
+    "args": "Namespace(seed=0, gpu_id=1, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=10000, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=10, local_epochs=10, learning_rate=0.125213828781171, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-AVG-w', group_k=2, sigma=5.0, clipping_bound=2.748092217710761, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1)"
+  },
+  "a380887b3e": {
+    "params": {
+      "clipping_bound": 13.42728478548411,
+      "learning_rate": 2.4224167068743636
+    },
+    "args": "Namespace(seed=0, gpu_id=0, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=10000, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=10, learning_rate=12.146383379519415, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-SGD-w', group_k=2, sigma=5.0, clipping_bound=9.19918505896399, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1)"
+  },
+  "ec0600e699": {
+    "params": {
+      "clipping_bound": 0.032443616315129715,
+      "learning_rate": 83.11869246189686
+    },
+    "args": "Namespace(seed=0, gpu_id=3, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=10, local_epochs=10, learning_rate=58.50096891274095, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-SGD-w', group_k=2, sigma=5.0, clipping_bound=0.046848379430059074, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1)"
+  },
+  "f0f40a4c0a": {
+    "params": {
+      "clipping_bound": 13.1320321338578,
+      "learning_rate": 2.1848145648102655
+    },
+    "args": "Namespace(seed=0, gpu_id=3, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=10000, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=10, learning_rate=19.62108743615611, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-SGD-w', group_k=2, sigma=5.0, clipping_bound=18.597987704582245, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0)"
+  },
+  "561c0578de": {
+    "params": {
+      "clipping_bound": 10.966725563934252,
+      "learning_rate": 0.039708977383498455,
+      "local_epochs": 23
+    },
+    "args": "Namespace(seed=0, gpu_id=0, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=10000, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=10, local_epochs=13, learning_rate=0.011832382067031995, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-AVG', group_k=2, sigma=5.0, clipping_bound=38.138543077528304, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1)"
+  },
+  "61d13acd18": {
+    "params": {
+      "clipping_bound": 3.0976880415208683,
+      "learning_rate": 0.08584211205136696,
+      "local_epochs": 39
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=39, learning_rate=0.06629553035695197, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-AVG', group_k=2, sigma=5.0, clipping_bound=3.20088444370579, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1)"
+  },
+  "841b00719b": {
+    "params": {
+      "clipping_bound": 1.477527222193958,
+      "learning_rate": 0.18681043453400611
+    },
+    "args": "Namespace(seed=0, gpu_id=1, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=10, learning_rate=0.17866068405565655, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-AVG-w', group_k=2, sigma=5.0, clipping_bound=2.962146802857264, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1)"
+  },
+  "553afb1f45": {
+    "params": {
+      "clipping_bound": 2.465815732491981,
+      "learning_rate": 0.19988296576962306
+    },
+    "args": "Namespace(seed=0, gpu_id=1, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=10, local_epochs=10, learning_rate=0.30385826905070185, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-AVG-w', group_k=2, sigma=5.0, clipping_bound=11.441336491304943, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1)"
+  },
+  "9a38afb197": {
+    "params": {
+      "clipping_bound": 1.3469579340273878,
+      "learning_rate": 9.105585492479372
+    },
+    "args": "Namespace(seed=0, gpu_id=3, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=10000, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=10, local_epochs=10, learning_rate=21.278340108798464, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-SGD-w', group_k=2, sigma=5.0, clipping_bound=1.038464368472104, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0)"
+  },
+  "748b598292": {
+    "params": {
+      "clipping_bound": 3.571706917703311,
+      "learning_rate": 0.1904149437176956
+    },
+    "args": "Namespace(seed=0, gpu_id=2, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=10, learning_rate=0.24275826805602352, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-AVG-w', group_k=2, sigma=5.0, clipping_bound=3.4899953161953348, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0)"
+  },
+  "59cf6fda4a": {
+    "params": "Too Bad.",
+    "args": "Namespace(seed=0, gpu_id=1, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=10000, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=10, local_epochs=7, learning_rate=0.00046278087844100785, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-NAIVE', group_k=2, sigma=5.0, clipping_bound=0.002428141920479307, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1)"
+  },
+  "cd674482b9": {
+    "params": "Too Bad.",
+    "args": "Namespace(seed=0, gpu_id=0, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=10, local_epochs=35, learning_rate=0.0006124511662189648, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-NAIVE', group_k=2, sigma=5.0, clipping_bound=0.0028170468852105573, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1)"
+  },
+  "0f4718843d": {
+    "params": "Too Bad.",
+    "args": "Namespace(seed=0, gpu_id=1, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=10000, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=1, learning_rate=0.00022146859635668346, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-NAIVE', group_k=2, sigma=5.0, clipping_bound=0.0014759948114174853, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1)"
+  },
+  "ef385780cf": {
+    "params": "Too Bad.",
+    "args": "Namespace(seed=0, gpu_id=0, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=3, learning_rate=0.009406267736942003, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-NAIVE', group_k=2, sigma=5.0, clipping_bound=0.0073085042327673475, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1)"
+  },
+  "35cbc7614d": {
+    "params": {
+      "clipping_bound": 0.025740765667007365,
+      "learning_rate": 69.33287602139997
+    },
+    "args": "Namespace(seed=0, gpu_id=3, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=10, learning_rate=47.562153391706055, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-SGD-w', group_k=2, sigma=5.0, clipping_bound=0.06670755548572756, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0)"
+  },
+  "f61fccb6f0": {
+    "params": {
+      "clipping_bound": 5.05632700527534,
+      "learning_rate": 0.20345764470497388
+    },
+    "args": "Namespace(seed=0, gpu_id=2, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=10, local_epochs=10, learning_rate=0.2633412235291339, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-AVG-w', group_k=2, sigma=5.0, clipping_bound=8.662577459369158, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0)"
+  },
+  "509720a14f": {
+    "params": "Too Bad.",
+    "args": "Namespace(seed=0, gpu_id=1, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=10000, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=10, local_epochs=7, learning_rate=0.0003314035397816416, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-NAIVE', group_k=2, sigma=5.0, clipping_bound=0.007744033347417172, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0)"
+  },
+  "0e25af709b": {
+    "params": "Too Bad.",
+    "args": "Namespace(seed=0, gpu_id=0, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=10, local_epochs=27, learning_rate=0.0010562402690323435, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-NAIVE', group_k=2, sigma=5.0, clipping_bound=0.0072658092756181895, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0)"
+  },
+  "00388c0e0e": {
+    "params": {
+      "clipping_bound": 0.021830352534703012,
+      "learning_rate": 91.10292715606987
+    },
+    "args": "Namespace(seed=0, gpu_id=3, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=10, local_epochs=10, learning_rate=98.84071909384627, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-SGD-w', group_k=2, sigma=5.0, clipping_bound=0.017690508014525586, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0)"
+  },
+  "28f4bcb815": {
+    "params": "Too Bad.",
+    "args": "Namespace(seed=0, gpu_id=1, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=10000, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=27, learning_rate=0.0010562402690323435, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-NAIVE', group_k=2, sigma=5.0, clipping_bound=0.0072658092756181895, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0)"
+  },
+  "b90d97f90d": {
+    "params": "Too Bad.",
+    "args": "Namespace(seed=0, gpu_id=0, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=5, learning_rate=0.0014562264604608445, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-NAIVE', group_k=2, sigma=5.0, clipping_bound=0.003731988361504325, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0)"
   }
 }
