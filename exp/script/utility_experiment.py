@@ -108,7 +108,13 @@ def hyper_parameter_tuning(args, path_project):
         )
         hyper_params["clipping_bound"] = clipping_bound
 
-        if args.agg_strategy in ["ULDP-AVG", "ULDP-GROUP", "DEFAULT", "ULDP-NAIVE"]:
+        if args.agg_strategy in [
+            "ULDP-AVG",
+            "ULDP-GROUP",
+            "DEFAULT",
+            "ULDP-NAIVE",
+            "ULDP-AVG-w",
+        ]:
             local_epochs = trial.suggest_int("local_epochs", 1, 40, step=2)
             args.local_epochs = local_epochs
             logger.debug(
@@ -186,7 +192,13 @@ if __name__ == "__main__":
         if type(best_params) is dict:
             args.learning_rate = best_params["learning_rate"]
             args.clipping_bound = best_params["clipping_bound"]
-            if args.agg_strategy in ["ULDP-AVG", "ULDP-GROUP", "DEFAULT", "ULDP-NAIVE"]:
+            if args.agg_strategy in [
+                "ULDP-AVG",
+                "ULDP-GROUP",
+                "DEFAULT",
+                "ULDP-NAIVE",
+                "ULDP-AVG-w",
+            ]:
                 args.local_epochs = best_params["local_epochs"]
             logger.info(
                 "++++++++ Load Best params: learning_rate={}, clipping_bound={}, local_epochs={} ++++++++".format(
