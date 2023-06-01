@@ -94,4 +94,4 @@ if __name__ == "__main__":
 
         args = update_args(args)
     results = run_simulation(args, path_project)
-    save_one_shot_results(args, path_project, {"exp": [results["global"]]}, "sim")
+    # save_one_shot_results(args, path_project, {"exp": [results["global"]]}, "sim")

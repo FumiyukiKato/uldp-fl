@@ -2,6 +2,12 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 
+from mylogger import logger
+
+
+def count_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
 
 # return model from string name
 def create_model(model_name: str, dataset_name: str, seed: int = None) -> nn.Module:
@@ -22,28 +28,31 @@ def create_model(model_name: str, dataset_name: str, seed: int = None) -> nn.Mod
     if dataset_name == "heart_disease":
         import flamby_utils.heart_disease as heart_disease
 
-        return heart_disease.custom_model()
+        model = heart_disease.custom_model()
 
     elif dataset_name == "tcga_brca":
         import flamby_utils.tcga_brca as tcga_brca
 
-        return tcga_brca.custom_model()
+        model = tcga_brca.custom_model()
 
     elif dataset_name == "isic":
         import flamby_utils.isic as isic
 
-        return isic.custom_model()
+        model = isic.custom_model()
 
-    if model_name == "cnn":
+    elif model_name == "cnn":
         # Convolutional neural network
         if dataset_name == "mnist":
-            return CNNMnist()
+            model = CNNMnist()
         elif dataset_name == "cifar10":
-            return CNNCifar(10)
+            model = CNNCifar(10)
         elif dataset_name == "cifar100":
-            return ResNetCifar(100)
+            model = ResNetCifar(100)
         else:
             raise NotImplementedError
+
+    logger.debug(f"Number of model params (Dimension d): {count_parameters(model)}")
+    return model
 
 
 class CNNMnist(nn.Module):

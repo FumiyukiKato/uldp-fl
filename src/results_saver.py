@@ -21,7 +21,7 @@ def load_results(args, path_project, hp: bool = False):
     resutls_file_name_list = glob.glob(
         os.path.join(path_project, RESULTS_DIR, hashed_args, file_name)
     )
-    print(resutls_file_name_list)
+    # print(os.path.join(path_project, RESULTS_DIR, hashed_args, file_name))
     results_list = []
     for file_path in resutls_file_name_list:
         with open(file_path, "r") as json_file:
