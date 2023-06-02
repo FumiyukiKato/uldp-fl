@@ -239,7 +239,7 @@ class ClassificationTrainer:
 
         # Optimization step like CALCULATE GRADIENTS
         if self.agg_strategy in ["RECORD-LEVEL-DP", "ULDP-GROUP"]:
-            noise_generator = torch.Generator().manual_seed(
+            noise_generator = torch.Generator(device=self.device).manual_seed(
                 self.get_torch_manual_seed()
             )
             model, optimizer, train_loader = self.privacy_engine.make_private(
@@ -260,7 +260,7 @@ class ClassificationTrainer:
 
                 for x, labels in user_train_loader:
                     x, labels = x.to(self.device), labels.to(self.device)
-                    optimizer.zero_grad()
+                    model.zero_grad()
                     log_probs = model(x)
                     loss = criterion(log_probs, labels)
                     loss_callback(loss)
@@ -269,7 +269,7 @@ class ClassificationTrainer:
 
                     for name, param in model.named_parameters():
                         # Due to different batch size for each user
-                        user_avg_grad[name] = param.grad / len(x)
+                        user_avg_grad[name] += param.grad / len(x)
 
                 clipped_grads = noise_utils.global_clip(
                     model, user_avg_grad, self.local_clipping_bound
@@ -290,7 +290,6 @@ class ClassificationTrainer:
             )
 
         elif self.agg_strategy in ["ULDP-AVG", "ULDP-AVG-w"]:
-            train_loader = self.make_user_level_data_loader()
             weights_diff_list = []  # TODO: memory optimization (use online aggregation)
             for user_id, user_train_loader in self.user_level_data_loader:
                 model_u = copy.deepcopy(model)
@@ -333,6 +332,7 @@ class ClassificationTrainer:
                 self.local_sigma * self.local_clipping_bound / self.n_silo_per_round,
                 device=self.device,
             )
+
         else:
             for epoch in range(self.local_epochs):
                 batch_loss = []
