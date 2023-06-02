@@ -16,6 +16,7 @@ class FLServer:
         model: torch.nn.Module,
         train_dataset: List[Tuple[torch.Tensor, int]],
         test_dataset: List[Tuple[torch.Tensor, int]],
+        n_users: int,
         n_silos: int,
         device: str,
         n_total_round: int,
@@ -25,12 +26,14 @@ class FLServer:
         clipping_bound: float = None,
         sigma: float = None,
         delta: float = None,
+        global_learning_rate: float = None,
         dataset_name: Optional[str] = None,
     ):
         aggregator = Aggregator(
             model=model,
             train_dataset=train_dataset,
             test_dataset=test_dataset,
+            n_users=n_users,
             n_silos=n_silos,
             n_silo_per_round=n_silo_per_round,
             device=device,
@@ -39,6 +42,7 @@ class FLServer:
             clipping_bound=clipping_bound,
             sigma=sigma,
             delta=delta,
+            global_learning_rate=global_learning_rate,
             dataset_name=dataset_name,
         )
 

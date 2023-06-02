@@ -75,18 +75,37 @@ def build_exp_paramerters(default_args, dataset, dist, method, n_users):
 def hyper_parameter_tuning(args, path_project):
     import optuna
 
-    N_SEED = 1  # Baysian searching like `optuna` is relatively robust for seed
-    N_TRIALS = 100
-
+    N_SEED = 2
     original_args = copy.deepcopy(args)
     result_details = []
 
     hash_args, storage_path = get_storage_path(args, path_project)
+    samples = {}
+    samples["global_learning_rate"] = [100.0, 10.0, 1.0, 0.1]
+    if args.agg_strategy in [
+        "ULDP-GROUP",
+        "ULDP-NAIVE",
+        "ULDP-SGD",
+        "ULDP-SGD-w",
+        "ULDP-AVG",
+        "ULDP-AVG-w",
+    ]:
+        samples["clipping_bound"] = [100.0, 10.0, 1.0, 0.1]
+    if args.agg_strategy in [
+        "ULDP-GROUP",
+        "DEFAULT",
+        "ULDP-NAIVE",
+        "ULDP-AVG",
+        "ULDP-AVG-w",
+    ]:
+        samples["local_learning_rate"] = [1.0, 0.1, 0.01, 0.001]
+        samples["local_epochs"] = [50, 10, 5, 1]
+
     study = optuna.create_study(
         study_name=f"{hash_args}",
         storage=f"sqlite:///{storage_path}",
         pruner=optuna.pruners.MedianPruner(),
-        sampler=optuna.samplers.TPESampler(seed=original_args.seed),
+        sampler=optuna.samplers.GridSampler(samples),
         load_if_exists=True,
     )
 
@@ -94,28 +113,55 @@ def hyper_parameter_tuning(args, path_project):
         # Target hyper parameters that wte want to optimize.
         hyper_params = {}
 
-        learning_rate = trial.suggest_float("learning_rate", 1e-4, 100, log=True)
-        args.learning_rate = learning_rate
-        logger.debug(
-            "++++++++ Optuna setting: learning_rate={} ++++++++".format(learning_rate)
+        global_learning_rate = trial.suggest_categorical(
+            "global_learning_rate", [100.0, 10.0, 1.0, 0.1]
         )
-        hyper_params["learning_rate"] = learning_rate
-
-        clipping_bound = trial.suggest_float("clipping_bound", 1e-4, 100, log=True)
-        args.clipping_bound = clipping_bound
+        args.global_learning_rate = global_learning_rate
         logger.debug(
-            "++++++++ Optuna setting: clipping_bound={} ++++++++".format(clipping_bound)
+            "++++++++ Optuna setting: global_learning_rate={} ++++++++".format(
+                global_learning_rate
+            )
         )
-        hyper_params["clipping_bound"] = clipping_bound
+        hyper_params["global_learning_rate"] = global_learning_rate
 
         if args.agg_strategy in [
-            "ULDP-AVG",
             "ULDP-GROUP",
-            "DEFAULT",
             "ULDP-NAIVE",
+            "ULDP-SGD",
+            "ULDP-SGD-w",
+            "ULDP-AVG",
             "ULDP-AVG-w",
         ]:
-            local_epochs = trial.suggest_int("local_epochs", 1, 40, step=2)
+            clipping_bound = trial.suggest_categorical(
+                "clipping_bound", [100.0, 10.0, 1.0, 0.1]
+            )
+            args.clipping_bound = clipping_bound
+            logger.debug(
+                "++++++++ Optuna setting: clipping_bound={} ++++++++".format(
+                    clipping_bound
+                )
+            )
+            hyper_params["clipping_bound"] = clipping_bound
+
+        if args.agg_strategy in [
+            "DEFAULT",
+            "ULDP-GROUP",
+            "ULDP-NAIVE",
+            "ULDP-AVG",
+            "ULDP-AVG-w",
+        ]:
+            local_learning_rate = trial.suggest_categorical(
+                "local_learning_rate", [1.0, 0.1, 0.01, 0.001]
+            )
+            args.local_learning_rate = local_learning_rate
+            logger.debug(
+                "++++++++ Optuna setting: local_learning_rate={} ++++++++".format(
+                    local_learning_rate
+                )
+            )
+            hyper_params["local_learning_rate"] = local_learning_rate
+
+            local_epochs = trial.suggest_categorical("local_epochs", [50, 10, 5, 1])
             args.local_epochs = local_epochs
             logger.debug(
                 "++++++++ Optuna setting: local_epochs={} ++++++++".format(local_epochs)
@@ -151,7 +197,7 @@ def hyper_parameter_tuning(args, path_project):
         )
         return error_rate
 
-    study.optimize(objective, n_trials=N_TRIALS)
+    study.optimize(objective)
     try:
         best_params = study.best_params
         best_value = study.best_value
@@ -190,21 +236,26 @@ if __name__ == "__main__":
     else:
         best_params = load_best_params(args, path_project)
         if type(best_params) is dict:
-            args.learning_rate = best_params["learning_rate"]
-            args.clipping_bound = best_params["clipping_bound"]
+            args.global_learning_rate = best_params["global_learning_rate"]
             if args.agg_strategy in [
-                "ULDP-AVG",
                 "ULDP-GROUP",
-                "DEFAULT",
                 "ULDP-NAIVE",
+                "ULDP-SGD",
+                "ULDP-SGD-w",
+                "ULDP-AVG",
+                "ULDP-AVG-w",
+            ]:
+                args.clipping_bound = best_params["clipping_bound"]
+            if args.agg_strategy in [
+                "DEFAULT",
+                "ULDP-GROUP",
+                "ULDP-NAIVE",
+                "ULDP-AVG",
                 "ULDP-AVG-w",
             ]:
                 args.local_epochs = best_params["local_epochs"]
-            logger.info(
-                "++++++++ Load Best params: learning_rate={}, clipping_bound={}, local_epochs={} ++++++++".format(
-                    args.learning_rate, args.clipping_bound, args.local_epochs
-                )
-            )
+                args.local_learning_rate = best_params["local_learning_rate"]
+            logger.info("++++++++ Load Best params ++++++++")
         elif type(best_params) is str:
             logger.warning(
                 "++++++++ All params are too Bad and use default params ++++++++"
@@ -212,6 +263,7 @@ if __name__ == "__main__":
         else:
             logger.warning("++++++++ Best params Not Found ++++++++")
             raise ValueError("Best params Not Found")
+
         results_list = []
         for i in range(args.times):
             args.seed = args.seed + i

@@ -28,7 +28,7 @@ class ClassificationTrainer:
         user_histogram: Optional[Dict[int, int]],
         user_ids_of_local_train_dataset: Optional[List[int]],
         client_optimizer: str = "sgd",
-        learning_rate: float = 0.001,
+        local_learning_rate: float = 0.001,
         local_batch_size: int = 1,
         weight_decay: float = 0.001,
         local_epochs: int = 5,
@@ -48,7 +48,7 @@ class ClassificationTrainer:
         self.local_batch_size = local_batch_size
         self.user_weights = user_weights
         self.n_silo_per_round = n_silo_per_round
-        self.learning_rate = learning_rate
+        self.local_learning_rate = local_learning_rate
         self.dataset_name = dataset_name
 
         self.results = {"local_test": [], "train_time": [], "epsilon": []}
@@ -82,7 +82,7 @@ class ClassificationTrainer:
             )
 
             self.criterion = custom_loss()
-            self.optimizer = custom_optimizer(self.model)
+            self.optimizer = custom_optimizer(self.model, self.local_learning_rate)
             self.metric = custom_metric()
         elif self.dataset_name == "tcga_brca":
             from flamby_utils.tcga_brca import (
@@ -92,7 +92,7 @@ class ClassificationTrainer:
             )
 
             self.criterion = custom_loss()
-            self.optimizer = custom_optimizer(self.model)
+            self.optimizer = custom_optimizer(self.model, self.local_learning_rate)
             self.metric = custom_metric()
         elif self.dataset_name == "isic":
             from flamby_utils.isic import (
@@ -111,12 +111,12 @@ class ClassificationTrainer:
             if client_optimizer == "sgd":
                 self.optimizer = torch.optim.SGD(
                     filter(lambda p: p.requires_grad, self.model.parameters()),
-                    lr=learning_rate,
+                    lr=local_learning_rate,
                 )
             elif client_optimizer == "adam":
                 self.optimizer = torch.optim.Adam(
                     filter(lambda p: p.requires_grad, self.model.parameters()),
-                    lr=learning_rate,
+                    lr=local_learning_rate,
                     weight_decay=weight_decay,
                     amsgrad=True,
                 )
@@ -130,6 +130,8 @@ class ClassificationTrainer:
         self.user_user_histogram = user_histogram
         self.user_ids_of_local_train_dataset = user_ids_of_local_train_dataset
         self.distinct_users = list(set(user_ids_of_local_train_dataset))
+        if self.agg_strategy in ["ULDP-SGD", "ULDP-SGD-w", "ULDP-AVG", "ULDP-AVG-w"]:
+            self.user_level_data_loader = self.make_user_level_data_loader()
 
     def get_results(self):
         return self.results
@@ -154,7 +156,7 @@ class ClassificationTrainer:
     def set_user_weights(self, user_weights: Dict[int, float]):
         self.user_weights = user_weights
 
-    def make_user_level_data_loader(self) -> List[Tuple[int, List]]:
+    def make_user_level_data_loader(self) -> List[Tuple[int, DataLoader]]:
         shuffled_train_data_indices = np.arange(len(self.train_loader.dataset))
         self.random_state.shuffle(shuffled_train_data_indices)
         data_per_users: Dict[int, List] = {}
@@ -165,14 +167,23 @@ class ClassificationTrainer:
                 data_per_users[user_id] = []
             data_per_users[user_id].append(data)
 
-        new_train_loader = []
+        new_train_loader_list = []
 
         shuffled_distinct_user_indices = np.arange(len(self.distinct_users))
         self.random_state.shuffle(shuffled_distinct_user_indices)
         for idx in shuffled_distinct_user_indices:
             user_id = self.distinct_users[idx]
-            new_train_loader.append((user_id, data_per_users[user_id]))
-        return new_train_loader
+            new_train_loader_list.append(
+                (
+                    user_id,
+                    DataLoader(
+                        data_per_users[user_id],
+                        batch_size=self.local_batch_size,
+                        shuffle=True,
+                    ),
+                )
+            )
+        return new_train_loader_list
 
     def bound_user_contributions(self, bounded_user_histogram):
         new_local_train_dataset = []
@@ -226,6 +237,7 @@ class ClassificationTrainer:
         optimizer = self.optimizer
         criterion = self.criterion
 
+        # Optimization step like CALCULATE GRADIENTS
         if self.agg_strategy in ["RECORD-LEVEL-DP", "ULDP-GROUP"]:
             noise_generator = torch.Generator().manual_seed(
                 self.get_torch_manual_seed()
@@ -240,84 +252,85 @@ class ClassificationTrainer:
             )
 
         if self.agg_strategy in ["ULDP-SGD", "ULDP-SGD-w"]:
-            train_loader = self.make_user_level_data_loader()
             grads_list = []  # TODO: memory optimization (use online aggregation)
-            for user_id, user_data in train_loader:
-                model_u = copy.deepcopy(model)
-                x = torch.stack([data[0] for data in user_data])
-                labels = torch.stack([torch.tensor(data[1]) for data in user_data])
-                x, labels = x.to(self.device), labels.to(self.device)
-                optimizer.zero_grad()
-                log_probs = model_u(x)
-                loss = criterion(log_probs, labels)
-                loss_callback(loss)
-                loss.backward()  # calculate gradients
-                # Don't optimize (i.e., Don't call step())
+            for user_id, user_train_loader in self.user_level_data_loader:
+                user_avg_grad = OrderedDict()
+                for name, param in model.named_parameters():
+                    user_avg_grad[name] = torch.zeros_like(param.data)
 
-                new_grad = OrderedDict()
-                for name, param in model_u.named_parameters():
-                    # Due to different batch size for each user
-                    new_grad[name] = param.grad / len(x)
+                for x, labels in user_train_loader:
+                    x, labels = x.to(self.device), labels.to(self.device)
+                    optimizer.zero_grad()
+                    log_probs = model(x)
+                    loss = criterion(log_probs, labels)
+                    loss_callback(loss)
+                    loss.backward()
+                    # Don't optimize (i.e., Don't call step())
+
+                    for name, param in model.named_parameters():
+                        # Due to different batch size for each user
+                        user_avg_grad[name] = param.grad / len(x)
 
                 clipped_grads = noise_utils.global_clip(
-                    model_u,
-                    new_grad,
-                    self.user_weights[user_id] * self.local_clipping_bound,
+                    model, user_avg_grad, self.local_clipping_bound
                 )
-                grads_list.append(clipped_grads)
+                weighted_clipped_grads = noise_utils.multiple_weights(
+                    model, clipped_grads, self.user_weights[user_id]
+                )
+                grads_list.append(weighted_clipped_grads)
 
             # calculate the average gradient
-            U = len(train_loader)
-            avg_grads = noise_utils.torch_aggregation(grads_list, U)
+            avg_grads = noise_utils.torch_aggregation(grads_list, 1.0)
             noisy_avg_grads = noise_utils.add_global_noise(
                 model,
                 avg_grads,
                 self.random_state,
-                self.local_sigma
-                * self.local_clipping_bound
-                / self.n_silo_per_round
-                / U,
+                self.local_sigma * self.local_clipping_bound / self.n_silo_per_round,
                 device=self.device,
             )
 
         elif self.agg_strategy in ["ULDP-AVG", "ULDP-AVG-w"]:
             train_loader = self.make_user_level_data_loader()
             weights_diff_list = []  # TODO: memory optimization (use online aggregation)
-            for user_id, user_data in train_loader:
+            for user_id, user_train_loader in self.user_level_data_loader:
                 model_u = copy.deepcopy(model)
                 optimizer_u = torch.optim.SGD(
                     filter(lambda p: p.requires_grad, model_u.parameters()),
-                    lr=self.learning_rate,
+                    lr=self.local_learning_rate,
                 )
                 for epoch in range(self.local_epochs):
-                    x = torch.stack([data[0] for data in user_data])
-                    labels = torch.stack([torch.tensor(data[1]) for data in user_data])
-                    x, labels = x.to(self.device), labels.to(self.device)
-                    optimizer_u.zero_grad()
-                    log_probs = model_u(x)
-                    loss = criterion(log_probs, labels)
-                    loss_callback(loss)
-                    loss.backward()
-                    optimizer_u.step()
+                    batch_loss = []
+                    for x, labels in user_train_loader:
+                        x, labels = x.to(self.device), labels.to(self.device)
+                        optimizer_u.zero_grad()
+                        log_probs = model_u(x)
+                        loss = criterion(log_probs, labels)
+                        loss_callback(loss)
+                        loss.backward()
+                        optimizer_u.step()
+                        batch_loss.append(loss.item())
+
+                    logger.debug(
+                        "Silo Id = {}\tEpoch: {}\tLoss: {:.6f}".format(
+                            self.silo_id, epoch, sum(batch_loss) / len(batch_loss)
+                        )
+                    )
                 weights = model_u.state_dict()
                 weights_diff = self.diff_weights(global_weights, weights)
                 clipped_weights_diff = noise_utils.global_clip(
-                    model_u,
-                    weights_diff,
-                    self.user_weights[user_id] * self.local_clipping_bound,
+                    model_u, weights_diff, self.local_clipping_bound
                 )
-                weights_diff_list.append(clipped_weights_diff)
+                weighted_clipped_weights_diff = noise_utils.multiple_weights(
+                    model_u, clipped_weights_diff, self.user_weights[user_id]
+                )
+                weights_diff_list.append(weighted_clipped_weights_diff)
 
-            U = len(train_loader)
-            avg_weights_diff = noise_utils.torch_aggregation(weights_diff_list, U)
+            avg_weights_diff = noise_utils.torch_aggregation(weights_diff_list, 1.0)
             noisy_avg_weights_diff = noise_utils.add_global_noise(
                 model,
                 avg_weights_diff,
                 self.random_state,
-                self.local_sigma
-                * self.local_clipping_bound
-                / self.n_silo_per_round
-                / U,
+                self.local_sigma * self.local_clipping_bound / self.n_silo_per_round,
                 device=self.device,
             )
         else:
@@ -350,12 +363,13 @@ class ClassificationTrainer:
                 )
 
             weights = self.get_model_params()
-            weights_dff = self.diff_weights(global_weights, weights)
+            weights_diff = self.diff_weights(global_weights, weights)
 
         train_time = time.time() - tick
         logger.debug("Train/Time : %s", train_time)
         self.results["train_time"].append((global_round_index, train_time))
 
+        # Post-process step
         if self.agg_strategy in ["RECORD-LEVEL-DP"]:
             model.remove_hooks()
             eps = self.privacy_engine.get_epsilon(delta=self.local_delta)
@@ -365,7 +379,7 @@ class ClassificationTrainer:
                 )
             )
             self.results["epsilon"].append((global_round_index, eps))
-            return weights_dff, len(train_loader)
+            return weights_diff, len(train_loader)
         elif self.agg_strategy in ["ULDP-GROUP"]:
             model.remove_hooks()
             group_eps, opt_alpha = noise_utils.get_group_privacy_spent(
@@ -379,10 +393,10 @@ class ClassificationTrainer:
                 )
             )
             self.results["epsilon"].append((global_round_index, group_eps))
-            return weights_dff, len(train_loader)
+            return weights_diff, len(train_loader)
         elif self.agg_strategy in ["ULDP-NAIVE"]:
             clipped_weights_diff = noise_utils.global_clip(
-                self.model, weights_dff, self.local_clipping_bound
+                self.model, weights_diff, self.local_clipping_bound
             )
             noised_clipped_weights_diff = noise_utils.add_global_noise(
                 self.model,
@@ -394,7 +408,7 @@ class ClassificationTrainer:
             return noised_clipped_weights_diff, len(train_loader)
         elif self.agg_strategy in ["SILO-LEVEL-DP"]:
             clipped_weights_diff = noise_utils.global_clip(
-                self.model, weights_dff, self.local_clipping_bound
+                self.model, weights_diff, self.local_clipping_bound
             )
             return clipped_weights_diff, len(train_loader)
         elif self.agg_strategy in ["ULDP-SGD", "ULDP-SGD-w"]:
@@ -402,7 +416,7 @@ class ClassificationTrainer:
         elif self.agg_strategy in ["ULDP-AVG", "ULDP-AVG-w"]:
             return noisy_avg_weights_diff, len(self.train_loader)
         elif self.agg_strategy in ["DEFAULT"]:
-            return weights_dff, len(train_loader)
+            return weights_diff, len(train_loader)
         else:
             raise NotImplementedError("Unknown aggregation strategy")
 

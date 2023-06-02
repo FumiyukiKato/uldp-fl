@@ -62,7 +62,7 @@ if __name__ == "__main__":
         local_test_dataset=test_dataset,
         user_histogram=user_hist,
         user_ids_of_local_train_dataset=user_ids,
-        learning_rate=args.learning_rate,
+        local_learning_rate=args.local_learning_rate,
         local_batch_size=args.local_batch_size,
         client_optimizer=args.client_optimizer,
         local_epochs=args.local_epochs,

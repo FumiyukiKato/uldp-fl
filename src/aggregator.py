@@ -18,6 +18,7 @@ class Aggregator:
         model,
         train_dataset,
         test_dataset,
+        n_users,
         n_silos,
         n_silo_per_round,
         device,
@@ -26,18 +27,20 @@ class Aggregator:
         clipping_bound: Optional[float] = None,
         sigma: Optional[float] = None,
         delta: Optional[float] = None,
-        central_learning_rate: Optional[float] = None,
+        global_learning_rate: Optional[float] = None,
         dataset_name: str = None,
     ):
         self.random_state = np.random.RandomState(seed=base_seed + 1000000)
         self.model: nn.Module = model
         self.train_dataset = train_dataset
         self.test_dataset = test_dataset
+        self.n_users = n_users
         self.n_silos = n_silos
         self.n_silo_per_round = n_silo_per_round
         self.device = device
         self.dataset_name = dataset_name
         self.strategy = strategy
+        self.global_learning_rate = global_learning_rate
         if self.strategy in [
             "SILO-LEVEL-DP",
             "ULDP-NAIVE",
@@ -58,9 +61,6 @@ class Aggregator:
             self.accountant = RDPAccountant()
         elif self.strategy in ["RECORD-LEVEL-DP", "ULDP-GROUP"]:
             self.delta = delta
-
-        if self.strategy in ["ULDP-SGD", "ULDP-SGD-w"]:
-            self.central_learning_rate = central_learning_rate
 
         self.model_dict = dict()
         self.n_sample_dict = dict()
@@ -175,23 +175,27 @@ class Aggregator:
         for silo_id in silo_id_list_in_this_round:
             raw_client_model_or_grad_list.append(self.model_dict[silo_id])
 
-        if self.strategy in [
-            "DEFAULT",
-            "RECORD-LEVEL-DP",
-            "ULDP-GROUP",
-            "ULDP-NAIVE",
-            "ULDP-AVG",
-            "ULDP-AVG-w",
-        ]:
+        if self.strategy in ["DEFAULT", "RECORD-LEVEL-DP", "ULDP-GROUP", "ULDP-NAIVE"]:
             averaged_param_diff = noise_utils.torch_aggregation(
                 raw_client_model_or_grad_list, self.n_silo_per_round
             )
-            global_weights = self.update_global_weights_from_diff(averaged_param_diff)
+            global_weights = self.update_global_weights_from_diff(
+                averaged_param_diff, self.global_learning_rate
+            )
+        elif self.strategy in ["ULDP-AVG", "ULDP-AVG-w"]:
+            averaged_param_diff = noise_utils.torch_aggregation(
+                raw_client_model_or_grad_list, self.n_users * self.n_silo_per_round
+            )
+            global_weights = self.update_global_weights_from_diff(
+                averaged_param_diff, self.global_learning_rate
+            )
         elif self.strategy in ["ULDP-SGD", "ULDP-SGD-w"]:
             averaged_grads = noise_utils.torch_aggregation(
-                raw_client_model_or_grad_list, self.n_silo_per_round
+                raw_client_model_or_grad_list, self.n_users * self.n_silo_per_round
             )
-            global_weights = self.update_parameters_from_gradients(averaged_grads)
+            global_weights = self.update_parameters_from_gradients(
+                averaged_grads, self.global_learning_rate
+            )
         elif self.strategy in ["SILO-LEVEL-DP"]:
             # https://arxiv.org/abs/1812.06210
             # Usually, this is used in cross-device FL, where the number of participants is large.
@@ -325,17 +329,21 @@ class Aggregator:
             )
         return test_metric, test_loss
 
-    def update_global_weights_from_diff(self, local_weights_diff) -> Dict:
+    def update_global_weights_from_diff(
+        self, local_weights_diff, learning_rate: float = 1.0
+    ) -> Dict:
         """
         Update the parameters of the global model with the difference from the local models.
         """
         global_weights = self.get_global_model_params()
         for name, param in self.model.named_parameters():
             if param.requires_grad:
-                global_weights[name] += local_weights_diff[name]
+                global_weights[name] += learning_rate * local_weights_diff[name]
         return global_weights
 
-    def update_parameters_from_gradients(self, grads) -> Dict:
+    def update_parameters_from_gradients(
+        self, grads, learning_rate: float = 1.0
+    ) -> Dict:
         """
         Update the parameters of the global model with the gradients from the local models.
 
@@ -347,7 +355,7 @@ class Aggregator:
         with torch.no_grad():
             for name, param in self.model.named_parameters():
                 if param.requires_grad:
-                    param.data -= self.central_learning_rate * grads[name]
+                    param.data -= learning_rate * grads[name]
         return self.model.state_dict()
 
 

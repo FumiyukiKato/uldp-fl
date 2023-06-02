@@ -4,7 +4,8 @@ import os
 
 from options import args_parser
 from dataset import load_dataset
-from results_saver import save_one_shot_results
+
+# from results_saver import save_one_shot_results
 from scenario import create_dist_params
 import models
 from simulator import FLSimulator
@@ -56,7 +57,8 @@ def run_simulation(args, path_project, trial=None, data_seed=None):
         device=device,
         n_total_round=args.n_total_round,
         n_silo_per_round=args.n_silo_per_round,
-        learning_rate=args.learning_rate,
+        local_learning_rate=args.local_learning_rate,
+        global_learning_rate=args.global_learning_rate,
         local_batch_size=args.local_batch_size,
         weight_decay=args.weight_decay,
         client_optimizer=args.client_optimizer,

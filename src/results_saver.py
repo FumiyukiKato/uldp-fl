@@ -93,15 +93,20 @@ def get_storage_path(args, path_project):
 
 def args_to_hash(args) -> str:
     args_dct: dict = vars(args).copy()
+    # excluding hyperparameters
+    args_dct.pop("local_epochs")
+    args_dct.pop("local_learning_rate")
+    args_dct.pop("global_learning_rate")
+    args_dct.pop("clipping_bound")
+
+    # excluding unrelated parameters for results
     args_dct.pop("seed")
     args_dct.pop("gpu_id")
     args_dct.pop("silo_id")
-    args_dct.pop("local_epochs")
-    args_dct.pop("learning_rate")
-    args_dct.pop("clipping_bound")
     args_dct.pop("verbose")
     args_dct.pop("hyper_parameter_tuning")
     args_dct.pop("times")
+
     str_args = str(args_dct)
     hash_obj = hashlib.md5()
     hash_obj.update(str_args.encode())

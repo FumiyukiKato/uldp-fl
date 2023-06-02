@@ -49,7 +49,8 @@ def args_parser(path_project: str) -> argparse.Namespace:
     parser.add_argument("--n_silo_per_round", type=int, help="the silos per round")
     parser.add_argument("--n_total_round", type=int, help="The number of total rounds: R")
     parser.add_argument("--local_epochs", type=int, help="number of local training local_epochs")
-    parser.add_argument("--learning_rate", type=float, help="learning rate")
+    parser.add_argument("--local_learning_rate", type=float, help="local learning rate")
+    parser.add_argument("--global_learning_rate", type=float, help="global learning rate")
     parser.add_argument("--local_batch_size", type=int, help="local batch size")
     parser.add_argument("--weight_decay", type=float, help="weight_decay")
     parser.add_argument("--client_optimizer", type=str, help="local of optimizer")
@@ -65,6 +66,8 @@ def args_parser(path_project: str) -> argparse.Namespace:
     parser.add_argument("--hyper_parameter_tuning", type=int, help="is hyper-parameter tuning")
     parser.add_argument("--times", type=int, help="times of experiments in different random seeds")
     parser.add_argument("--exp_dist", type=int, help="0 (iid), 1 (non-iid based on zipf)")
+
+    parser.add_argument("--version", type=int, help="used for experimental management")
 
     # fmt: on
 

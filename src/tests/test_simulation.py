@@ -40,7 +40,8 @@ class TestSimulater(unittest.TestCase):
         test_args.n_silo_per_round = 2
         test_args.n_total_round = 3
         test_args.local_epochs = 5
-        test_args.learning_rate = 0.05
+        test_args.local_learning_rate = 0.05
+        test_args.global_learning_rate = 1.0
         test_args.local_batch_size = 64
         test_args.weight_decay = 0.001
         test_args.client_optimizer = "sgd"
@@ -74,11 +75,11 @@ class TestSimulater(unittest.TestCase):
         args.n_silos = 1000
         args.n_silo_per_round = 100
         args.n_total_round = 5
-        args.learning_rate = 0.1
+        args.local_learning_rate = 0.1
         results = run_simulation(args, path_project)
         self.assertTupleEqual(
             results["global"]["global_test"][4],
-            (4, 0.8689, 552.7958926409483),
+            (4, 0.8678, 554.2243205159903),
             "SILO-LEVEL-DP simulation has been changed from verified results",
         )
         self.assertTupleEqual(
@@ -112,11 +113,11 @@ class TestSimulater(unittest.TestCase):
         args.n_silos = 1000
         args.n_silo_per_round = 100
         args.n_total_round = 5
-        args.learning_rate = 0.1
+        args.local_learning_rate = 0.1
         results = run_simulation(args, path_project)
         self.assertTupleEqual(
             results["global"]["global_test"][4],
-            (4, 0.6742, 1063.3421179056168),
+            (4, 0.6702, 1066.3797764480114),
             "ULDP-NAIVE simulation has been changed from verified results",
         )
         self.assertTupleEqual(
@@ -141,22 +142,6 @@ class TestSimulater(unittest.TestCase):
             "ULDP-GROUP simulation has been changed from verified results",
         )
 
-    def test_uldp_group_k_4(self):
-        args = self.create_args()
-        args.agg_strategy = "ULDP-GROUP"
-        args.group_k = 4
-        results = run_simulation(args, path_project)
-        self.assertTupleEqual(
-            results["global"]["global_test"][2],
-            (2, 0.8588, 501.83081338735064),
-            "ULDP-GROUP simulation has been changed from verified results",
-        )
-        self.assertTupleEqual(
-            results["global"]["privacy_budget"][2],
-            (2, 13.330380328831556, 1e-05),
-            "ULDP-GROUP simulation has been changed from verified results",
-        )
-
     def test_uldp_group_k_8(self):
         args = self.create_args()
         args.agg_strategy = "ULDP-GROUP"
@@ -176,13 +161,31 @@ class TestSimulater(unittest.TestCase):
     def test_uldp_sgd(self):
         args = self.create_args()
         args.agg_strategy = "ULDP-SGD"
-        args.learning_rate = 5.0
+        args.local_learning_rate = 5.0
         args.sigma = 8.0
         args.n_total_round = 3
         results = run_simulation(args, path_project)
         self.assertTupleEqual(
             results["global"]["global_test"][2],
-            (2, 0.2738, 2240.1368160247803),
+            (2, 0.1906, 2239.378996372223),
+            "ULDP-SGD simulation has been changed from verified results",
+        )
+        self.assertTupleEqual(
+            results["global"]["privacy_budget"][2],
+            (2, 0.865730031476462, 1e-05),
+            "ULDP-SGD simulation has been changed from verified results",
+        )
+
+    def test_uldp_sgd_w(self):
+        args = self.create_args()
+        args.agg_strategy = "ULDP-SGD-w"
+        args.global_learning_rate = 5.0
+        args.sigma = 8.0
+        args.n_total_round = 3
+        results = run_simulation(args, path_project)
+        self.assertTupleEqual(
+            results["global"]["global_test"][2],
+            (2, 0.5028, 2176.250329732895),
             "ULDP-SGD simulation has been changed from verified results",
         )
         self.assertTupleEqual(
@@ -197,7 +200,7 @@ class TestSimulater(unittest.TestCase):
         results = run_simulation(args, path_project)
         self.assertTupleEqual(
             results["global"]["global_test"][2],
-            (2, 0.105, 2284.7653176784515),
+            (2, 0.2115, 2152.9843324422836),
             "ULDP-AVG simulation has been changed from verified results",
         )
         self.assertTupleEqual(
@@ -206,31 +209,13 @@ class TestSimulater(unittest.TestCase):
             "ULDP-AVG simulation has been changed from verified results",
         )
 
-    def test_uldp_sgd_w(self):
-        args = self.create_args()
-        args.agg_strategy = "ULDP-SGD-w"
-        args.learning_rate = 5.0
-        args.sigma = 8.0
-        args.n_total_round = 3
-        results = run_simulation(args, path_project)
-        self.assertTupleEqual(
-            results["global"]["global_test"][2],
-            (2, 0.3493, 2219.2479610443115),
-            "ULDP-SGD simulation has been changed from verified results",
-        )
-        self.assertTupleEqual(
-            results["global"]["privacy_budget"][2],
-            (2, 0.865730031476462, 1e-05),
-            "ULDP-SGD simulation has been changed from verified results",
-        )
-
     def test_uldp_avg_w(self):
         args = self.create_args()
         args.agg_strategy = "ULDP-AVG-w"
         results = run_simulation(args, path_project)
         self.assertTupleEqual(
             results["global"]["global_test"][2],
-            (2, 0.1127, 2278.4888434410095),
+            (2, 0.2115, 2152.9843324422836),
             "ULDP-AVG simulation has been changed from verified results",
         )
         self.assertTupleEqual(

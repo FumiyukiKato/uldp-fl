@@ -51,6 +51,16 @@ def global_clip(
     return clipped_params
 
 
+def multiple_weights(model: torch.nn.Module, params: OrderedDict, weight: float):
+    weighted_params = OrderedDict()
+    for name, param in model.named_parameters():
+        if param.requires_grad:
+            weighted_params[name] = weight * params[name]
+        else:
+            weighted_params[name] = params[name]
+    return params
+
+
 def add_global_noise(
     model, grad, random_state: np.random.RandomState, std_dev: float, device: str
 ):

@@ -102,8 +102,8 @@ def custom_loss():
     return BaselineLoss()
 
 
-def custom_optimizer(model):
-    return optim.SGD(model.parameters(), lr=LR)
+def custom_optimizer(model, learning_rate: float = LR):
+    return optim.SGD(model.parameters(), lr=learning_rate)
     # return optim.Adam(model.parameters(), lr=LR)
 
 

@@ -101,18 +101,18 @@ def custom_loss(train_dataset, device):
     return BaselineLoss(alpha=class_weights)
 
 
-def custom_optimizer(model):
+def custom_optimizer(model, learning_rate: float = LR):
     optimize_final_layer_only = False
     if optimize_final_layer_only:
         for param in model.base_model.parameters():
             param.requires_grad = False
         for param in model.base_model._fc.parameters():
             param.requires_grad = True
-        optimizer = torch.optim.SGD(model.base_model._fc.parameters(), lr=LR)
-        # optimizer = torch.optim.Adam(model.base_model._fc.parameters(), lr=LR)
+        optimizer = torch.optim.SGD(model.base_model._fc.parameters(), lr=learning_rate)
+        # optimizer = torch.optim.Adam(model.base_model._fc.parameters(), lr=learning_rate)
     else:
-        optimizer = torch.optim.SGD(model.base_model.parameters(), lr=LR)
-        # optimizer = torch.optim.Adam(model.base_model.parameters(), lr=LR)
+        optimizer = torch.optim.SGD(model.base_model.parameters(), lr=learning_rate)
+        # optimizer = torch.optim.Adam(model.base_model.parameters(), lr=learning_rate)
     return optimizer
 
 

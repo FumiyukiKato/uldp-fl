@@ -16,7 +16,8 @@ typical_scenaio: null
 n_silo_per_round: 5
 n_total_round: 10
 local_epochs: 10
-learning_rate: 0.01
+local_learning_rate: 0.01
+global_learning_rate: 1.0
 local_batch_size: 64
 weight_decay: 0.001
 client_optimizer: "sgd"
@@ -30,3 +31,4 @@ verbose: 0
 hyper_parameter_tuning: null
 times: 1
 exp_dist: null
+version: 0

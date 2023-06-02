@@ -41,7 +41,8 @@ class FLSimulator:
         device: str,
         n_total_round: int,
         n_silo_per_round: int,
-        learning_rate: float,
+        local_learning_rate: float,
+        global_learning_rate: float,
         local_batch_size: int,
         weight_decay: float,
         client_optimizer: str,
@@ -64,6 +65,7 @@ class FLSimulator:
             model=copy.deepcopy(model),
             train_dataset=train_dataset,
             test_dataset=test_dataset,
+            n_users=n_users,
             n_silos=n_silos,
             n_silo_per_round=n_silo_per_round,
             device=device,
@@ -72,7 +74,7 @@ class FLSimulator:
             clipping_bound=clipping_bound,
             sigma=sigma,
             delta=delta,
-            central_learning_rate=learning_rate,
+            global_learning_rate=global_learning_rate,
             dataset_name=dataset_name,
         )
 
@@ -107,7 +109,7 @@ class FLSimulator:
                 user_histogram=user_hist,
                 user_ids_of_local_train_dataset=user_ids,
                 client_optimizer=client_optimizer,
-                learning_rate=learning_rate,
+                local_learning_rate=local_learning_rate,
                 local_batch_size=local_batch_size,
                 weight_decay=weight_decay,
                 local_epochs=local_epochs,
@@ -212,21 +214,6 @@ class FLSimulator:
                     raise optuna.exceptions.TrialPruned()
 
         logger.info("Finish federated learning simulation")
-
-    def set_learning_rate(self, learning_rate):
-        self.aggregator.central_learning_rate = learning_rate
-        for local_trainer in self.local_trainer_per_silos.values():
-            local_trainer.learning_rate = learning_rate
-
-    def set_sigma(self, sigma):
-        self.aggregator.sigma = sigma
-        for local_trainer in self.local_trainer_per_silos.values():
-            local_trainer.local_sigma = sigma
-
-    def set_clipping_bound(self, clipping_bound: float):
-        self.aggregator.clipping_bound = clipping_bound
-        for local_trainer in self.local_trainer_per_silos.values():
-            local_trainer.local_clipping_bound = clipping_bound
 
     def get_results(self) -> Dict:
         results = dict()

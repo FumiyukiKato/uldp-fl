@@ -94,8 +94,8 @@ def custom_loss():
     return BaselineLoss()
 
 
-def custom_optimizer(model):
-    return torch.optim.SGD(model.parameters(), lr=LR)
+def custom_optimizer(model, learning_rate: float = LR):
+    return torch.optim.SGD(model.parameters(), lr=learning_rate)
 
 
 def custom_metric():
