@@ -1220,5 +1220,516 @@
       "global_learning_rate": 1.0
     },
     "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='tcga_brca', model_name='cnn', n_users=10, n_silos=6, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=6, n_total_round=50, local_epochs=10, local_learning_rate=0.01, global_learning_rate=100.0, local_batch_size=8, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-SGD', group_k=2, sigma=5.0, clipping_bound=0.1, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None, version=1)"
+  },
+  "7745f6d261": {
+    "params": {
+      "clipping_bound": 1.0,
+      "global_learning_rate": 1.0
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='tcga_brca', model_name='cnn', n_users=100, n_silos=6, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=6, n_total_round=50, local_epochs=10, local_learning_rate=0.01, global_learning_rate=0.1, local_batch_size=8, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-SGD', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None, version=1)"
+  },
+  "3b08496dd0": {
+    "params": {
+      "clipping_bound": 0.1,
+      "global_learning_rate": 0.1
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='tcga_brca', model_name='cnn', n_users=1000, n_silos=6, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=6, n_total_round=50, local_epochs=10, local_learning_rate=0.01, global_learning_rate=0.1, local_batch_size=8, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-SGD', group_k=2, sigma=5.0, clipping_bound=10.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None, version=1)"
+  },
+  "2d9287004d": {
+    "params": {
+      "global_learning_rate": 10.0,
+      "local_epochs": 1,
+      "local_learning_rate": 0.01
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='heart_disease', model_name='cnn', n_users=10, n_silos=4, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=4, n_total_round=50, local_epochs=5, local_learning_rate=1.0, global_learning_rate=1.0, local_batch_size=4, weight_decay=0.001, client_optimizer='sgd', agg_strategy='DEFAULT', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None, version=1)"
+  },
+  "fb6a72361b": {
+    "params": {
+      "global_learning_rate": 10.0,
+      "local_epochs": 1,
+      "local_learning_rate": 0.01
+    },
+    "args": "Namespace(seed=1, gpu_id=None, silo_id=None, dataset_name='heart_disease', model_name='cnn', n_users=100, n_silos=4, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=4, n_total_round=50, local_epochs=5, local_learning_rate=0.001, global_learning_rate=100.0, local_batch_size=4, weight_decay=0.001, client_optimizer='sgd', agg_strategy='DEFAULT', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None, version=1)"
+  },
+  "9863b59c24": {
+    "params": {
+      "global_learning_rate": 1.0,
+      "local_epochs": 5,
+      "local_learning_rate": 0.001
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='heart_disease', model_name='cnn', n_users=1000, n_silos=4, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=4, n_total_round=50, local_epochs=10, local_learning_rate=1.0, global_learning_rate=10.0, local_batch_size=4, weight_decay=0.001, client_optimizer='sgd', agg_strategy='DEFAULT', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None, version=1)"
+  },
+  "854f3a993b": {
+    "params": {
+      "global_learning_rate": 1.0,
+      "local_epochs": 50,
+      "local_learning_rate": 0.01
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='tcga_brca', model_name='cnn', n_users=10, n_silos=6, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=6, n_total_round=50, local_epochs=5, local_learning_rate=0.1, global_learning_rate=100.0, local_batch_size=8, weight_decay=0.001, client_optimizer='sgd', agg_strategy='DEFAULT', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None, version=1)"
+  },
+  "5fe2cedce0": {
+    "params": {
+      "global_learning_rate": 1.0,
+      "local_epochs": 50,
+      "local_learning_rate": 0.01
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='tcga_brca', model_name='cnn', n_users=100, n_silos=6, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=6, n_total_round=50, local_epochs=1, local_learning_rate=0.01, global_learning_rate=1.0, local_batch_size=8, weight_decay=0.001, client_optimizer='sgd', agg_strategy='DEFAULT', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None, version=1)"
+  },
+  "d2eb17e657": {
+    "params": {
+      "global_learning_rate": 1.0,
+      "local_epochs": 50,
+      "local_learning_rate": 0.01
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='tcga_brca', model_name='cnn', n_users=1000, n_silos=6, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=6, n_total_round=50, local_epochs=50, local_learning_rate=1.0, global_learning_rate=10.0, local_batch_size=8, weight_decay=0.001, client_optimizer='sgd', agg_strategy='DEFAULT', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None, version=1)"
+  },
+  "d7d0f6f39e": {
+    "params": {
+      "clipping_bound": 0.1,
+      "global_learning_rate": 10.0,
+      "local_epochs": 5,
+      "local_learning_rate": 0.1
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='heart_disease', model_name='cnn', n_users=10, n_silos=4, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=4, n_total_round=50, local_epochs=1, local_learning_rate=0.01, global_learning_rate=100.0, local_batch_size=4, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-NAIVE', group_k=2, sigma=5.0, clipping_bound=0.1, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None, version=1)"
+  },
+  "9f1894a800": {
+    "params": {
+      "clipping_bound": 0.1,
+      "global_learning_rate": 1.0,
+      "local_epochs": 10,
+      "local_learning_rate": 0.001
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='heart_disease', model_name='cnn', n_users=100, n_silos=4, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=4, n_total_round=50, local_epochs=5, local_learning_rate=1.0, global_learning_rate=0.1, local_batch_size=4, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-NAIVE', group_k=2, sigma=5.0, clipping_bound=10.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None, version=1)"
+  },
+  "649266d943": {
+    "params": {
+      "clipping_bound": 0.1,
+      "global_learning_rate": 0.1,
+      "local_epochs": 5,
+      "local_learning_rate": 0.001
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='heart_disease', model_name='cnn', n_users=1000, n_silos=4, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=4, n_total_round=50, local_epochs=5, local_learning_rate=1.0, global_learning_rate=100.0, local_batch_size=4, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-NAIVE', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None, version=1)"
+  },
+  "da372f77f9": {
+    "params": {
+      "clipping_bound": 0.1,
+      "global_learning_rate": 0.1,
+      "local_epochs": 10,
+      "local_learning_rate": 0.01
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='tcga_brca', model_name='cnn', n_users=10, n_silos=6, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=6, n_total_round=50, local_epochs=50, local_learning_rate=1.0, global_learning_rate=100.0, local_batch_size=8, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-NAIVE', group_k=2, sigma=5.0, clipping_bound=10.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None, version=1)"
+  },
+  "0429251a94": {
+    "params": {
+      "clipping_bound": 0.1,
+      "global_learning_rate": 0.1,
+      "local_epochs": 10,
+      "local_learning_rate": 0.01
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='tcga_brca', model_name='cnn', n_users=100, n_silos=6, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=6, n_total_round=50, local_epochs=5, local_learning_rate=0.1, global_learning_rate=0.1, local_batch_size=8, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-NAIVE', group_k=2, sigma=5.0, clipping_bound=10.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None, version=1)"
+  },
+  "a6d442db32": {
+    "params": {
+      "clipping_bound": 0.1,
+      "global_learning_rate": 0.1,
+      "local_epochs": 50,
+      "local_learning_rate": 0.001
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='tcga_brca', model_name='cnn', n_users=1000, n_silos=6, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=6, n_total_round=50, local_epochs=10, local_learning_rate=0.001, global_learning_rate=0.1, local_batch_size=8, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-NAIVE', group_k=2, sigma=5.0, clipping_bound=0.1, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None, version=1)"
+  },
+  "cbb3cbd17a": {
+    "params": {
+      "clipping_bound": 1.0,
+      "global_learning_rate": 1.0,
+      "local_epochs": 50,
+      "local_learning_rate": 0.001
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='heart_disease', model_name='cnn', n_users=10, n_silos=4, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=4, n_total_round=50, local_epochs=10, local_learning_rate=0.1, global_learning_rate=100.0, local_batch_size=4, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-GROUP', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None, version=1)"
+  },
+  "43ebcc7754": {
+    "params": {
+      "clipping_bound": 0.1,
+      "global_learning_rate": 10.0,
+      "local_epochs": 50,
+      "local_learning_rate": 0.001
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='heart_disease', model_name='cnn', n_users=100, n_silos=4, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=4, n_total_round=50, local_epochs=10, local_learning_rate=0.1, global_learning_rate=10.0, local_batch_size=4, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-GROUP', group_k=2, sigma=5.0, clipping_bound=100.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None, version=1)"
+  },
+  "723d17dbdd": {
+    "params": {
+      "clipping_bound": 0.1,
+      "global_learning_rate": 10.0,
+      "local_epochs": 50,
+      "local_learning_rate": 0.01
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='heart_disease', model_name='cnn', n_users=1000, n_silos=4, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=4, n_total_round=50, local_epochs=1, local_learning_rate=0.001, global_learning_rate=10.0, local_batch_size=4, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-GROUP', group_k=2, sigma=5.0, clipping_bound=0.1, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None, version=1)"
+  },
+  "9e0fbb006f": {
+    "params": {
+      "clipping_bound": 0.1,
+      "global_learning_rate": 1.0,
+      "local_epochs": 50,
+      "local_learning_rate": 0.001
+    },
+    "args": "Namespace(seed=1, gpu_id=None, silo_id=None, dataset_name='tcga_brca', model_name='cnn', n_users=10, n_silos=6, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=6, n_total_round=50, local_epochs=50, local_learning_rate=0.01, global_learning_rate=0.1, local_batch_size=8, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-GROUP', group_k=2, sigma=5.0, clipping_bound=10.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None, version=1)"
+  },
+  "efc400431c": {
+    "params": {
+      "clipping_bound": 100.0,
+      "global_learning_rate": 0.1,
+      "local_epochs": 1,
+      "local_learning_rate": 0.01
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='tcga_brca', model_name='cnn', n_users=100, n_silos=6, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=6, n_total_round=50, local_epochs=5, local_learning_rate=0.1, global_learning_rate=1.0, local_batch_size=8, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-GROUP', group_k=2, sigma=5.0, clipping_bound=100.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None, version=1)"
+  },
+  "e6d3cebee2": {
+    "params": {
+      "clipping_bound": 100.0,
+      "global_learning_rate": 10.0,
+      "local_epochs": 50,
+      "local_learning_rate": 0.001
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='tcga_brca', model_name='cnn', n_users=1000, n_silos=6, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=6, n_total_round=50, local_epochs=50, local_learning_rate=0.01, global_learning_rate=100.0, local_batch_size=8, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-GROUP', group_k=2, sigma=5.0, clipping_bound=100.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None, version=1)"
+  },
+  "c2be45d03d": {
+    "params": {
+      "clipping_bound": 0.1,
+      "global_learning_rate": 100.0,
+      "local_epochs": 5,
+      "local_learning_rate": 0.001
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='heart_disease', model_name='cnn', n_users=10, n_silos=4, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=4, n_total_round=50, local_epochs=10, local_learning_rate=0.1, global_learning_rate=0.1, local_batch_size=4, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-GROUP', group_k=8, sigma=5.0, clipping_bound=10.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None, version=1)"
+  },
+  "cdfd4c9e90": {
+    "params": {
+      "clipping_bound": 0.1,
+      "global_learning_rate": 1.0,
+      "local_epochs": 50,
+      "local_learning_rate": 0.001
+    },
+    "args": "Namespace(seed=1, gpu_id=None, silo_id=None, dataset_name='heart_disease', model_name='cnn', n_users=100, n_silos=4, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=4, n_total_round=50, local_epochs=5, local_learning_rate=0.1, global_learning_rate=100.0, local_batch_size=4, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-GROUP', group_k=8, sigma=5.0, clipping_bound=0.1, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None, version=1)"
+  },
+  "85359cbca6": {
+    "params": {
+      "clipping_bound": 0.1,
+      "global_learning_rate": 10.0,
+      "local_epochs": 50,
+      "local_learning_rate": 0.01
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='heart_disease', model_name='cnn', n_users=1000, n_silos=4, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=4, n_total_round=50, local_epochs=50, local_learning_rate=1.0, global_learning_rate=10.0, local_batch_size=4, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-GROUP', group_k=8, sigma=5.0, clipping_bound=100.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None, version=1)"
+  },
+  "7d4d5748c7": {
+    "params": {
+      "clipping_bound": 100.0,
+      "global_learning_rate": 0.1,
+      "local_epochs": 50,
+      "local_learning_rate": 0.001
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='tcga_brca', model_name='cnn', n_users=10, n_silos=6, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=6, n_total_round=50, local_epochs=1, local_learning_rate=0.001, global_learning_rate=1.0, local_batch_size=8, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-GROUP', group_k=8, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None, version=1)"
+  },
+  "3e2aa6033f": {
+    "params": {
+      "clipping_bound": 100.0,
+      "global_learning_rate": 1.0,
+      "local_epochs": 50,
+      "local_learning_rate": 0.001
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='tcga_brca', model_name='cnn', n_users=100, n_silos=6, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=6, n_total_round=50, local_epochs=10, local_learning_rate=0.001, global_learning_rate=100.0, local_batch_size=8, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-GROUP', group_k=8, sigma=5.0, clipping_bound=100.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None, version=1)"
+  },
+  "b788802f29": {
+    "params": {
+      "clipping_bound": 100.0,
+      "global_learning_rate": 100.0,
+      "local_epochs": 50,
+      "local_learning_rate": 1.0
+    },
+    "args": "Namespace(seed=1, gpu_id=None, silo_id=None, dataset_name='tcga_brca', model_name='cnn', n_users=1000, n_silos=6, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=6, n_total_round=50, local_epochs=50, local_learning_rate=0.1, global_learning_rate=1.0, local_batch_size=8, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-GROUP', group_k=8, sigma=5.0, clipping_bound=10.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None, version=1)"
+  },
+  "8e187ccd8d": {
+    "params": {
+      "global_learning_rate": 1.0,
+      "local_epochs": 50,
+      "local_learning_rate": 0.01
+    },
+    "args": "Namespace(seed=1, gpu_id=None, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=10, local_learning_rate=0.01, global_learning_rate=1.0, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='DEFAULT', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1, version=1)"
+  },
+  "0e16e55fd2": {
+    "params": "Too Bad.",
+    "args": "Namespace(seed=0, gpu_id=2, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=5, local_learning_rate=0.01, global_learning_rate=1.0, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-NAIVE', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0, version=1)"
+  },
+  "3712ccbcf6": {
+    "params": "Too Bad.",
+    "args": "Namespace(seed=0, gpu_id=2, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=10000, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=10, local_learning_rate=0.001, global_learning_rate=100.0, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-NAIVE', group_k=2, sigma=5.0, clipping_bound=10.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0, version=1)"
+  },
+  "b6e1f02adb": {
+    "params": {
+      "clipping_bound": 1.0,
+      "global_learning_rate": 10.0
+    },
+    "args": "Namespace(seed=0, gpu_id=0, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=10000, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=10, local_learning_rate=0.01, global_learning_rate=100.0, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-SGD', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0, version=1)"
+  },
+  "7c99225703": {
+    "params": {
+      "clipping_bound": 1.0,
+      "global_learning_rate": 1.0,
+      "local_epochs": 10,
+      "local_learning_rate": 0.1
+    },
+    "args": "Namespace(seed=0, gpu_id=1, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=1, local_learning_rate=0.01, global_learning_rate=1.0, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-AVG', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0, version=1)"
+  },
+  "2596177e2c": {
+    "params": {
+      "clipping_bound": 0.1,
+      "global_learning_rate": 1.0
+    },
+    "args": "Namespace(seed=9, gpu_id=None, silo_id=None, dataset_name='tcga_brca', model_name='cnn', n_users=10, n_silos=6, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=6, n_total_round=50, local_epochs=10, local_learning_rate=0.01, global_learning_rate=0.1, local_batch_size=8, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-SGD', group_k=2, sigma=5.0, clipping_bound=0.1, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None, version=2)"
+  },
+  "98a6354719": {
+    "params": {
+      "clipping_bound": 0.1,
+      "global_learning_rate": 10.0
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='tcga_brca', model_name='cnn', n_users=100, n_silos=6, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=6, n_total_round=50, local_epochs=10, local_learning_rate=0.01, global_learning_rate=0.1, local_batch_size=8, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-SGD', group_k=2, sigma=5.0, clipping_bound=10.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None, version=2)"
+  },
+  "ffcf46acf3": {
+    "params": {
+      "clipping_bound": 0.1,
+      "global_learning_rate": 1.0
+    },
+    "args": "Namespace(seed=9, gpu_id=None, silo_id=None, dataset_name='tcga_brca', model_name='cnn', n_users=1000, n_silos=6, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=6, n_total_round=50, local_epochs=10, local_learning_rate=0.01, global_learning_rate=0.1, local_batch_size=8, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-SGD', group_k=2, sigma=5.0, clipping_bound=100.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None, version=2)"
+  },
+  "06711420c6": {
+    "params": {
+      "clipping_bound": 10.0,
+      "global_learning_rate": 0.1,
+      "local_epochs": 50,
+      "local_learning_rate": 1.0
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='tcga_brca', model_name='cnn', n_users=10, n_silos=6, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=6, n_total_round=50, local_epochs=10, local_learning_rate=0.01, global_learning_rate=1.0, local_batch_size=8, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-AVG', group_k=2, sigma=5.0, clipping_bound=10.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None, version=2)"
+  },
+  "763b92ed72": {
+    "params": {
+      "clipping_bound": 1.0,
+      "global_learning_rate": 10.0,
+      "local_epochs": 50,
+      "local_learning_rate": 1.0
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='tcga_brca', model_name='cnn', n_users=100, n_silos=6, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=6, n_total_round=50, local_epochs=10, local_learning_rate=0.01, global_learning_rate=1.0, local_batch_size=8, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-AVG', group_k=2, sigma=5.0, clipping_bound=0.1, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None, version=2)"
+  },
+  "b101033ba2": {
+    "params": {
+      "clipping_bound": 100.0,
+      "global_learning_rate": 0.1,
+      "local_epochs": 5,
+      "local_learning_rate": 1.0
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='tcga_brca', model_name='cnn', n_users=1000, n_silos=6, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=6, n_total_round=50, local_epochs=50, local_learning_rate=0.01, global_learning_rate=0.1, local_batch_size=8, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-AVG', group_k=2, sigma=5.0, clipping_bound=10.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None, version=2)"
+  },
+  "ecf56cef40": {
+    "params": {
+      "global_learning_rate": 1.0,
+      "local_epochs": 50,
+      "local_learning_rate": 0.01
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='tcga_brca', model_name='cnn', n_users=10, n_silos=6, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=6, n_total_round=50, local_epochs=50, local_learning_rate=0.01, global_learning_rate=0.1, local_batch_size=8, weight_decay=0.001, client_optimizer='sgd', agg_strategy='DEFAULT', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None, version=2)"
+  },
+  "2473c9ba0d": {
+    "params": {
+      "global_learning_rate": 1.0,
+      "local_epochs": 50,
+      "local_learning_rate": 0.01
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='tcga_brca', model_name='cnn', n_users=100, n_silos=6, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=6, n_total_round=50, local_epochs=1, local_learning_rate=0.1, global_learning_rate=100.0, local_batch_size=8, weight_decay=0.001, client_optimizer='sgd', agg_strategy='DEFAULT', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None, version=2)"
+  },
+  "e0ad63e3f1": {
+    "params": {
+      "global_learning_rate": 1.0,
+      "local_epochs": 50,
+      "local_learning_rate": 0.01
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='tcga_brca', model_name='cnn', n_users=1000, n_silos=6, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=6, n_total_round=50, local_epochs=1, local_learning_rate=1.0, global_learning_rate=10.0, local_batch_size=8, weight_decay=0.001, client_optimizer='sgd', agg_strategy='DEFAULT', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None, version=2)"
+  },
+  "7a30ce430c": {
+    "params": {
+      "clipping_bound": 0.1,
+      "global_learning_rate": 0.1,
+      "local_epochs": 10,
+      "local_learning_rate": 0.01
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='tcga_brca', model_name='cnn', n_users=10, n_silos=6, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=6, n_total_round=50, local_epochs=10, local_learning_rate=1.0, global_learning_rate=0.1, local_batch_size=8, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-NAIVE', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None, version=2)"
+  },
+  "320cdadba2": {
+    "params": {
+      "clipping_bound": 0.1,
+      "global_learning_rate": 0.1,
+      "local_epochs": 50,
+      "local_learning_rate": 0.001
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='tcga_brca', model_name='cnn', n_users=100, n_silos=6, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=6, n_total_round=50, local_epochs=1, local_learning_rate=1.0, global_learning_rate=10.0, local_batch_size=8, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-NAIVE', group_k=2, sigma=5.0, clipping_bound=0.1, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=None, version=2)"
+  },
+  "2ffe20f1cf": {
+    "params": {
+      "global_learning_rate": 1.0,
+      "local_epochs": 50,
+      "local_learning_rate": 0.01
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=50, local_learning_rate=0.1, global_learning_rate=0.1, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='DEFAULT', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0, version=1)"
+  },
+  "0e26835b2d": {
+    "params": {
+      "global_learning_rate": 1.0,
+      "local_epochs": 50,
+      "local_learning_rate": 0.01
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=10000, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=50, local_learning_rate=0.1, global_learning_rate=0.1, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='DEFAULT', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0, version=1)"
+  },
+  "555c670652": {
+    "params": {
+      "global_learning_rate": 1.0,
+      "local_epochs": 10,
+      "local_learning_rate": 0.1
+    },
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=10000, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=5, local_learning_rate=0.001, global_learning_rate=1.0, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='DEFAULT', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1, version=1)"
+  },
+  "5257c11e41": {
+    "params": "Too Bad.",
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='cifar10', model_name='cnn', n_users=100, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=1, local_learning_rate=0.001, global_learning_rate=100.0, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-NAIVE', group_k=2, sigma=5.0, clipping_bound=0.1, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0, version=1)"
+  },
+  "77d1796970": {
+    "params": "Too Bad.",
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='cifar10', model_name='cnn', n_users=10000, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=10, local_learning_rate=0.01, global_learning_rate=0.1, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-NAIVE', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0, version=1)"
+  },
+  "735d6067b5": {
+    "params": "Too Bad.",
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='cifar10', model_name='cnn', n_users=100, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=50, local_learning_rate=1.0, global_learning_rate=1.0, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-NAIVE', group_k=2, sigma=5.0, clipping_bound=0.1, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1, version=1)"
+  },
+  "75a2a9322c": {
+    "params": "Too Bad.",
+    "args": "Namespace(seed=0, gpu_id=None, silo_id=None, dataset_name='cifar10', model_name='cnn', n_users=10000, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=50, local_learning_rate=1.0, global_learning_rate=10.0, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-NAIVE', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1, version=1)"
+  },
+  "1d35135454": {
+    "params": {
+      "clipping_bound": 0.1,
+      "global_learning_rate": 10.0
+    },
+    "args": "Namespace(seed=0, gpu_id=0, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=10, local_learning_rate=0.01, global_learning_rate=1.0, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-SGD', group_k=2, sigma=5.0, clipping_bound=0.1, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0, version=1)"
+  },
+  "2f5e989a91": {
+    "params": "Too Bad.",
+    "args": "Namespace(seed=0, gpu_id=2, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=50, local_learning_rate=0.01, global_learning_rate=0.1, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-NAIVE', group_k=2, sigma=5.0, clipping_bound=0.1, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1, version=1)"
+  },
+  "725cd1ceb7": {
+    "params": {
+      "clipping_bound": 1.0,
+      "global_learning_rate": 1.0,
+      "local_epochs": 50,
+      "local_learning_rate": 0.01
+    },
+    "args": "Namespace(seed=0, gpu_id=3, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=1, local_learning_rate=0.1, global_learning_rate=0.1, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-GROUP', group_k=2, sigma=5.0, clipping_bound=10.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0, version=1)"
+  },
+  "01fe25ffae": {
+    "params": "Too Bad.",
+    "args": "Namespace(seed=0, gpu_id=2, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=10000, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=10, local_learning_rate=1.0, global_learning_rate=100.0, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-NAIVE', group_k=2, sigma=5.0, clipping_bound=0.1, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1, version=1)"
+  },
+  "97766c7570": {
+    "params": {
+      "clipping_bound": 0.1,
+      "global_learning_rate": 10.0
+    },
+    "args": "Namespace(seed=0, gpu_id=0, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=10, local_learning_rate=0.01, global_learning_rate=0.1, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-SGD', group_k=2, sigma=5.0, clipping_bound=100.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1, version=1)"
+  },
+  "d1401451cc": {
+    "params": {
+      "clipping_bound": 100.0,
+      "global_learning_rate": 1.0
+    },
+    "args": "Namespace(seed=1, gpu_id=0, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=10000, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=10, local_learning_rate=0.01, global_learning_rate=10.0, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-SGD', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1, version=1)"
+  },
+  "427a265c50": {
+    "params": {
+      "clipping_bound": 1.0,
+      "global_learning_rate": 1.0,
+      "local_epochs": 50,
+      "local_learning_rate": 0.01
+    },
+    "args": "Namespace(seed=0, gpu_id=3, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=10000, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=50, local_learning_rate=0.1, global_learning_rate=1.0, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-GROUP', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0, version=1)"
+  },
+  "85928a7a86": {
+    "params": "Too Bad.",
+    "args": "Namespace(seed=0, gpu_id=3, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=1, local_learning_rate=0.001, global_learning_rate=0.1, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-GROUP', group_k=2, sigma=5.0, clipping_bound=10.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1, version=1)"
+  },
+  "927e91c458": {
+    "params": {
+      "clipping_bound": 0.1,
+      "global_learning_rate": 10.0,
+      "local_epochs": 5,
+      "local_learning_rate": 0.1
+    },
+    "args": "Namespace(seed=0, gpu_id=0, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=100, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=5, local_learning_rate=0.001, global_learning_rate=10.0, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-AVG', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1, version=1)"
+  },
+  "962ff8622b": {
+    "params": {
+      "clipping_bound": 1.0,
+      "global_learning_rate": 1.0,
+      "local_epochs": 50,
+      "local_learning_rate": 0.01
+    },
+    "args": "Namespace(seed=0, gpu_id=3, silo_id=None, dataset_name='mnist', model_name='cnn', n_users=10000, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=5, local_learning_rate=0.001, global_learning_rate=0.1, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-GROUP', group_k=2, sigma=5.0, clipping_bound=100.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1, version=1)"
+  },
+  "642e4b0257": {
+    "params": "Too Bad.",
+    "args": "Namespace(seed=0, gpu_id=0, silo_id=None, dataset_name='cifar10', model_name='cnn', n_users=100, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=10, local_learning_rate=0.01, global_learning_rate=0.1, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-SGD', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0, version=1)"
+  },
+  "9807ae45e0": {
+    "params": "Too Bad.",
+    "args": "Namespace(seed=0, gpu_id=0, silo_id=None, dataset_name='cifar10', model_name='cnn', n_users=10000, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=10, local_learning_rate=0.01, global_learning_rate=1.0, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-SGD', group_k=2, sigma=5.0, clipping_bound=0.1, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0, version=1)"
+  },
+  "54b3791868": {
+    "params": "Too Bad.",
+    "args": "Namespace(seed=0, gpu_id=0, silo_id=None, dataset_name='cifar10', model_name='cnn', n_users=100, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=10, local_learning_rate=0.01, global_learning_rate=0.1, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-SGD', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1, version=1)"
+  },
+  "82496fb5d0": {
+    "params": "Too Bad.",
+    "args": "Namespace(seed=0, gpu_id=0, silo_id=None, dataset_name='cifar10', model_name='cnn', n_users=10000, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=10, local_learning_rate=0.01, global_learning_rate=0.1, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-SGD', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1, version=1)"
+  },
+  "c48d7e0e3b": {
+    "params": {
+      "clipping_bound": 0.1,
+      "global_learning_rate": 10.0,
+      "local_epochs": 5,
+      "local_learning_rate": 0.1
+    },
+    "args": "Namespace(seed=0, gpu_id=0, silo_id=None, dataset_name='cifar10', model_name='cnn', n_users=100, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=1, local_learning_rate=1.0, global_learning_rate=1.0, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-AVG', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0, version=1)"
+  },
+  "8bc01a9747": {
+    "params": {
+      "clipping_bound": 0.1,
+      "global_learning_rate": 1.0,
+      "local_epochs": 50,
+      "local_learning_rate": 1.0
+    },
+    "args": "Namespace(seed=0, gpu_id=0, silo_id=None, dataset_name='cifar10', model_name='cnn', n_users=100, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=50, local_learning_rate=1.0, global_learning_rate=10.0, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-GROUP', group_k=2, sigma=5.0, clipping_bound=1.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0, version=1)"
+  },
+  "4afb0fa3d8": {
+    "params": {
+      "clipping_bound": 1.0,
+      "global_learning_rate": 1.0,
+      "local_epochs": 50,
+      "local_learning_rate": 0.01
+    },
+    "args": "Namespace(seed=0, gpu_id=0, silo_id=None, dataset_name='cifar10', model_name='cnn', n_users=10000, n_silos=5, user_dist='uniform-iid', silo_dist='uniform', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=1, local_learning_rate=1.0, global_learning_rate=1.0, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-GROUP', group_k=2, sigma=5.0, clipping_bound=10.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=0, version=1)"
+  },
+  "2c34c52a67": {
+    "params": "Too Bad.",
+    "args": "Namespace(seed=0, gpu_id=0, silo_id=None, dataset_name='cifar10', model_name='cnn', n_users=100, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=1, local_learning_rate=0.1, global_learning_rate=100.0, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-GROUP', group_k=2, sigma=5.0, clipping_bound=0.1, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1, version=1)"
+  },
+  "133a0a3d43": {
+    "params": {
+      "clipping_bound": 10.0,
+      "global_learning_rate": 1.0,
+      "local_epochs": 50,
+      "local_learning_rate": 0.001
+    },
+    "args": "Namespace(seed=0, gpu_id=0, silo_id=None, dataset_name='cifar10', model_name='cnn', n_users=10000, n_silos=5, user_dist='zipf-noniid', silo_dist='zipf', user_alpha=0.3, silo_alpha=1.5, n_labels=1, typical_scenaio=None, n_silo_per_round=5, n_total_round=50, local_epochs=50, local_learning_rate=0.001, global_learning_rate=10.0, local_batch_size=64, weight_decay=0.001, client_optimizer='sgd', agg_strategy='ULDP-GROUP', group_k=2, sigma=5.0, clipping_bound=10.0, delta=1e-05, sampling_rate_q=0.1, verbose=0, hyper_parameter_tuning=1, times=1, exp_dist=1, version=1)"
   }
 }

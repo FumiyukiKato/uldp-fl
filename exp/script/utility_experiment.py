@@ -75,7 +75,7 @@ def build_exp_paramerters(default_args, dataset, dist, method, n_users):
 def hyper_parameter_tuning(args, path_project):
     import optuna
 
-    N_SEED = 2
+    N_SEED = 10
     original_args = copy.deepcopy(args)
     result_details = []
 
