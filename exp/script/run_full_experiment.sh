@@ -4,43 +4,44 @@ set -eux
 TIMES=5
 VERSION=1
 
-methods=("ULDP-SGD" "ULDP-AVG" "DEFAULT" "ULDP-NAIVE")
+methods=("ULDP-AVG" "DEFAULT" "ULDP-NAIVE")
 dists=(0 1)
 n_users_list=(100 10000)
 n_total_round_list=(50)
 group_k_list=(2 8)
-med_dataset_names=("heart_disease" "tcga_brca")
+# med_dataset_names=("heart_disease" "tcga_brca")
+med_dataset_names=("heart_disease")
 med_n_users_list=(10 100 1000)
 
 
-# Mnist dataset
-for method in "${methods[@]}"
-do
-    for dist in "${dists[@]}"
-    do
-        for n_users in "${n_users_list[@]}"
-        do
-            for n_total_round in "${n_total_round_list[@]}"
-            do
-                python script/utility_experiment.py --dataset_name=mnist --exp_dist=$dist --agg_strategy=$method --n_users=$n_users --n_total_round=$n_total_round --times=$TIMES --version=$VERSION
-            done
-        done
-    done
-done
+# # Mnist dataset
+# for method in "${methods[@]}"
+# do
+#     for dist in "${dists[@]}"
+#     do
+#         for n_users in "${n_users_list[@]}"
+#         do
+#             for n_total_round in "${n_total_round_list[@]}"
+#             do
+#                 python script/utility_experiment.py --dataset_name=mnist --exp_dist=$dist --agg_strategy=$method --n_users=$n_users --n_total_round=$n_total_round --times=$TIMES --version=$VERSION
+#             done
+#         done
+#     done
+# done
 
-for group_k in "${group_k_list[@]}"
-do
-    for dist in "${dists[@]}"
-    do
-        for n_users in "${n_users_list[@]}"
-        do
-            for n_total_round in "${n_total_round_list[@]}"
-            do
-                python script/utility_experiment.py --dataset_name=mnist --exp_dist=$dist --agg_strategy=ULDP-GROUP --n_users=$n_users --group_k=$group_k --n_total_round=$n_total_round --times=$TIMES --version=$VERSION
-            done
-        done
-    done
-done
+# for group_k in "${group_k_list[@]}"
+# do
+#     for dist in "${dists[@]}"
+#     do
+#         for n_users in "${n_users_list[@]}"
+#         do
+#             for n_total_round in "${n_total_round_list[@]}"
+#             do
+#                 python script/utility_experiment.py --dataset_name=mnist --exp_dist=$dist --agg_strategy=ULDP-GROUP --n_users=$n_users --group_k=$group_k --n_total_round=$n_total_round --times=$TIMES --version=$VERSION
+#             done
+#         done
+#     done
+# done
 
 
 # Mdeical dataset
