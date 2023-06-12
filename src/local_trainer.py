@@ -103,7 +103,7 @@ class ClassificationTrainer:
             )
 
             self.criterion = custom_loss(local_train_dataset, self.device)
-            self.optimizer = custom_optimizer(self.model)
+            self.optimizer = custom_optimizer(self.model, self.local_learning_rate)
             self.metric = custom_metric()
             self.scheduler = custom_scheduler(self.optimizer)
         else:

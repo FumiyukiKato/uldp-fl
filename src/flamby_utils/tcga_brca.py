@@ -25,43 +25,44 @@ def update_args(args):
     return updated_args
 
 
-# とりあえず適当に作った
+# Because Cox Loss needs multiple data to calcuate loss, so we need to
+# build user distribution to make sure each silo and user has 2 data at least.
 def build_user_dist(
     all_train_dataset: FedTcgaBrca,
     n_users: int = 500,
     random_state: np.random.RandomState = np.random.RandomState(seed=0),
 ) -> Dict:
-    n_train_dataset = len(all_train_dataset)
     user_list = np.arange(n_users)
-    if n_train_dataset < n_users:
-        user_id_of_records = np.arange(n_train_dataset)
-    else:
-        user_id_of_records = np.concatenate(
-            [
-                user_list,
-                random_state.choice(user_list, n_train_dataset - len(user_list)),
-            ]
-        )
-    random_state.shuffle(user_id_of_records)
-    user_id_of_records = user_id_of_records.tolist()
+
+    # all_user_set = set()
+
     user_ids_per_silo = {}
     user_hist_per_silo = {}
-    record_id = 0
     for silo_id, silo_size in enumerate(TRAIN_SIZE_LIST):
         user_ids_per_silo[silo_id] = []
         user_hist_per_silo[silo_id] = {}
-        for _ in range(silo_size):
-            user_id = user_id_of_records[record_id]
-            user_ids_per_silo[silo_id].append(user_id)
-            if user_id not in user_hist_per_silo[silo_id]:
-                user_hist_per_silo[silo_id][user_id] = 0
-            user_hist_per_silo[silo_id][user_id] += 1
-            record_id += 1
+        for _ in range(int(silo_size / 2)):
+            selected_user_id = random_state.choice(user_list)
+            # all_user_set.add(selected_user_id)
+            user_ids_per_silo[silo_id].append(selected_user_id)
+            user_ids_per_silo[silo_id].append(selected_user_id)
+            if selected_user_id not in user_hist_per_silo[silo_id]:
+                user_hist_per_silo[silo_id][selected_user_id] = 0
+            user_hist_per_silo[silo_id][selected_user_id] += 2
+        if silo_size % 2 == 1:
+            selected_user_id = random_state.choice(user_list)
+            # all_user_set.add(selected_user_id)
+            user_ids_per_silo[silo_id].append(selected_user_id)
+            if selected_user_id not in user_hist_per_silo[silo_id]:
+                user_hist_per_silo[silo_id][selected_user_id] = 0
+            user_hist_per_silo[silo_id][selected_user_id] += 1
+        random_state.shuffle(user_ids_per_silo[silo_id])
 
     user_dist = {}
     for silo_id in range(N_SILO):
         user_dist[silo_id] = (user_hist_per_silo[silo_id], user_ids_per_silo[silo_id])
 
+    # print("all user set", len(all_user_set))
     return user_dist
 
 

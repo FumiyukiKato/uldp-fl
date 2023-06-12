@@ -75,7 +75,7 @@ def build_exp_paramerters(default_args, dataset, dist, method, n_users):
 def hyper_parameter_tuning(args, path_project):
     import optuna
 
-    N_SEED = 10
+    N_SEED = 3
     original_args = copy.deepcopy(args)
     result_details = []
 
@@ -234,6 +234,7 @@ if __name__ == "__main__":
         save_best_params(args, path_project, hp_results["best_params"])
         exp_results = {"hp_results": hp_results}
     else:
+        args.seed += 10000
         best_params = load_best_params(args, path_project)
         if type(best_params) is dict:
             args.global_learning_rate = best_params["global_learning_rate"]
