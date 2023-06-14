@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Optional
 import numpy as np
 
 
@@ -49,7 +49,8 @@ class Coordinator:
     def build_user_bound_histograms(
         self,
         group_k: int,
-        old_user_histogram_dct: Dict[int, Dict[int, int]] = None,
+        old_user_histogram_dct: Optional[Dict[int, Dict[int, int]]] = None,
+        minimum_number_of_records: int = 1,
     ) -> Dict[int, Dict[int, int]]:
         """
         Build user bounded histograms for ULDP-GROUP.
@@ -74,14 +75,20 @@ class Coordinator:
                 while current_user_count < group_k and current_user_count < user_count:
                     if (
                         user_id in old_user_histogram_dct[round_robin_silo_idx]
-                        and old_user_histogram_dct[round_robin_silo_idx][user_id] > 0
+                        and old_user_histogram_dct[round_robin_silo_idx][user_id] >= 0
                     ):
-                        old_user_histogram_dct[round_robin_silo_idx][user_id] -= 1
+                        old_user_histogram_dct[round_robin_silo_idx][
+                            user_id
+                        ] -= minimum_number_of_records
                         if user_id not in new_user_histogram_dct[round_robin_silo_idx]:
-                            new_user_histogram_dct[round_robin_silo_idx][user_id] = 1
+                            new_user_histogram_dct[round_robin_silo_idx][
+                                user_id
+                            ] = minimum_number_of_records
                         else:
-                            new_user_histogram_dct[round_robin_silo_idx][user_id] += 1
-                        current_user_count += 1
+                            new_user_histogram_dct[round_robin_silo_idx][
+                                user_id
+                            ] += minimum_number_of_records
+                        current_user_count += minimum_number_of_records
                     round_robin_silo_idx = (round_robin_silo_idx + 1) % len(
                         old_user_histogram_dct
                     )
@@ -91,12 +98,18 @@ class Coordinator:
             # Randomly assign group_k capacity for users to each silo
             new_user_histogram_dct = {silo_id: {} for silo_id in range(self.n_silos)}
             count_matrix = self.random_state.choice(
-                self.n_silos, (self.n_users, group_k), replace=True
+                self.n_silos,
+                (self.n_users, int(group_k / minimum_number_of_records)),
+                replace=True,
             )
             for user_id in range(self.n_users):
                 for silo_id in count_matrix[user_id]:
                     if user_id not in new_user_histogram_dct[silo_id]:
-                        new_user_histogram_dct[silo_id][user_id] = 1
+                        new_user_histogram_dct[silo_id][
+                            user_id
+                        ] = minimum_number_of_records
                     else:
-                        new_user_histogram_dct[silo_id][user_id] += 1
+                        new_user_histogram_dct[silo_id][
+                            user_id
+                        ] += minimum_number_of_records
             return new_user_histogram_dct

@@ -75,7 +75,7 @@ def build_exp_paramerters(default_args, dataset, dist, method, n_users):
 def hyper_parameter_tuning(args, path_project):
     import optuna
 
-    N_SEED = 3
+    N_SEED = 5
     original_args = copy.deepcopy(args)
     result_details = []
 
@@ -274,6 +274,10 @@ if __name__ == "__main__":
             except OverflowError as e:
                 logger.error(f"OverflowError: {str(e)}")
                 results_list.append("LOSS IS NAN")
+            except AssertionError as e:
+                logger.error(f"AssertionError: {str(e)}")
+                results_list.append("Assertion Error")
+
         exp_results = results_list
 
     save_resuls(

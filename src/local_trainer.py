@@ -211,6 +211,10 @@ class ClassificationTrainer:
                     new_local_test_dataset.append(data)
         logger.debug("{} data is removed from training dataset".format(remove_counter))
 
+        if len(new_local_train_dataset) <= 0:
+            raise AssertionError(
+                "No training data is left after bounding user contributions"
+            )
         self.train_loader = DataLoader(
             new_local_train_dataset, batch_size=self.local_batch_size, shuffle=True
         )

@@ -136,9 +136,14 @@ class FLSimulator:
         logger.info("Start federated learning simulation")
 
         if self.agg_strategy == "ULDP-GROUP":
+            if self.dataset_name == "tcga_brca":
+                min_count = 2
+            else:
+                min_count = 1
             bounded_user_hist_per_silo = self.coordinator.build_user_bound_histograms(
-                self.group_k, self.coordinator.original_user_hist_dct
+                self.group_k, self.coordinator.original_user_hist_dct, min_count
             )
+
             for silo_id, bounded_user_hist in bounded_user_hist_per_silo.items():
                 self.local_trainer_per_silos[silo_id].bound_user_contributions(
                     bounded_user_hist
