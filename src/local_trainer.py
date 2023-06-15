@@ -294,6 +294,13 @@ class ClassificationTrainer:
             )
 
         elif self.agg_strategy in ["ULDP-AVG", "ULDP-AVG-w"]:
+            # there is data that suddenly becomes unstable, but the cause is unknown. skip the update graident (call step()) for now.
+            def loss_callback(loss):
+                if torch.isnan(loss):
+                    logger.warn("loss is nan: skipping")
+                    return True
+                return False
+
             weights_diff_list = []  # TODO: memory optimization (use online aggregation)
             for user_id, user_train_loader in self.user_level_data_loader:
                 model_u = copy.deepcopy(model)
@@ -308,7 +315,8 @@ class ClassificationTrainer:
                         optimizer_u.zero_grad()
                         log_probs = model_u(x)
                         loss = criterion(log_probs, labels)
-                        loss_callback(loss)
+                        if loss_callback(loss):
+                            continue
                         loss.backward()
                         optimizer_u.step()
                         batch_loss.append(loss.item())

@@ -236,6 +236,14 @@ if __name__ == "__main__":
     else:
         args.seed += 10000
         best_params = load_best_params(args, path_project)
+        if best_params is None:
+            logger.warning("++++++++ Best params Not Found ++++++++")
+            if args.n_total_round == 100:
+                cp_args = copy.deepcopy(args)
+                cp_args.n_total_round = 50
+                logger.warning("Load n_total_round = 50 data instead of 100")
+                best_params = load_best_params(cp_args, path_project)
+
         if type(best_params) is dict:
             args.global_learning_rate = best_params["global_learning_rate"]
             if args.agg_strategy in [
@@ -262,7 +270,6 @@ if __name__ == "__main__":
                 "++++++++ All params are too Bad and use default params ++++++++"
             )
         else:
-            logger.warning("++++++++ Best params Not Found ++++++++")
             raise ValueError("Best params Not Found")
 
         results_list = []
