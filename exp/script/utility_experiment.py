@@ -90,7 +90,7 @@ def hyper_parameter_tuning(args, path_project):
         "ULDP-AVG",
         "ULDP-AVG-w",
     ]:
-        samples["clipping_bound"] = [100.0, 10.0, 1.0, 0.1]
+        samples["clipping_bound"] = [10.0, 1.0, 0.1]
     if args.agg_strategy in [
         "ULDP-GROUP",
         "DEFAULT",
@@ -98,8 +98,8 @@ def hyper_parameter_tuning(args, path_project):
         "ULDP-AVG",
         "ULDP-AVG-w",
     ]:
-        samples["local_learning_rate"] = [1.0, 0.1, 0.01, 0.001]
-        samples["local_epochs"] = [50, 10, 5, 1]
+        samples["local_learning_rate"] = [0.1, 0.01, 0.001]
+        samples["local_epochs"] = [50, 10, 1]
 
     study = optuna.create_study(
         study_name=f"{hash_args}",

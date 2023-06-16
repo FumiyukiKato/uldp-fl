@@ -12,8 +12,8 @@ from mylogger import logger
 # Heuristic early pruning conditions for hyper-parameter tuning
 TEST_ACC_THRESHOLDS = {
     "mnist": (3, 0.11),
-    "cifar10": (3, 0.11),
-    "cifar100": (3, 0.011),
+    "cifar10": (5, 0.11),
+    "cifar100": (5, 0.011),
     "heart_disease": (3, 0.1),
     "tcga_brca": (3, 0.1),
     "isic": (3, 0.1),
