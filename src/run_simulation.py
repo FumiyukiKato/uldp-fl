@@ -5,7 +5,7 @@ import os
 from options import args_parser
 from dataset import load_dataset
 
-# from results_saver import save_one_shot_results
+from results_saver import save_one_shot_results
 from scenario import create_dist_params
 import models
 from simulator import FLSimulator
@@ -96,4 +96,4 @@ if __name__ == "__main__":
 
         args = update_args(args)
     results = run_simulation(args, path_project)
-    # save_one_shot_results(args, path_project, {"exp": [results["global"]]}, "sim")
+    save_one_shot_results(args, path_project, {"exp": [results["global"]]}, "sim")

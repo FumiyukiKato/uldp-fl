@@ -289,7 +289,9 @@ class ClassificationTrainer:
                 model,
                 avg_grads,
                 self.random_state,
-                self.local_sigma * self.local_clipping_bound / self.n_silo_per_round,
+                self.local_sigma
+                * self.local_clipping_bound
+                / torch.sqrt(self.n_silo_per_round),
                 device=self.device,
             )
 
@@ -341,7 +343,9 @@ class ClassificationTrainer:
                 model,
                 avg_weights_diff,
                 self.random_state,
-                self.local_sigma * self.local_clipping_bound / self.n_silo_per_round,
+                self.local_sigma
+                * self.local_clipping_bound
+                / torch.sqrt(self.n_silo_per_round),
                 device=self.device,
             )
 
@@ -414,7 +418,9 @@ class ClassificationTrainer:
                 self.model,
                 clipped_weights_diff,
                 self.random_state,
-                self.local_sigma * self.local_clipping_bound,
+                self.local_sigma
+                * self.local_clipping_bound
+                * torch.sqrt(self.n_silo_per_round),
                 device=self.device,
             )
             return noised_clipped_weights_diff, len(train_loader)

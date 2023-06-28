@@ -104,7 +104,7 @@ def get_group_privacy_spent(
             )
         )
 
-    orders_vec = [group_k * 2 + x / 10.0 for x in range(1, 100)] + list(
+    orders_vec = [group_k * 2 + x / 10.0 for x in range(0, 100)] + list(
         np.linspace(group_k + 10, group_k * 64, 20)
     )
 
@@ -147,4 +147,4 @@ def get_group_privacy_spent(
         warnings.warn(
             f"Optimal order is the {extreme} alpha. Please consider expanding the range of alphas to get a tighter privacy bound."
         )
-    return eps[idx_opt], group_orders_vec[idx_opt]
+    return eps[idx_opt], orders_vec[idx_opt] * group_k
