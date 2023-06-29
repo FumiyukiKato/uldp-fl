@@ -45,7 +45,7 @@ def create_model(model_name: str, dataset_name: str, seed: int = None) -> nn.Mod
         if dataset_name == "mnist":
             model = CNNMnist()
         elif dataset_name == "cifar10":
-            model = CNNCifar(10)
+            model = ResNetCifar(10)
         elif dataset_name == "cifar100":
             model = ResNetCifar(100)
         else:
