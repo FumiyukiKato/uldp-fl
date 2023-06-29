@@ -68,8 +68,10 @@ class ClassificationTrainer:
             "SILO-LEVEL-DP",
             "ULDP-SGD",
             "ULDP-SGD-w",
+            "ULDP-SGD-s",
             "ULDP-AVG",
             "ULDP-AVG-w",
+            "ULDP-AVG-s",
         ]:
             self.local_sigma = local_sigma
             self.local_clipping_bound = local_clipping_bound
@@ -130,7 +132,14 @@ class ClassificationTrainer:
         self.user_user_histogram = user_histogram
         self.user_ids_of_local_train_dataset = user_ids_of_local_train_dataset
         self.distinct_users = list(set(user_ids_of_local_train_dataset))
-        if self.agg_strategy in ["ULDP-SGD", "ULDP-SGD-w", "ULDP-AVG", "ULDP-AVG-w"]:
+        if self.agg_strategy in [
+            "ULDP-SGD",
+            "ULDP-SGD-w",
+            "ULDP-AVG",
+            "ULDP-AVG-w",
+            "ULDP-SGD-s",
+            "ULDP-AVG-s",
+        ]:
             self.user_level_data_loader = self.make_user_level_data_loader()
 
     def get_results(self):
@@ -255,9 +264,13 @@ class ClassificationTrainer:
                 noise_generator=noise_generator,
             )
 
-        if self.agg_strategy in ["ULDP-SGD", "ULDP-SGD-w"]:
+        if self.agg_strategy in ["ULDP-SGD", "ULDP-SGD-w", "ULDP-SGD-s"]:
             grads_list = []  # TODO: memory optimization (use online aggregation)
             for user_id, user_train_loader in self.user_level_data_loader:
+                if (
+                    self.user_weights[user_id] <= 0.0
+                ):  # for efficiency, if w is encrypted, it can't work
+                    continue
                 user_avg_grad = OrderedDict()
                 for name, param in model.named_parameters():
                     user_avg_grad[name] = torch.zeros_like(param.data)
@@ -291,11 +304,11 @@ class ClassificationTrainer:
                 self.random_state,
                 self.local_sigma
                 * self.local_clipping_bound
-                / torch.sqrt(self.n_silo_per_round),
+                / np.sqrt(self.n_silo_per_round),
                 device=self.device,
             )
 
-        elif self.agg_strategy in ["ULDP-AVG", "ULDP-AVG-w"]:
+        elif self.agg_strategy in ["ULDP-AVG", "ULDP-AVG-w", "ULDP-AVG-s"]:
             # there is data that suddenly becomes unstable, but the cause is unknown. skip the update graident (call step()) for now.
             def loss_callback(loss):
                 if torch.isnan(loss):
@@ -305,6 +318,10 @@ class ClassificationTrainer:
 
             weights_diff_list = []  # TODO: memory optimization (use online aggregation)
             for user_id, user_train_loader in self.user_level_data_loader:
+                if (
+                    self.user_weights[user_id] <= 0.0
+                ):  # for efficiency, if w is encrypted, it can't work
+                    continue
                 model_u = copy.deepcopy(model)
                 optimizer_u = torch.optim.SGD(
                     filter(lambda p: p.requires_grad, model_u.parameters()),
@@ -345,7 +362,7 @@ class ClassificationTrainer:
                 self.random_state,
                 self.local_sigma
                 * self.local_clipping_bound
-                / torch.sqrt(self.n_silo_per_round),
+                / np.sqrt(self.n_silo_per_round),
                 device=self.device,
             )
 
@@ -420,7 +437,7 @@ class ClassificationTrainer:
                 self.random_state,
                 self.local_sigma
                 * self.local_clipping_bound
-                * torch.sqrt(self.n_silo_per_round),
+                * np.sqrt(self.n_silo_per_round),
                 device=self.device,
             )
             return noised_clipped_weights_diff, len(train_loader)
@@ -429,9 +446,9 @@ class ClassificationTrainer:
                 self.model, weights_diff, self.local_clipping_bound
             )
             return clipped_weights_diff, len(train_loader)
-        elif self.agg_strategy in ["ULDP-SGD", "ULDP-SGD-w"]:
+        elif self.agg_strategy in ["ULDP-SGD", "ULDP-SGD-w", "ULDP-SGD-s"]:
             return noisy_avg_grads, len(self.train_loader)
-        elif self.agg_strategy in ["ULDP-AVG", "ULDP-AVG-w"]:
+        elif self.agg_strategy in ["ULDP-AVG", "ULDP-AVG-w", "ULDP-AVG-s"]:
             return noisy_avg_weights_diff, len(self.train_loader)
         elif self.agg_strategy in ["DEFAULT"]:
             return weights_diff, len(train_loader)
@@ -454,7 +471,14 @@ class ClassificationTrainer:
         model.to(self.device)
         model.eval()
 
-        if self.agg_strategy in ["ULDP-SGD", "ULDP-SGD-w", "ULDP-AVG", "ULDP-AVG-w"]:
+        if self.agg_strategy in [
+            "ULDP-SGD",
+            "ULDP-SGD-w",
+            "ULDP-AVG",
+            "ULDP-AVG-w",
+            "ULDP-SGD-s",
+            "ULDP-AVG-s",
+        ]:
             logger.debug("Skip local test as model is not trained locally")
             return
 

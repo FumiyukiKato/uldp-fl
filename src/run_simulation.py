@@ -70,6 +70,7 @@ def run_simulation(args, path_project, trial=None, data_seed=None):
         group_k=args.group_k,
         trial=trial,
         dataset_name=args.dataset_name,
+        sampling_rate_q=args.sampling_rate_q,
     )
     simulator.run()
     results = simulator.get_results()

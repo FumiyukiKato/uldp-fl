@@ -124,6 +124,8 @@ class ResidualBlock(nn.Module):
         return out
 
 
+# ResNet 18
+# https://github.com/weiaicunzai/pytorch-cifar100/blob/master/models/resnet.py
 class ResNetCifar(nn.Module):
     def __init__(self, num_classes):
         super(ResNetCifar, self).__init__()

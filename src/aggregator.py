@@ -29,6 +29,7 @@ class Aggregator:
         delta: Optional[float] = None,
         global_learning_rate: Optional[float] = None,
         dataset_name: str = None,
+        sampling_rate_q: Optional[float] = None,
     ):
         self.random_state = np.random.RandomState(seed=base_seed + 1000000)
         self.model: nn.Module = model
@@ -41,14 +42,17 @@ class Aggregator:
         self.dataset_name = dataset_name
         self.strategy = strategy
         self.global_learning_rate = global_learning_rate
+        self.sampling_rate_q = sampling_rate_q
         if self.strategy in [
             "SILO-LEVEL-DP",
             "ULDP-NAIVE",
             "RECORD-LEVEL-DP",
             "ULDP-SGD",
             "ULDP-SGD-w",
+            "ULDP-SGD-s",
             "ULDP-AVG",
             "ULDP-AVG-w",
+            "ULDP-AVG-s",
         ]:
             from opacus.accountants import RDPAccountant
 
@@ -97,6 +101,11 @@ class Aggregator:
             self.accountant.step(
                 noise_multiplier=self.sigma,
                 sample_rate=1.0,
+            )
+            eps = self.accountant.get_epsilon(self.delta)
+        elif self.strategy in ["ULDP-SGD-s", "ULDP-AVG-s"]:
+            self.accountant.step(
+                noise_multiplier=self.sigma, sample_rate=self.sampling_rate_q
             )
             eps = self.accountant.get_epsilon(self.delta)
         elif self.strategy in ["DEFAULT"]:
@@ -192,6 +201,22 @@ class Aggregator:
         elif self.strategy in ["ULDP-SGD", "ULDP-SGD-w"]:
             averaged_grads = noise_utils.torch_aggregation(
                 raw_client_model_or_grad_list, self.n_users * self.n_silo_per_round
+            )
+            global_weights = self.update_parameters_from_gradients(
+                averaged_grads, self.global_learning_rate
+            )
+        elif self.strategy in ["ULDP-AVG-s"]:
+            averaged_param_diff = noise_utils.torch_aggregation(
+                raw_client_model_or_grad_list,
+                int(self.n_users * self.n_silo_per_round * self.sampling_rate_q),
+            )
+            global_weights = self.update_global_weights_from_diff(
+                averaged_param_diff, self.global_learning_rate
+            )
+        elif self.strategy in ["ULDP-SGD-s"]:
+            averaged_grads = noise_utils.torch_aggregation(
+                raw_client_model_or_grad_list,
+                int(self.n_users * self.n_silo_per_round * self.sampling_rate_q),
             )
             global_weights = self.update_parameters_from_gradients(
                 averaged_grads, self.global_learning_rate

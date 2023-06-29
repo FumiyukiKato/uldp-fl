@@ -19,11 +19,20 @@ class Coordinator:
         self.n_silos = n_silos
         self.original_user_hist_dct = {silo_id: {} for silo_id in range(n_silos)}
 
-    def build_user_weights(self, weighted: bool = False) -> Dict[int, Dict[int, float]]:
+    def set_user_hist_by_silo_id(self, silo_id: int, user_hist: Dict):
+        self.original_user_hist_dct[silo_id] = user_hist
+
+    def build_user_weights(
+        self, weighted: bool = False, sampling_rate_q: float = None
+    ) -> Dict[int, Dict[int, float]]:
         """
         Build user weights for ULDP-SGD/AVG.
         """
-        user_weights_per_silo = {silo_id: {} for silo_id in range(self.n_silos)}
+        user_weights_per_silo = {
+            silo_id: {user_id: 0.0 for user_id in range(self.n_users)}
+            for silo_id in range(self.n_silos)
+        }
+
         if weighted:
             # Weighting in proportion to the number of users
             # calculate total user count for each user
@@ -44,6 +53,18 @@ class Coordinator:
                 user_weights_per_silo[silo_id] = {
                     user_id: 1.0 / self.n_silos for user_id in range(self.n_users)
                 }
+
+        if sampling_rate_q is not None:
+            user_ids = np.array(range(self.n_users))
+            sampled_user_ids = user_ids[
+                self.random_state.rand(len(user_ids)) < sampling_rate_q
+            ]
+            sampled_user_ids_set = set(sampled_user_ids)
+            for silo_id in range(self.n_silos):
+                for user_id in range(self.n_users):
+                    if user_id not in sampled_user_ids_set:
+                        user_weights_per_silo[silo_id][user_id] = 0.0
+
         return user_weights_per_silo
 
     def build_user_bound_histograms(

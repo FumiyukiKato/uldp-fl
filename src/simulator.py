@@ -54,12 +54,14 @@ class FLSimulator:
         group_k: Optional[int] = None,
         trial: optuna.Trial = None,
         dataset_name: str = None,
+        sampling_rate_q: Optional[float] = None,
     ):
         self.n_total_round = n_total_round
         self.round_idx = 0
         model.to(device)
         self.agg_strategy = agg_strategy
         self.dataset_name = dataset_name
+        self.sampling_rate_q = sampling_rate_q
 
         self.aggregator = Aggregator(
             model=copy.deepcopy(model),
@@ -76,14 +78,17 @@ class FLSimulator:
             delta=delta,
             global_learning_rate=global_learning_rate,
             dataset_name=dataset_name,
+            sampling_rate_q=sampling_rate_q,
         )
 
         if self.agg_strategy in [
             "ULDP-GROUP",
             "ULDP-SGD",
             "ULDP-SGD-w",
+            "ULDP-SGD-s",
             "ULDP-AVG",
             "ULDP-AVG-w",
+            "ULDP-AVG-s",
         ]:
             self.coordinator = Coordinator(
                 base_seed=seed, n_silos=n_silos, n_users=n_users
@@ -125,10 +130,12 @@ class FLSimulator:
                 "ULDP-GROUP",
                 "ULDP-SGD",
                 "ULDP-SGD-w",
+                "ULDP-SGD-s",
                 "ULDP-AVG",
                 "ULDP-AVG-w",
+                "ULDP-AVG-s",
             ]:
-                self.coordinator.original_user_hist_dct[silo_id] = user_hist
+                self.coordinator.set_user_hist_by_silo_id(silo_id, user_hist)
 
             self.trial = trial
 
@@ -148,7 +155,12 @@ class FLSimulator:
                 self.local_trainer_per_silos[silo_id].bound_user_contributions(
                     bounded_user_hist
                 )
-        elif self.agg_strategy in ["ULDP-SGD", "ULDP-AVG", "ULDP-SGD-w", "ULDP-AVG-w"]:
+        elif self.agg_strategy in [
+            "ULDP-SGD",
+            "ULDP-AVG",
+            "ULDP-SGD-w",
+            "ULDP-AVG-w",
+        ]:
             if self.agg_strategy in ["ULDP-SGD-w", "ULDP-AVG-w"]:
                 user_weights_per_silo = self.coordinator.build_user_weights(
                     weighted=True
@@ -162,6 +174,14 @@ class FLSimulator:
 
         while self.round_idx < self.n_total_round:
             silo_id_list_in_this_round = self.aggregator.silo_selection()
+
+            if self.agg_strategy in ["ULDP-SGD-s", "ULDP-AVG-s"]:
+                user_weights_per_silo = self.coordinator.build_user_weights(
+                    weighted=False, sampling_rate_q=self.sampling_rate_q
+                )
+                for silo_id, user_weights in user_weights_per_silo.items():
+                    self.local_trainer_per_silos[silo_id].set_user_weights(user_weights)
+
             for silo_id in silo_id_list_in_this_round:
                 logger.debug(
                     "============ TRAINING: SILO_ID = %d (ROUND %d) ============"
