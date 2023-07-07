@@ -255,7 +255,7 @@ class Aggregator:
             "test_total": 0,
         }
 
-        test_loader = DataLoader(test_data, batch_size=10)
+        test_loader = DataLoader(test_data, batch_size=512)
 
         if self.dataset_name in ["heart_disease", "tcga_brca", "isic"]:
             if self.dataset_name == "heart_disease":
@@ -294,6 +294,28 @@ class Aggregator:
             y_true_final = np.concatenate(y_true_final)
             y_pred_final = np.concatenate(y_pred_final)
             metrics["test_metric"] = metric(y_true_final, y_pred_final)
+
+        elif self.dataset_name in ["creditcard"]:
+            from sklearn.metrics import roc_auc_score
+
+            criterion = nn.CrossEntropyLoss().to(device)
+
+            with torch.no_grad():
+                y_pred_final = []
+                y_true_final = []
+                for x, y in test_loader:
+                    x, y = x.to(self.device), y.to(self.device)
+                    y_pred = model(x)
+                    loss = criterion(y_pred, y.long())
+                    metrics["test_loss"] += loss.item()
+                    y_pred = y_pred.argmax(dim=1)
+                    y_pred_final.append(y_pred.numpy())
+                    y_true_final.append(y.numpy())
+                    metrics["test_total"] += len(y)
+
+            y_true_final = np.concatenate(y_true_final)
+            y_pred_final = np.concatenate(y_pred_final)
+            metrics["test_metric"] = roc_auc_score(y_true_final, y_pred_final)
         else:
             criterion = nn.CrossEntropyLoss().to(device)
 
@@ -333,9 +355,14 @@ class Aggregator:
                 )
             )
             logger.debug("|----- Global test result of round %d" % (round_idx))
-            logger.debug(
-                f"\t |----- Test/Acc: {test_metric} ({n_test_sample}), Test/Loss: {test_loss}"
-            )
+            if self.dataset_name in ["creditcard"]:
+                logger.debug(
+                    f"\t |----- Test/ROC_AUC: {test_metric} ({n_test_sample}), Test/Loss: {test_loss}"
+                )
+            else:
+                logger.debug(
+                    f"\t |----- Test/Acc: {test_metric} ({n_test_sample}), Test/Loss: {test_loss}"
+                )
         else:
             self.results["local_model_test"].append(
                 (
@@ -349,9 +376,14 @@ class Aggregator:
                 "|----- Global test result for SILO %d of round %d"
                 % (silo_id, round_idx)
             )
-            logger.debug(
-                f"\t |----- Test/Acc: {test_metric} ({n_test_sample}), Test/Loss: {test_loss}"
-            )
+            if self.dataset_name in ["creditcard"]:
+                logger.debug(
+                    f"\t |----- Test/ROC_AUC: {test_metric} ({n_test_sample}), Test/Loss: {test_loss}"
+                )
+            else:
+                logger.debug(
+                    f"\t |----- Test/Acc: {test_metric} ({n_test_sample}), Test/Loss: {test_loss}"
+                )
         return test_metric, test_loss
 
     def update_global_weights_from_diff(

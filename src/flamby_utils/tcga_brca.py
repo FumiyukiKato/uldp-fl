@@ -29,10 +29,13 @@ def update_args(args):
 # build user distribution to make sure each silo and user has 2 data at least.
 def build_user_dist(
     all_train_dataset: FedTcgaBrca,
-    n_users: int = 500,
-    random_state: np.random.RandomState = np.random.RandomState(seed=0),
+    n_users: int,
+    random_state: np.random.RandomState,
 ) -> Dict:
     user_list = np.arange(n_users)
+
+    # サイロごとに，
+    # 2個ずつセットでユーザidをランダムに選んでそのサイロに割り当てる
 
     # all_user_set = set()
 

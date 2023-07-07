@@ -31,9 +31,13 @@ def update_args(args):
 # とりあえず適当に作った
 def build_user_dist(
     all_train_dataset: FedHeartDisease,
-    n_users: int = 500,
-    random_state: np.random.RandomState = np.random.RandomState(seed=0),
+    n_users: int,
+    random_state: np.random.RandomState,
 ) -> Dict:
+    # 全てのユーザが少なくとも１つ以上レコード持つようにする
+    # そのためには、ユーザ数がレコード数より少ない場合は、ユーザ数分のレコードを持つようにする
+    # ユーザ数がレコード数より多い場合は、 まず，ユーザ数分のレコードを確保して，それ以外のレコードをランダムにユーザに振り分ける
+    # つまり，ユーザはかなり平等な数のレコードを持つことになる
     n_train_dataset = len(all_train_dataset)
     user_list = np.arange(n_users)
     if n_train_dataset < n_users:

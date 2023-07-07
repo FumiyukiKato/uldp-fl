@@ -40,12 +40,16 @@ def create_model(model_name: str, dataset_name: str, seed: int = None) -> nn.Mod
 
         model = isic.custom_model()
 
+    elif dataset_name == "creditcard":
+        model = PrivateFraudNet(30, 30, 4)
+
     elif model_name == "cnn":
         # Convolutional neural network
         if dataset_name == "mnist":
             model = CNNMnist()
         elif dataset_name == "cifar10":
-            model = ResNetCifar(10)
+            # model = ResNetCifar(10)
+            model = CNNCifar(10)
         elif dataset_name == "cifar100":
             model = ResNetCifar(100)
         else:
@@ -53,6 +57,30 @@ def create_model(model_name: str, dataset_name: str, seed: int = None) -> nn.Mod
 
     logger.debug(f"Number of model params (Dimension d): {count_parameters(model)}")
     return model
+
+
+class PrivateFraudNet(nn.Module):
+    def __init__(self, input_dim, hidden_dim, num_layers=4):
+        super().__init__()
+        self.input = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim), nn.ReLU(), nn.GroupNorm(1, hidden_dim)
+        )
+        # make the number of hidden dim layers configurable
+        self.layers = nn.ModuleList()
+        for i in range(num_layers):
+            self.layers.append(nn.Linear(hidden_dim, hidden_dim))
+            self.layers.append(nn.ReLU())
+            self.layers.append(nn.GroupNorm(1, hidden_dim))
+            self.layers.append(nn.Dropout(0.5))
+
+        # final layer
+        self.fc = nn.Linear(hidden_dim, 2)
+
+    def forward(self, x):
+        out = self.input(x)
+        for layer in self.layers:
+            out = layer(out)
+        return self.fc(out)
 
 
 class CNNMnist(nn.Module):

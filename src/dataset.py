@@ -1,10 +1,12 @@
 import copy
 import os
 import numpy as np
+import pandas as pd
 from typing import Tuple, List, Dict
 from torchvision import datasets, transforms
 from sklearn.model_selection import train_test_split
-from torch.utils.data import ConcatDataset
+from sklearn.preprocessing import StandardScaler
+from torch.utils.data import ConcatDataset, TensorDataset
 import torch
 
 from mylogger import logger
@@ -437,86 +439,127 @@ def load_dataset(
             dataset_name, random_state, n_users=n_users
         )
         return all_training_dataset, all_test_dataset
+    elif dataset_name in ["mnist", "cifar10", "cifar100"]:
+        if dataset_name == "cifar10":
+            data_dir = os.path.join(path_project, DATA_SET_DIR, "cifar10")
+            apply_transform = transforms.Compose(
+                [
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+                ]
+            )
+            train_dataset = datasets.CIFAR10(
+                data_dir, train=True, download=True, transform=apply_transform
+            )
+            test_dataset = datasets.CIFAR10(
+                data_dir, train=False, download=True, transform=apply_transform
+            )
+            train_dataset.targets = torch.tensor(train_dataset.targets)
+            test_dataset.targets = torch.tensor(test_dataset.targets)
+            labels = train_dataset.targets.numpy()
 
-    if dataset_name == "cifar10":
-        data_dir = os.path.join(path_project, DATA_SET_DIR, "cifar10")
-        apply_transform = transforms.Compose(
-            [
-                transforms.ToTensor(),
-                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-            ]
-        )
-        train_dataset = datasets.CIFAR10(
-            data_dir, train=True, download=True, transform=apply_transform
-        )
-        test_dataset = datasets.CIFAR10(
-            data_dir, train=False, download=True, transform=apply_transform
-        )
-        train_dataset.targets = torch.tensor(train_dataset.targets)
-        test_dataset.targets = torch.tensor(test_dataset.targets)
-        labels = train_dataset.targets.numpy()
+        elif dataset_name == "mnist":
+            data_dir = os.path.join(path_project, DATA_SET_DIR, "mnist")
+            apply_transform = transforms.Compose(
+                [
+                    transforms.ToTensor(),
+                    # https://discuss.pytorch.org/t/normalization-in-the-mnist-example/457
+                    transforms.Normalize((0.1307,), (0.3081,)),
+                ]
+            )
+            train_dataset = datasets.MNIST(
+                data_dir, train=True, download=True, transform=apply_transform
+            )
+            test_dataset = datasets.MNIST(
+                data_dir, train=False, download=True, transform=apply_transform
+            )
+            labels = train_dataset.targets.numpy()
 
-    elif dataset_name == "mnist":
-        data_dir = os.path.join(path_project, DATA_SET_DIR, "mnist")
-        apply_transform = transforms.Compose(
-            [
-                transforms.ToTensor(),
-                # https://discuss.pytorch.org/t/normalization-in-the-mnist-example/457
-                transforms.Normalize((0.1307,), (0.3081,)),
-            ]
-        )
-        train_dataset = datasets.MNIST(
-            data_dir, train=True, download=True, transform=apply_transform
-        )
-        test_dataset = datasets.MNIST(
-            data_dir, train=False, download=True, transform=apply_transform
-        )
-        labels = train_dataset.targets.numpy()
+        elif dataset_name == "cifar100":
+            # For simplicity, we use statistics of the first traindaset to the first testdaset though the both dataset are mixed in later
+            data_dir = os.path.join(path_project, DATA_SET_DIR, "cifar100")
+            CIFAR100_TRAIN_MEAN = (
+                0.5070751592371323,
+                0.48654887331495095,
+                0.4409178433670343,
+            )
+            CIFAR100_TRAIN_STD = (
+                0.2673342858792401,
+                0.2564384629170883,
+                0.27615047132568404,
+            )
+            transform_train = transforms.Compose(
+                [
+                    # transforms.ToPILImage(),
+                    transforms.RandomCrop(32, padding=4),
+                    transforms.RandomHorizontalFlip(),
+                    transforms.RandomRotation(15),
+                    transforms.ToTensor(),
+                    transforms.Normalize(CIFAR100_TRAIN_MEAN, CIFAR100_TRAIN_STD),
+                ]
+            )
+            transform_test = transforms.Compose(
+                [
+                    transforms.ToTensor(),
+                    transforms.Normalize(CIFAR100_TRAIN_MEAN, CIFAR100_TRAIN_STD),
+                ]
+            )
+            train_dataset = datasets.CIFAR100(
+                data_dir, train=True, download=True, transform=transform_train
+            )
+            test_dataset = datasets.CIFAR100(
+                data_dir, train=False, download=True, transform=transform_test
+            )
+            train_dataset.targets = torch.tensor(train_dataset.targets)
+            test_dataset.targets = torch.tensor(test_dataset.targets)
+            labels = train_dataset.targets.numpy()
+        else:
+            raise ValueError("Dataset not supported")
 
-    elif dataset_name == "cifar100":
-        # For simplicity, we use statistics of the first traindaset to the first testdaset though the both dataset are mixed in later
-        data_dir = os.path.join(path_project, DATA_SET_DIR, "cifar100")
-        CIFAR100_TRAIN_MEAN = (
-            0.5070751592371323,
-            0.48654887331495095,
-            0.4409178433670343,
+        train_dataset, test_dataset = shuffle_test_and_train(
+            random_state, train_dataset, test_dataset
         )
-        CIFAR100_TRAIN_STD = (
-            0.2673342858792401,
-            0.2564384629170883,
-            0.27615047132568404,
+    elif dataset_name == "creditcard":
+        data_dir = os.path.join(path_project, DATA_SET_DIR, "creditcard")
+        df = pd.read_csv(os.path.join(data_dir, "creditcard.csv"))
+        X = df.drop("Class", axis=1)
+        y = df["Class"]
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.15, random_state=random_state, stratify=y
         )
-        transform_train = transforms.Compose(
-            [
-                # transforms.ToPILImage(),
-                transforms.RandomCrop(32, padding=4),
-                transforms.RandomHorizontalFlip(),
-                transforms.RandomRotation(15),
-                transforms.ToTensor(),
-                transforms.Normalize(CIFAR100_TRAIN_MEAN, CIFAR100_TRAIN_STD),
-            ]
+
+        # scale the values of x (better training)
+        scaler = StandardScaler()
+        scaler.fit(X_train)
+        X_train = scaler.transform(X_train)
+        X_test = scaler.transform(X_test)
+
+        X_train = torch.FloatTensor(X_train)
+        X_test = torch.FloatTensor(X_test)
+        y_train = torch.FloatTensor(y_train.values)
+        y_test = torch.FloatTensor(y_test.values)
+
+        percentage = 0.1  # under sampling
+        majority_label = 0
+        target_X_train = X_train[y_train == majority_label]
+        target_y_train = y_train[y_train == majority_label]
+        non_target_X_train = X_train[y_train != majority_label]
+        non_target_y_train = y_train[y_train != majority_label]
+        limit_size = int(len(target_X_train) * percentage)
+        selected_indices = np.random.choice(
+            len(target_X_train), size=limit_size, replace=False
         )
-        transform_test = transforms.Compose(
-            [
-                transforms.ToTensor(),
-                transforms.Normalize(CIFAR100_TRAIN_MEAN, CIFAR100_TRAIN_STD),
-            ]
-        )
-        train_dataset = datasets.CIFAR100(
-            data_dir, train=True, download=True, transform=transform_train
-        )
-        test_dataset = datasets.CIFAR100(
-            data_dir, train=False, download=True, transform=transform_test
-        )
-        train_dataset.targets = torch.tensor(train_dataset.targets)
-        test_dataset.targets = torch.tensor(test_dataset.targets)
-        labels = train_dataset.targets.numpy()
+        target_X_train = target_X_train[selected_indices]
+        target_y_train = target_y_train[selected_indices]
+        X_train = torch.concatenate([non_target_X_train, target_X_train])
+        y_train = torch.concatenate([non_target_y_train, target_y_train])
+        train_dataset = TensorDataset(X_train, y_train)
+
+        train_dataset = TensorDataset(X_train, y_train)
+        test_dataset = TensorDataset(X_test, y_test)
+        labels = train_dataset.tensors[1].numpy()
     else:
-        raise ValueError("Dataset not supported")
-
-    train_dataset, test_dataset = shuffle_test_and_train(
-        random_state, train_dataset, test_dataset
-    )
+        raise ValueError("Invalid dataset name.")
 
     data_indices_per_silos, data_indices_of_users = divide_dataset(
         random_state,

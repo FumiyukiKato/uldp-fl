@@ -5,6 +5,7 @@ import numpy as np
 from torch import nn
 import torch
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 from mylogger import logger
 import noise_utils
@@ -279,7 +280,7 @@ class ClassificationTrainer:
                     x, labels = x.to(self.device), labels.to(self.device)
                     model.zero_grad()
                     log_probs = model(x)
-                    loss = criterion(log_probs, labels)
+                    loss = criterion(log_probs, labels.long())
                     loss_callback(loss)
                     loss.backward()
                     # Don't optimize (i.e., Don't call step())
@@ -317,7 +318,7 @@ class ClassificationTrainer:
                 return False
 
             weights_diff_list = []  # TODO: memory optimization (use online aggregation)
-            for user_id, user_train_loader in self.user_level_data_loader:
+            for user_id, user_train_loader in tqdm(self.user_level_data_loader):
                 if (
                     self.user_weights[user_id] <= 0.0
                 ):  # for efficiency, if w is encrypted, it can't work
@@ -333,6 +334,7 @@ class ClassificationTrainer:
                         x, labels = x.to(self.device), labels.to(self.device)
                         optimizer_u.zero_grad()
                         log_probs = model_u(x)
+                        labels = labels.long()
                         loss = criterion(log_probs, labels)
                         if loss_callback(loss):
                             continue
@@ -340,11 +342,11 @@ class ClassificationTrainer:
                         optimizer_u.step()
                         batch_loss.append(loss.item())
 
-                    logger.debug(
-                        "Silo Id = {}\tEpoch: {}\tLoss: {:.6f}".format(
-                            self.silo_id, epoch, sum(batch_loss) / len(batch_loss)
-                        )
-                    )
+                    # logger.debug(
+                    #     "Silo Id = {}\tEpoch: {}\tLoss: {:.6f}".format(
+                    #         self.silo_id, epoch, sum(batch_loss) / len(batch_loss)
+                    #     )
+                    # )
                 weights = model_u.state_dict()
                 weights_diff = self.diff_weights(global_weights, weights)
                 clipped_weights_diff = noise_utils.global_clip(
@@ -375,6 +377,7 @@ class ClassificationTrainer:
                     x, labels = x.to(self.device), labels.to(self.device)
                     optimizer.zero_grad()
                     log_probs = model(x)
+                    labels = labels.long()
                     loss = criterion(log_probs, labels)
                     loss_callback(loss)
                     loss.backward()
@@ -495,7 +498,7 @@ class ClassificationTrainer:
                 for idx, (x, y) in enumerate(self.test_loader):
                     x, y = x.to(self.device), y.to(self.device)
                     y_pred = model(x)
-                    loss = self.criterion(y_pred, y)
+                    loss = self.criterion(y_pred, y.long())
                     test_loss += loss.item()
                     if self.dataset_name == "isic":
                         _, y_pred = torch.max(y_pred, 1)
@@ -510,6 +513,34 @@ class ClassificationTrainer:
             logger.debug(
                 f"\t |----- Local Test/Acc: {test_metric} ({n_total_data}), Local Test/Loss: {test_loss}"
             )
+
+        elif self.dataset_name in ["creditcard"]:
+            from sklearn.metrics import roc_auc_score
+
+            criterion = nn.CrossEntropyLoss().to(self.device)
+
+            with torch.no_grad():
+                n_total_data = 0
+                test_loss = 0
+                y_pred_final = []
+                y_true_final = []
+                for x, y in self.test_loader:
+                    x, y = x.to(self.device), y.to(self.device)
+                    y_pred = model(x)
+                    loss = criterion(y_pred, y.long())
+                    test_loss += loss.item()
+                    y_pred = y_pred.argmax(dim=1)
+                    y_pred_final.append(y_pred.numpy())
+                    y_true_final.append(y.numpy())
+                    n_total_data += len(y)
+
+            y_true_final = np.concatenate(y_true_final)
+            y_pred_final = np.concatenate(y_pred_final)
+            test_metric = roc_auc_score(y_true_final, y_pred_final)
+            logger.debug("|----- Local test result of round %d" % (round_idx))
+            logger.debug(
+                f"\t |----- Local Test/ROC_AUC: {test_metric} ({n_total_data}), Local Test/Loss: {test_loss}"
+            )
         else:
             with torch.no_grad():
                 n_total_data = 0
@@ -518,7 +549,7 @@ class ClassificationTrainer:
                 for idx, (x, labels) in enumerate(self.test_loader):
                     x, labels = x.to(self.device), labels.to(self.device)
                     pred = model(x)
-                    loss = self.criterion(pred, labels)
+                    loss = self.criterion(pred, labels.long())
                     test_loss += loss.item()
                     _, predicted = torch.max(pred, 1)
                     test_correct += torch.sum(torch.eq(predicted, labels)).item()
