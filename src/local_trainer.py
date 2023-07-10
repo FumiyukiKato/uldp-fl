@@ -270,7 +270,7 @@ class ClassificationTrainer:
             for user_id, user_train_loader in tqdm(self.user_level_data_loader):
                 if (
                     self.user_weights[user_id] <= 0.0
-                ):  # for efficiency, if w is encrypted, it can't work
+                ):  # for efficiency, if w is encrypted for DDP, it can't work
                     continue
                 user_avg_grad = OrderedDict()
                 for name, param in model.named_parameters():
@@ -323,7 +323,7 @@ class ClassificationTrainer:
             for user_id, user_train_loader in tqdm(self.user_level_data_loader):
                 if (
                     self.user_weights[user_id] <= 0.0
-                ):  # for efficiency, if w is encrypted, it can't work
+                ):  # for efficiency, if w is encrypted for DDP, it can't work
                     continue
                 model_u = copy.deepcopy(model)
                 optimizer_u = torch.optim.SGD(

@@ -68,7 +68,7 @@ def args_parser(path_project: str) -> argparse.Namespace:
     parser.add_argument("--exp_dist", type=int, help="0 (iid), 1 (non-iid based on zipf)")
 
     parser.add_argument("--version", type=int, help="used for experimental management")
-    parser.add_argument("--dry_run", type=int, help="used for checking the hash value")
+    parser.add_argument("--dry_run", action='store_true', help="used for checking the hash value")
 
     # fmt: on
 

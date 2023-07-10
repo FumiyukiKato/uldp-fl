@@ -58,7 +58,7 @@ def multiple_weights(model: torch.nn.Module, params: OrderedDict, weight: float)
             weighted_params[name] = weight * params[name]
         else:
             weighted_params[name] = params[name]
-    return params
+    return weighted_params
 
 
 def add_global_noise(
