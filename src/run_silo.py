@@ -6,7 +6,6 @@ from options import args_parser
 from dataset import load_dataset
 
 # from results_saver import save_one_shot_results
-from scenario import create_dist_params
 import models
 from silo import FLSilo
 from mylogger import logger_set_debug
@@ -27,9 +26,6 @@ if __name__ == "__main__":
     assert (
         args.silo_id < args.n_silos
     ), "silo_id should be less than n_silos, and start from 0"
-    p_list, user_silo_matrix, n_silos, n_users = create_dist_params(
-        args.typical_scenaio, args.n_silos, args.n_users
-    )
 
     # load data
     train_dataset, test_dataset, user_hist, user_ids = load_dataset(
@@ -42,9 +38,7 @@ if __name__ == "__main__":
         args.silo_dist,
         args.user_alpha,
         args.silo_alpha,
-        p_list,
         args.n_labels,
-        user_silo_matrix,
         silo_id=args.silo_id,
     )
 

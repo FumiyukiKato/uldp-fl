@@ -15,8 +15,9 @@ BEST_PARAMS = "best_params.json"
 HP_STORAGE = "hp-search.db"
 
 
-def load_results(args, path_project, hp: bool = False):
-    hashed_args = args_to_hash(args)
+def load_results(args, path_project, hp: bool = False, hashed_args: str = None):
+    if hashed_args is None:
+        hashed_args = args_to_hash(args)
     file_name = HP_DETAIL if hp else EXP_RESULTS
     resutls_file_name_list = glob.glob(
         os.path.join(path_project, RESULTS_DIR, hashed_args, file_name)
@@ -106,6 +107,7 @@ def args_to_hash(args) -> str:
     args_dct.pop("verbose")
     args_dct.pop("hyper_parameter_tuning")
     args_dct.pop("times")
+    args_dct.pop("dry_run")
 
     if args_dct["version"] is None or args_dct["version"] == 0:
         args_dct.pop("version")

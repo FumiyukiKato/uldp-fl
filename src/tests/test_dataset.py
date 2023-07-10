@@ -1,9 +1,13 @@
 import unittest
 from pathlib import Path
 import os
+import sys
 import numpy as np
 import torch
 from torchvision import datasets, transforms
+
+src_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(src_path)
 
 import dataset
 from dataset import DATA_SET_DIR
@@ -229,10 +233,7 @@ class TestDataset(unittest.TestCase):
         n_data = 60000
         n_silos = 10
         data_indices_per_silos = dataset.distribute_data_to_silos(
-            random_state,
-            n_data,
-            "uniform",
-            n_silos,
+            random_state, n_data, "uniform", n_silos, n_users=100
         )
         silo_0 = data_indices_per_silos[0]
         self.assertListEqual(
@@ -252,144 +253,54 @@ class TestDataset(unittest.TestCase):
             "The length of data_indices_per_silos is equal to the verified dataset",
         )
 
-    def test_distribute_data_to_silos_with_p(self):
-        random_state = np.random.RandomState(seed=seed)
-        n_data = 60000
-        n_silos = 3
-        p_list = [0.5, 0.25, 0.25]
-        data_indices_per_silos = dataset.distribute_data_to_silos(
-            random_state, n_data, "p", n_silos, p_list=p_list
-        )
-        silo_0 = data_indices_per_silos[0]
-        self.assertListEqual(
-            list(silo_0[0:10]),
-            [4, 6, 9, 14, 15, 16, 22, 24, 26, 29],
-            "data_indices_per_silos is equal to the verified dataset",
-        )
-        self.assertEqual(
-            len(silo_0),
-            30050,
-            "The length of data_indices_per_silos is equal to the verified dataset",
-        )
-        silo_1 = data_indices_per_silos[1]
-        self.assertEqual(
-            len(silo_1),
-            15034,
-            "The length of data_indices_per_silos is equal to the verified dataset",
-        )
-
     def test_distribute_data_to_silos_with_zipf(self):
         random_state = np.random.RandomState(seed=seed)
         n_data = 60000
         n_silos = 10
         alpha = 0.5
+        n_users = 100
+        data_indices_of_users = dataset.distribute_data_to_users(
+            random_state,
+            n_data,
+            "uniform-iid",
+            n_users,
+        )
         data_indices_per_silos = dataset.distribute_data_to_silos(
-            random_state, n_data, "zipf", n_silos, alpha=alpha
+            random_state,
+            n_data,
+            "zipf",
+            n_silos,
+            alpha=alpha,
+            n_users=n_users,
+            data_indices_of_users=data_indices_of_users,
         )
         silo_0 = data_indices_per_silos[0]
         self.assertListEqual(
             list(silo_0[0:10]),
-            [14, 15, 16, 24, 26, 34, 43, 47, 53, 55],
+            [6079, 37093, 52535, 1564, 15276, 597, 35652, 29977, 48767, 8991],
             "data_indices_per_silos is equal to the verified dataset",
         )
         self.assertEqual(
             len(silo_0),
-            12156,
+            5731,
             "The length of data_indices_per_silos is equal to the verified dataset",
         )
         silo_1 = data_indices_per_silos[1]
         self.assertEqual(
             len(silo_1),
-            8392,
+            5880,
             "The length of data_indices_per_silos is equal to the verified dataset",
         )
         silo_9 = data_indices_per_silos[9]
         self.assertEqual(
             len(silo_9),
-            3684,
+            6212,
             "The length of data_indices_per_silos is equal to the verified dataset",
         )
         self.assertEqual(
             sum([len(lst) for lst in data_indices_per_silos.values()]),
             60000,
             "The sum of silos is 60000",
-        )
-
-    def test_distribute_data_to_silos_with_user_silo_matrix(self):
-        random_state = np.random.RandomState(seed=seed)
-        n_data = 60000
-        n_silos = 4
-        n_users = 1000
-        alpha = 0.8
-        user_indices_of_data = dataset.distribute_data_to_users(
-            random_state,
-            n_data,
-            "zipf-iid",
-            n_users,
-            alpha=alpha,
-        )
-        user_silo_matrix_1 = [[0.5, 0.2, 0.2, 0.1] for u in range(500)]
-        user_silo_matrix_2 = [[0.1, 0.5, 0.3, 0.1] for u in range(500)]
-        user_silo_matrix = np.array(user_silo_matrix_1 + user_silo_matrix_2)
-
-        data_indices_per_silos = dataset.distribute_data_to_silos(
-            random_state,
-            n_data,
-            "user-silo-matrix",
-            n_silos,
-            n_users=n_users,
-            data_indices_of_users=user_indices_of_data,
-            user_silo_matrix=user_silo_matrix,
-        )
-        silo_0 = data_indices_per_silos[0]
-        self.assertListEqual(
-            list(silo_0[0:10]),
-            [43, 99, 171, 179, 198, 204, 214, 233, 262, 268],
-            "data_indices_per_silos is equal to the verified dataset",
-        )
-        self.assertEqual(
-            len(silo_0),
-            25973,
-            "The length of data_indices_per_silos is equal to the verified dataset",
-        )
-        all_user_0_set = set(np.where(user_indices_of_data == 0)[0])
-        user_0_set_of_silo_0 = set(silo_0)
-        ratio = len(all_user_0_set.intersection(user_0_set_of_silo_0)) / len(
-            all_user_0_set
-        )
-        self.assertTrue(
-            0.48 <= ratio and ratio <= 0.52,
-            "The ratio of user 0 in silo 0 over all user 0 data is approximately equal to user_silo_matrix",
-        )
-
-        silo_1 = data_indices_per_silos[1]
-        all_user_5_set = set(np.where(user_indices_of_data == 5)[0])
-        user_5_set_of_silo_1 = set(silo_1)
-        ratio = len(all_user_5_set.intersection(user_5_set_of_silo_1)) / len(
-            all_user_5_set
-        )
-        self.assertTrue(
-            0.18 <= ratio and ratio <= 0.22,
-            "The ratio of user 5 in silo 1 over all user 5 data is approximately equal to user_silo_matrix",
-        )
-
-        silo_1 = data_indices_per_silos[1]
-        self.assertEqual(
-            len(silo_1),
-            14783,
-            "The length of data_indices_per_silos is equal to the verified dataset",
-        )
-        silo_2 = data_indices_per_silos[2]
-        self.assertEqual(
-            len(silo_2),
-            13089,
-            "The length of data_indices_per_silos is equal to the verified dataset",
-        )
-        silo_3 = data_indices_per_silos[3]
-        self.assertEqual(
-            len(silo_3),
-            6155,
-            "The length of data_indices_per_silos is equal to the verified dataset",
         )
 
     def prepare_mnist_train_dataset(self, random_state: np.random.RandomState):

@@ -6,7 +6,6 @@ from options import args_parser
 from dataset import load_dataset
 
 # from results_saver import save_one_shot_results
-from scenario import create_dist_params
 import models
 from server import FLServer
 import ip_utils
@@ -26,9 +25,6 @@ if __name__ == "__main__":
         torch.cuda.set_device(args.gpu_id)
     device = "cuda" if args.gpu_id is not None else "cpu"
     data_random_state = np.random.RandomState(seed=args.seed)
-    p_list, user_silo_matrix, n_silos, n_users = create_dist_params(
-        args.typical_scenaio, args.n_silos, args.n_users
-    )
 
     # load data
     train_dataset, test_dataset = load_dataset(
@@ -41,9 +37,7 @@ if __name__ == "__main__":
         args.silo_dist,
         args.user_alpha,
         args.silo_alpha,
-        p_list,
         args.n_labels,
-        user_silo_matrix,
         is_simulation=False,
     )
 

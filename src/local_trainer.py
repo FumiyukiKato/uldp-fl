@@ -280,7 +280,9 @@ class ClassificationTrainer:
                     x, labels = x.to(self.device), labels.to(self.device)
                     model.zero_grad()
                     log_probs = model(x)
-                    loss = criterion(log_probs, labels.long())
+                    if self.dataset_name in ["creditcard"]:
+                        labels = labels.long()
+                    loss = criterion(log_probs, labels)
                     loss_callback(loss)
                     loss.backward()
                     # Don't optimize (i.e., Don't call step())
@@ -334,7 +336,8 @@ class ClassificationTrainer:
                         x, labels = x.to(self.device), labels.to(self.device)
                         optimizer_u.zero_grad()
                         log_probs = model_u(x)
-                        labels = labels.long()
+                        if self.dataset_name in ["creditcard"]:
+                            labels = labels.long()
                         loss = criterion(log_probs, labels)
                         if loss_callback(loss):
                             continue
@@ -377,7 +380,8 @@ class ClassificationTrainer:
                     x, labels = x.to(self.device), labels.to(self.device)
                     optimizer.zero_grad()
                     log_probs = model(x)
-                    labels = labels.long()
+                    if self.dataset_name in ["creditcard"]:
+                        labels = labels.long()
                     loss = criterion(log_probs, labels)
                     loss_callback(loss)
                     loss.backward()
@@ -498,7 +502,7 @@ class ClassificationTrainer:
                 for idx, (x, y) in enumerate(self.test_loader):
                     x, y = x.to(self.device), y.to(self.device)
                     y_pred = model(x)
-                    loss = self.criterion(y_pred, y.long())
+                    loss = self.criterion(y_pred, y)
                     test_loss += loss.item()
                     if self.dataset_name == "isic":
                         _, y_pred = torch.max(y_pred, 1)
@@ -549,7 +553,7 @@ class ClassificationTrainer:
                 for idx, (x, labels) in enumerate(self.test_loader):
                     x, labels = x.to(self.device), labels.to(self.device)
                     pred = model(x)
-                    loss = self.criterion(pred, labels.long())
+                    loss = self.criterion(pred, labels)
                     test_loss += loss.item()
                     _, predicted = torch.max(pred, 1)
                     test_correct += torch.sum(torch.eq(predicted, labels)).item()

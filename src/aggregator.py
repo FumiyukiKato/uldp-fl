@@ -306,7 +306,8 @@ class Aggregator:
                 for x, y in test_loader:
                     x, y = x.to(self.device), y.to(self.device)
                     y_pred = model(x)
-                    loss = criterion(y_pred, y.long())
+                    y = y.long()
+                    loss = criterion(y_pred, y)
                     metrics["test_loss"] += loss.item()
                     y_pred = y_pred.argmax(dim=1)
                     y_pred_final.append(y_pred.numpy())

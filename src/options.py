@@ -41,8 +41,8 @@ def args_parser(path_project: str) -> argparse.Namespace:
     parser.add_argument("--n_silos", type=int, help="number of silos: S")
     parser.add_argument("--user_dist", type=str, help="users distribution [ uniform-iid, uniform-noniid, zipf-iid, zipf-noniid]")
     parser.add_argument("--silo_dist", type=str, help="silos distribution [ uniform, p, zipf, user-silo-matrix]")
-    parser.add_argument("--user_alpha", type=str, help="zipf's parameter for users distribution")
-    parser.add_argument("--silo_alpha", type=str, help="zipf's parameter for silos distribution")
+    parser.add_argument("--user_alpha", type=float, help="zipf's parameter for users distribution")
+    parser.add_argument("--silo_alpha", type=float, help="zipf's parameter for silos distribution")
     parser.add_argument("--n_labels", type=int, help="number of distinct labels for each user")
     parser.add_argument("--typical_scenaio", type=int, help="typical scenario")
 
@@ -68,6 +68,7 @@ def args_parser(path_project: str) -> argparse.Namespace:
     parser.add_argument("--exp_dist", type=int, help="0 (iid), 1 (non-iid based on zipf)")
 
     parser.add_argument("--version", type=int, help="used for experimental management")
+    parser.add_argument("--dry_run", type=int, help="used for checking the hash value")
 
     # fmt: on
 

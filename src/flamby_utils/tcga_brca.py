@@ -1,5 +1,5 @@
 import copy
-from typing import Dict, Tuple
+from typing import Tuple
 import torch
 import numpy as np
 from torch.utils.data import DataLoader
@@ -28,54 +28,142 @@ def update_args(args):
 # Because Cox Loss needs multiple data to calcuate loss, so we need to
 # build user distribution to make sure each silo and user has 2 data at least.
 def build_user_dist(
-    all_train_dataset: FedTcgaBrca,
     n_users: int,
     random_state: np.random.RandomState,
-) -> Dict:
-    user_list = np.arange(n_users)
+    alpha: float = 1.5,
+    user_dist: str = "zipf",
+):
+    if user_dist == "zipf":
+        # Ensure that every user has at least one record
+        # Other data is allocated according to the zipf distribution
+        n_total = np.sum(TRAIN_SIZE_LIST)
 
-    # サイロごとに，
-    # 2個ずつセットでユーザidをランダムに選んでそのサイロに割り当てる
+        user_list = np.arange(n_users)
+        user_list = np.concatenate((user_list, user_list))
+        if n_total < n_users * 2:
+            ValueError(
+                "The number of users * 2 is larger than the total number of records"
+            )
+        else:
+            # bounded zipf distribution
+            x = np.arange(1, n_users + 1)
+            weights = x ** (-alpha)
+            weights /= weights.sum()
+            user_indices_of_data = random_state.choice(
+                x, size=n_total - 2 * n_users, replace=True, p=weights
+            )
+            user_indices_of_data = user_indices_of_data - 1
+            user_id_of_records = np.concatenate([user_list, user_indices_of_data])
+        random_state.shuffle(user_id_of_records)
+        user_id_of_records = user_id_of_records.tolist()
+        _, count_per_user = np.unique(user_id_of_records, return_counts=True)
 
-    # all_user_set = set()
+        user_ids_per_silo = {}
+        user_hist_per_silo = {}
+        ratios_per_silo = {}
+        MAIN_RATIO = 0.8
 
-    user_ids_per_silo = {}
-    user_hist_per_silo = {}
-    for silo_id, silo_size in enumerate(TRAIN_SIZE_LIST):
-        user_ids_per_silo[silo_id] = []
-        user_hist_per_silo[silo_id] = {}
-        for _ in range(int(silo_size / 2)):
-            selected_user_id = random_state.choice(user_list)
-            # all_user_set.add(selected_user_id)
-            user_ids_per_silo[silo_id].append(selected_user_id)
-            user_ids_per_silo[silo_id].append(selected_user_id)
-            if selected_user_id not in user_hist_per_silo[silo_id]:
-                user_hist_per_silo[silo_id][selected_user_id] = 0
-            user_hist_per_silo[silo_id][selected_user_id] += 2
-        if silo_size % 2 == 1:
-            selected_user_id = random_state.choice(user_list)
-            # all_user_set.add(selected_user_id)
-            user_ids_per_silo[silo_id].append(selected_user_id)
-            if selected_user_id not in user_hist_per_silo[silo_id]:
-                user_hist_per_silo[silo_id][selected_user_id] = 0
-            user_hist_per_silo[silo_id][selected_user_id] += 1
-        random_state.shuffle(user_ids_per_silo[silo_id])
+        for silo_id in range(N_SILO):
+            base_ratios = [(1.0 - MAIN_RATIO) / (N_SILO - 1)] * N_SILO
+            base_ratios[silo_id] = MAIN_RATIO
+            ratios_per_silo[silo_id] = base_ratios
 
-    user_dist = {}
+        for user_id in range(n_users):
+            count = count_per_user[user_id]
+            selected_silo = random_state.choice(N_SILO)
+            silo_ids = random_state.choice(
+                N_SILO, size=count, replace=True, p=ratios_per_silo[selected_silo]
+            )
+            silo_ids = increase_min_count(silo_ids, random_state)
+            for silo_id in silo_ids:
+                if silo_id not in user_ids_per_silo:
+                    user_ids_per_silo[silo_id] = []
+                # if the number of records in the silo is larger than the limit, choose another silo
+                while len(user_ids_per_silo[silo_id]) >= TRAIN_SIZE_LIST[silo_id]:
+                    silo_id = (silo_id + 1) % N_SILO
+                if silo_id not in user_ids_per_silo:
+                    user_ids_per_silo[silo_id] = []
+                if silo_id not in user_hist_per_silo:
+                    user_hist_per_silo[silo_id] = {}
+                if user_id not in user_hist_per_silo[silo_id]:
+                    user_hist_per_silo[silo_id][user_id] = 0
+
+                user_ids_per_silo[silo_id].append(user_id)
+                user_hist_per_silo[silo_id][user_id] += 1
+
+    elif user_dist == "uniform":
+        user_ids_per_silo = {}
+        user_hist_per_silo = {}
+        for silo_id in range(N_SILO):
+            user_ids_per_silo[silo_id] = []
+            user_hist_per_silo[silo_id] = {}
+        random_selected_user_ids = random_state.choice(
+            n_users, size=int(np.sum(TRAIN_SIZE_LIST) / 2), replace=True
+        )
+        cursor = -1
+        for silo_id, size in enumerate(TRAIN_SIZE_LIST):
+            for _ in range(int(size / 2)):
+                cursor += 1
+                user_id = random_selected_user_ids[cursor]
+                user_ids_per_silo[silo_id].append(user_id)
+                user_ids_per_silo[silo_id].append(user_id)
+                if user_id not in user_hist_per_silo[silo_id]:
+                    user_hist_per_silo[silo_id][user_id] = 0
+                user_hist_per_silo[silo_id][user_id] += 2
+            if size % 2 == 1:
+                user_id = random_selected_user_ids[cursor]
+                user_ids_per_silo[silo_id].append(user_id)
+                user_hist_per_silo[silo_id][user_id] += 1
+    else:
+        raise ValueError("Unknown user distribution: {}".format(user_dist))
+
+    user_dist_per_silo = {}
     for silo_id in range(N_SILO):
-        user_dist[silo_id] = (user_hist_per_silo[silo_id], user_ids_per_silo[silo_id])
+        random_state.shuffle(user_ids_per_silo[silo_id])
+        user_dist_per_silo[silo_id] = (
+            user_hist_per_silo[silo_id],
+            user_ids_per_silo[silo_id],
+        )
 
-    # print("all user set", len(all_user_set))
-    return user_dist
+    return user_dist_per_silo
+
+
+def increase_min_count(silo_ids: list, random_state: np.random.RandomState):
+    new_silo_ids = []
+    ids, counts = np.unique(silo_ids, return_counts=True)
+    over_two = ids[counts >= 2]
+    under_two = ids[counts < 2]
+
+    if len(over_two) <= 0:
+        increased_id = random_state.choice(under_two)
+        over_two = np.array([increased_id])
+        under_two = np.delete(under_two, np.where(under_two == increased_id))
+        remove_id = random_state.choice(under_two)
+        under_two = np.delete(under_two, np.where(under_two == remove_id))
+
+    for i in range(len(silo_ids)):
+        if silo_ids[i] in under_two:
+            selected_id = random_state.choice(over_two)
+            new_silo_ids.append(selected_id)
+        else:
+            new_silo_ids.append(silo_ids[i])
+    return new_silo_ids
 
 
 def custom_load_dataset(
-    random_state: np.random.RandomState, silo_id: int = None, n_users: int = None
+    random_state: np.random.RandomState,
+    silo_id: int = None,
+    n_users: int = None,
+    user_alpha: float = 1.5,
+    user_dist: str = "zipf",
 ) -> Tuple:
     all_train_dataset = FedTcgaBrca(train=True, pooled=True)
     all_test_dataset = FedTcgaBrca(train=False, pooled=True)
     user_dist_per_silo = build_user_dist(
-        all_train_dataset, n_users=n_users, random_state=random_state
+        n_users=n_users,
+        random_state=random_state,
+        alpha=user_alpha,
+        user_dist=user_dist,
     )
 
     dataset_for_each_silo = {}

@@ -1,12 +1,14 @@
 import os
+import sys
 import unittest
 import argparse
-
+import logging
 import warnings
 
-from run_simulation import run_simulation
+src_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(src_path)
 
-import logging
+from run_simulation import run_simulation
 
 logging.disable(logging.CRITICAL)
 

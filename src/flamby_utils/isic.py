@@ -68,7 +68,11 @@ def build_user_dist(
 
 
 def custom_load_dataset(
-    random_state: np.random.RandomState, silo_id: int = None, n_users: int = None
+    random_state: np.random.RandomState,
+    silo_id: int = None,
+    n_users: int = None,
+    user_alpha: float = 0.5,
+    user_dist: str = "uniform",
 ) -> Tuple:
     all_train_dataset = FedIsic2019(train=True, pooled=True, debug=False)
     all_test_dataset = FedIsic2019(train=False, pooled=True, debug=False)

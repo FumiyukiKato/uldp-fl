@@ -1,3 +1,4 @@
+import copy
 import torch
 import numpy as np
 import os
@@ -5,8 +6,7 @@ import os
 from options import args_parser
 from dataset import load_dataset
 
-from results_saver import save_one_shot_results
-from scenario import create_dist_params
+from results_saver import save_one_shot_results, args_to_hash
 import models
 from simulator import FLSimulator
 
@@ -14,15 +14,15 @@ from mylogger import logger_set_debug
 
 
 def run_simulation(args, path_project, trial=None, data_seed=None):
+    if args.dry_run:
+        print("hash value: ", args_to_hash(args))
+        exit(0)
     if args.gpu_id:
         torch.cuda.set_device(args.gpu_id)
     device = "cuda" if args.gpu_id is not None else "cpu"
     if data_seed is None:
         data_seed = args.seed
     data_random_state = np.random.RandomState(seed=data_seed)
-    p_list, user_silo_matrix, n_silos, n_users = create_dist_params(
-        args.typical_scenaio, args.n_silos, args.n_users
-    )
 
     # load data
     train_dataset, test_dataset, local_dataset_per_silos = load_dataset(
@@ -35,9 +35,7 @@ def run_simulation(args, path_project, trial=None, data_seed=None):
         args.silo_dist,
         args.user_alpha,
         args.silo_alpha,
-        p_list,
         args.n_labels,
-        user_silo_matrix,
         is_simulation=True,
     )
 
@@ -96,5 +94,17 @@ if __name__ == "__main__":
         from flamby_utils.tcga_brca import update_args
 
         args = update_args(args)
-    results = run_simulation(args, path_project)
-    save_one_shot_results(args, path_project, {"exp": [results["global"]]}, "sim")
+
+    results_list = []
+    org_args = copy.deepcopy(args)
+    for i in range(args.times):
+        args.seed = args.seed + i
+        try:
+            sim_results = run_simulation(args, path_project)
+            results_list.append(sim_results["global"])
+        except OverflowError:
+            results_list.append("LOSS IS NAN")
+        except AssertionError:
+            results_list.append("Assertion Error")
+
+    save_one_shot_results(org_args, path_project, {"exp": results_list}, "sim")

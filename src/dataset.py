@@ -54,9 +54,7 @@ def divide_dataset(
     silo_dist: str,
     user_alpha: float = None,
     silo_alpha: float = None,
-    p_list: list[float] = None,
     n_labels: int = None,
-    user_silo_matrix: np.ndarray = None,
 ) -> Tuple[Dict[int, np.ndarray], np.ndarray]:
     """
     The relationship between users and silos can be uniformly distributed or follow a zipf distribution.
@@ -69,12 +67,10 @@ def divide_dataset(
         n_users(int): number of users
         n_silos(int): number of silos
         user_dist(str): distribution of users to silos, can be "uniform" or "zipf" (need to specify alpha)
-        silo_dist(str): distribution of data to silos, can be "uniform" or "zipf" (need to specify alpha) or "p" (need to specify p_list)
+        silo_dist(str): distribution of data to silos, can be "uniform" or "zipf" (need to specify alpha)
         user_alpha(float): distribution parameter for zipf distribution of users
         silo_alpha(float): distribution parameter for zipf distribution of silos
-        p_list(list[float]): list of probabilities for each silo
         n_labels(int): number of distinct labels
-        user_silo_matrix(np.ndarray): matrix of user-silo relationship
     Return(dict[int, np.ndarray]): a dictionary of data indices per silo.
     """
     n_data = len(train_dataset)
@@ -90,11 +86,9 @@ def divide_dataset(
         n_data,
         silo_dist,
         n_silos,
-        p_list=p_list,
         alpha=silo_alpha,
         n_users=n_users,
         data_indices_of_users=data_indices_of_users,
-        user_silo_matrix=user_silo_matrix,
     )
 
     return data_indices_per_silos, data_indices_of_users
@@ -105,22 +99,19 @@ def distribute_data_to_silos(
     n_data: int,
     dist: str,
     n_silos: int,
-    p_list: int = None,
+    n_users: int,
     alpha: float = None,
-    n_users: int = None,
     data_indices_of_users: np.ndarray = None,
-    user_silo_matrix: np.ndarray = None,
 ) -> Dict[int, np.ndarray]:
     """
     Distribute data to silos.
-    User and silo is independent except dist = "user-silo-matrix".
+    User and silo is independent except dist = "zipf".
 
     Inputs:
         random_state: random state
         n_data: number of data
         dist: distribution of data to silos
         n_silos: number of silos
-        p_list: list of probabilities for each silo
         alpha: alpha parameter for zipf distribution
     Return: a dictionary of data indices per silo.
     """
@@ -130,41 +121,28 @@ def distribute_data_to_silos(
         samples = random_state.permutation(np.arange(n_data))
         for i in range(n_silos):
             data_indices_per_silos[i] = samples[i::n_silos]
-    elif dist == "p":
-        assert len(p_list) == n_silos, "p_list must have the same length as n_silos"
-        samples = random_state.choice(n_silos, size=n_data, replace=True, p=p_list)
-        for idx, i in enumerate(samples):
-            data_indices_per_silos[i].append(idx)
     elif dist == "zipf":
-        # bounded zipf distribution
-        N = n_silos
-        x = np.arange(1, N + 1)
-        weights = x ** (-alpha)
-        weights /= weights.sum()
-        silo_indices_of_data = random_state.choice(
-            x, size=n_data, replace=True, p=weights
-        )
-        silo_indices_of_data = silo_indices_of_data - 1
-        for idx, i in enumerate(silo_indices_of_data):
-            data_indices_per_silos[i].append(idx)
-    elif dist == "user-silo-matrix":
-        assert user_silo_matrix is not None, "user_silo_matrix must be provided"
         indices_per_user = {i: [] for i in range(n_users)}
         for idx, user_id in enumerate(data_indices_of_users):
             indices_per_user[user_id].append(idx)
+        for indices in indices_per_user.values():
+            random_state.shuffle(indices)
+            # bounded zipf distribution
+            N = n_silos
+            x = np.arange(1, N + 1)
+            weights = x ** (-alpha)
+            weights /= weights.sum()
 
-        # sampling silos for each user based on user_silo_matrix
-        for user_id, indices in indices_per_user.items():
-            selected_silo_ids = random_state.choice(
-                range(n_silos),
-                size=len(indices),
-                p=user_silo_matrix[user_id],
-                replace=True,
+            # to allocate silos for each user randomly
+            random_state.shuffle(x)
+            silo_indices_of_data = random_state.choice(
+                x, size=len(indices), replace=True, p=weights
             )
-            for idx, silo_id in zip(indices, selected_silo_ids):
+            silo_indices_of_data = silo_indices_of_data - 1
+            for silo_id, idx in zip(silo_indices_of_data, indices):
                 data_indices_per_silos[silo_id].append(idx)
     else:
-        raise ValueError("dist must be either uniform, p, or zipf.")
+        raise ValueError("dist must be either uniform or zipf.")
     return data_indices_per_silos
 
 
@@ -190,11 +168,11 @@ def distribute_data_to_users(
         n_labels(int): number of distinct labels
     Return(np.ndarray): user indices of data points
     """
-    if dist.startswith("uniform-"):
+    if dist.startswith("uniform"):
         user_indices_of_data = random_state.permutation(
             int(np.ceil(n_data / n_users)) * list(range(n_users))
         )
-    elif dist.startswith("zipf-"):
+    elif dist.startswith("zipf"):
         # bounded zipf distribution
         N = n_users
         x = np.arange(1, N + 1)
@@ -382,24 +360,38 @@ def load_pre_seperated_dataset(
     random_state: np.random.RandomState,
     silo_id: int = None,
     n_users: int = None,
+    user_alpha: float = None,
+    user_dist: str = None,
 ) -> Tuple:
     if dataset_name == "heart_disease":
         from flamby_utils import heart_disease
 
         dataset = heart_disease.custom_load_dataset(
-            random_state=random_state, silo_id=silo_id, n_users=n_users
+            random_state=random_state,
+            silo_id=silo_id,
+            n_users=n_users,
+            user_alpha=user_alpha,
+            user_dist=user_dist,
         )
     elif dataset_name == "isic":
         from flamby_utils import isic
 
         dataset = isic.custom_load_dataset(
-            random_state=random_state, silo_id=silo_id, n_users=n_users
+            random_state=random_state,
+            silo_id=silo_id,
+            n_users=n_users,
+            user_alpha=user_alpha,
+            user_dist=user_dist,
         )
     elif dataset_name == "tcga_brca":
         from flamby_utils import tcga_brca
 
         dataset = tcga_brca.custom_load_dataset(
-            random_state=random_state, silo_id=silo_id, n_users=n_users
+            random_state=random_state,
+            silo_id=silo_id,
+            n_users=n_users,
+            user_alpha=user_alpha,
+            user_dist=user_dist,
         )
     else:
         raise ValueError("Invalid dataset name.")
@@ -416,9 +408,7 @@ def load_dataset(
     silo_dist: str,
     user_alpha: float = None,
     silo_alpha: float = None,
-    p_list: list[float] = None,
     n_labels: int = None,
-    user_silo_matrix: np.ndarray = None,
     silo_id: int = None,
     is_simulation: bool = False,
 ) -> Tuple[List[Tuple[torch.Tensor, int]], List[Tuple[torch.Tensor, int]]]:
@@ -427,18 +417,32 @@ def load_dataset(
         # for simulator
         if is_simulation:
             return load_pre_seperated_dataset(
-                dataset_name, random_state, n_users=n_users
+                dataset_name,
+                random_state,
+                n_users=n_users,
+                user_alpha=user_alpha,
+                user_dist=user_dist,
             )
         # for silo
         if silo_id is not None:
             return load_pre_seperated_dataset(
-                dataset_name, random_state, silo_id=silo_id, n_users=n_users
+                dataset_name,
+                random_state,
+                silo_id=silo_id,
+                n_users=n_users,
+                user_alpha=user_alpha,
+                user_dist=user_dist,
             )
         # for server
         all_training_dataset, all_test_dataset, _ = load_pre_seperated_dataset(
-            dataset_name, random_state, n_users=n_users
+            dataset_name,
+            random_state,
+            n_users=n_users,
+            user_alpha=user_alpha,
+            user_dist=user_dist,
         )
         return all_training_dataset, all_test_dataset
+
     elif dataset_name in ["mnist", "cifar10", "cifar100"]:
         if dataset_name == "cifar10":
             data_dir = os.path.join(path_project, DATA_SET_DIR, "cifar10")
@@ -456,7 +460,6 @@ def load_dataset(
             )
             train_dataset.targets = torch.tensor(train_dataset.targets)
             test_dataset.targets = torch.tensor(test_dataset.targets)
-            labels = train_dataset.targets.numpy()
 
         elif dataset_name == "mnist":
             data_dir = os.path.join(path_project, DATA_SET_DIR, "mnist")
@@ -473,7 +476,6 @@ def load_dataset(
             test_dataset = datasets.MNIST(
                 data_dir, train=False, download=True, transform=apply_transform
             )
-            labels = train_dataset.targets.numpy()
 
         elif dataset_name == "cifar100":
             # For simplicity, we use statistics of the first traindaset to the first testdaset though the both dataset are mixed in later
@@ -512,13 +514,15 @@ def load_dataset(
             )
             train_dataset.targets = torch.tensor(train_dataset.targets)
             test_dataset.targets = torch.tensor(test_dataset.targets)
-            labels = train_dataset.targets.numpy()
+
         else:
             raise ValueError("Dataset not supported")
 
         train_dataset, test_dataset = shuffle_test_and_train(
             random_state, train_dataset, test_dataset
         )
+        labels = np.array([data[1] for data in train_dataset])
+
     elif dataset_name == "creditcard":
         data_dir = os.path.join(path_project, DATA_SET_DIR, "creditcard")
         df = pd.read_csv(os.path.join(data_dir, "creditcard.csv"))
@@ -571,9 +575,7 @@ def load_dataset(
         silo_dist,
         user_alpha=user_alpha,
         silo_alpha=silo_alpha,
-        p_list=p_list,
         n_labels=n_labels,
-        user_silo_matrix=user_silo_matrix,
     )
 
     # statistics of dataset
