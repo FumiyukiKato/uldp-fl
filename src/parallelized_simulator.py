@@ -189,7 +189,7 @@ class FLSimulator:
                 shared_aggregator = manager.Value(Aggregator, self.aggregator)
                 shared_trial = manager.Value(optuna.Trial, self.trial)
 
-                with multiprocessing.Pool() as pool:
+                with multiprocessing.get_context("spawn").Pool() as pool:
                     results = [
                         pool.apply_async(
                             train_silo,

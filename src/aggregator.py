@@ -287,8 +287,8 @@ class Aggregator:
                     metrics["test_loss"] += loss.item()
                     if self.dataset_name == "isic":
                         _, y_pred = torch.max(y_pred, 1)
-                    y_pred_final.append(y_pred.numpy())
-                    y_true_final.append(y.numpy())
+                    y_pred_final.append(y_pred.cpu().numpy())
+                    y_true_final.append(y.cpu().numpy())
                     metrics["test_total"] += len(y)
 
             y_true_final = np.concatenate(y_true_final)
@@ -310,8 +310,8 @@ class Aggregator:
                     loss = criterion(y_pred, y)
                     metrics["test_loss"] += loss.item()
                     y_pred = y_pred.argmax(dim=1)
-                    y_pred_final.append(y_pred.numpy())
-                    y_true_final.append(y.numpy())
+                    y_pred_final.append(y_pred.cpu().numpy())
+                    y_true_final.append(y.cpu().numpy())
                     metrics["test_total"] += len(y)
 
             y_true_final = np.concatenate(y_true_final)
