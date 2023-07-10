@@ -267,7 +267,7 @@ class ClassificationTrainer:
 
         if self.agg_strategy in ["ULDP-SGD", "ULDP-SGD-w", "ULDP-SGD-s"]:
             grads_list = []  # TODO: memory optimization (use online aggregation)
-            for user_id, user_train_loader in self.user_level_data_loader:
+            for user_id, user_train_loader in tqdm(self.user_level_data_loader):
                 if (
                     self.user_weights[user_id] <= 0.0
                 ):  # for efficiency, if w is encrypted, it can't work
@@ -374,7 +374,7 @@ class ClassificationTrainer:
         else:
             for epoch in range(self.local_epochs):
                 batch_loss = []
-                for idx, (x, labels) in enumerate(train_loader):
+                for x, labels in tqdm(train_loader):
                     if len(x) == 0:  # this is possible in poisson sampling in DP-SGD
                         continue
                     x, labels = x.to(self.device), labels.to(self.device)

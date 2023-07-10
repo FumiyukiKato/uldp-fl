@@ -8,7 +8,9 @@ from dataset import load_dataset
 
 from results_saver import save_one_shot_results, args_to_hash
 import models
-from simulator import FLSimulator
+
+# from simulator import FLSimulator
+from parallelized_simulator import FLSimulator
 
 from mylogger import logger_set_debug
 
