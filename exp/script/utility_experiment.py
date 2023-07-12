@@ -69,6 +69,8 @@ def build_exp_paramerters(default_args, dataset, dist, method, n_users):
         copy_args.clipping_bound = 1.0
         copy_args.delta = 0.00001
 
+    raise NotImplementedError("TODO: parameterの設定を見直して！")
+
     return copy_args
 
 

@@ -50,9 +50,11 @@ class Aggregator:
             "ULDP-SGD",
             "ULDP-SGD-w",
             "ULDP-SGD-s",
+            "ULDP-SGD-ws",
             "ULDP-AVG",
             "ULDP-AVG-w",
             "ULDP-AVG-s",
+            "ULDP-AVG-ws",
         ]:
             from opacus.accountants import RDPAccountant
 
@@ -103,7 +105,12 @@ class Aggregator:
                 sample_rate=1.0,
             )
             eps = self.accountant.get_epsilon(self.delta)
-        elif self.strategy in ["ULDP-SGD-s", "ULDP-AVG-s"]:
+        elif self.strategy in [
+            "ULDP-SGD-s",
+            "ULDP-AVG-s",
+            "ULDP-SGD-ws",
+            "ULDP-AVG-ws",
+        ]:
             self.accountant.step(
                 noise_multiplier=self.sigma, sample_rate=self.sampling_rate_q
             )
@@ -205,7 +212,7 @@ class Aggregator:
             global_weights = self.update_parameters_from_gradients(
                 averaged_grads, self.global_learning_rate
             )
-        elif self.strategy in ["ULDP-AVG-s"]:
+        elif self.strategy in ["ULDP-AVG-s", "ULDP-AVG-ws"]:
             averaged_param_diff = noise_utils.torch_aggregation(
                 raw_client_model_or_grad_list,
                 int(self.n_users * self.n_silo_per_round * self.sampling_rate_q),
@@ -213,7 +220,7 @@ class Aggregator:
             global_weights = self.update_global_weights_from_diff(
                 averaged_param_diff, self.global_learning_rate
             )
-        elif self.strategy in ["ULDP-SGD-s"]:
+        elif self.strategy in ["ULDP-SGD-s", "ULDP-SGD-ws"]:
             averaged_grads = noise_utils.torch_aggregation(
                 raw_client_model_or_grad_list,
                 int(self.n_users * self.n_silo_per_round * self.sampling_rate_q),

@@ -89,9 +89,11 @@ class FLSimulator:
             "ULDP-SGD",
             "ULDP-SGD-w",
             "ULDP-SGD-s",
+            "ULDP-SGD-ws",
             "ULDP-AVG",
             "ULDP-AVG-w",
             "ULDP-AVG-s",
+            "ULDP-AVG-ws",
         ]:
             self.coordinator = Coordinator(
                 base_seed=seed, n_silos=n_silos, n_users=n_users
@@ -178,7 +180,12 @@ class FLSimulator:
         while self.round_idx < self.n_total_round:
             silo_id_list_in_this_round = self.aggregator.silo_selection()
 
-            if self.agg_strategy in ["ULDP-SGD-s", "ULDP-AVG-s"]:
+            if self.agg_strategy in [
+                "ULDP-SGD-s",
+                "ULDP-AVG-s",
+                "ULDP-AVG-ws",
+                "ULDP-SGD-ws",
+            ]:
                 user_weights_per_silo = self.coordinator.build_user_weights(
                     weighted=False, sampling_rate_q=self.sampling_rate_q
                 )
