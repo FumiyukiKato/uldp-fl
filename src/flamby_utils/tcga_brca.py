@@ -58,8 +58,8 @@ def build_user_dist(
         user_id_of_records = user_id_of_records.tolist()
         _, count_per_user = np.unique(user_id_of_records, return_counts=True)
 
-        user_ids_per_silo = {}
-        user_hist_per_silo = {}
+        user_ids_per_silo = {i: [] for i in range(N_SILO)}
+        user_hist_per_silo = {i: {} for i in range(N_SILO)}
         ratios_per_silo = {}
         MAIN_RATIO = 0.8
 
@@ -76,15 +76,9 @@ def build_user_dist(
             )
             silo_ids = increase_min_count(silo_ids, random_state)
             for silo_id in silo_ids:
-                if silo_id not in user_ids_per_silo:
-                    user_ids_per_silo[silo_id] = []
                 # if the number of records in the silo is larger than the limit, choose another silo
                 while len(user_ids_per_silo[silo_id]) >= TRAIN_SIZE_LIST[silo_id]:
                     silo_id = (silo_id + 1) % N_SILO
-                if silo_id not in user_ids_per_silo:
-                    user_ids_per_silo[silo_id] = []
-                if silo_id not in user_hist_per_silo:
-                    user_hist_per_silo[silo_id] = {}
                 if user_id not in user_hist_per_silo[silo_id]:
                     user_hist_per_silo[silo_id][user_id] = 0
 

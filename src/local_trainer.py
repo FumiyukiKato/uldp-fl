@@ -5,7 +5,6 @@ import numpy as np
 from torch import nn
 import torch
 from torch.utils.data import DataLoader
-from tqdm import tqdm
 
 from mylogger import logger
 import noise_utils
@@ -267,7 +266,7 @@ class ClassificationTrainer:
 
         if self.agg_strategy in ["ULDP-SGD", "ULDP-SGD-w", "ULDP-SGD-s"]:
             grads_list = []  # TODO: memory optimization (use online aggregation)
-            for user_id, user_train_loader in tqdm(self.user_level_data_loader):
+            for user_id, user_train_loader in self.user_level_data_loader:
                 if (
                     self.user_weights[user_id] <= 0.0
                 ):  # for efficiency, if w is encrypted for DDP, it can't work
@@ -320,7 +319,7 @@ class ClassificationTrainer:
                 return False
 
             weights_diff_list = []  # TODO: memory optimization (use online aggregation)
-            for user_id, user_train_loader in tqdm(self.user_level_data_loader):
+            for user_id, user_train_loader in self.user_level_data_loader:
                 if (
                     self.user_weights[user_id] <= 0.0
                 ):  # for efficiency, if w is encrypted for DDP, it can't work
@@ -374,7 +373,7 @@ class ClassificationTrainer:
         else:
             for epoch in range(self.local_epochs):
                 batch_loss = []
-                for x, labels in tqdm(train_loader):
+                for x, labels in train_loader:
                     if len(x) == 0:  # this is possible in poisson sampling in DP-SGD
                         continue
                     x, labels = x.to(self.device), labels.to(self.device)

@@ -355,13 +355,13 @@ class Aggregator:
                     test_loss,
                 )
             )
-            logger.debug("|----- Global test result of round %d" % (round_idx))
+            logger.info("|----- Global test result of round %d" % (round_idx))
             if self.dataset_name in ["creditcard"]:
-                logger.debug(
+                logger.info(
                     f"\t |----- Test/ROC_AUC: {test_metric} ({n_test_sample}), Test/Loss: {test_loss}"
                 )
             else:
-                logger.debug(
+                logger.info(
                     f"\t |----- Test/Acc: {test_metric} ({n_test_sample}), Test/Loss: {test_loss}"
                 )
         else:
