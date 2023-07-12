@@ -182,11 +182,19 @@ class FLSimulator:
             if self.agg_strategy in [
                 "ULDP-SGD-s",
                 "ULDP-AVG-s",
+            ]:
+                user_weights_per_silo = self.coordinator.build_user_weights(
+                    weighted=False, sampling_rate_q=self.sampling_rate_q
+                )
+                for silo_id, user_weights in user_weights_per_silo.items():
+                    self.local_trainer_per_silos[silo_id].set_user_weights(user_weights)
+
+            elif self.agg_strategy in [
                 "ULDP-SGD-ws",
                 "ULDP-AVG-ws",
             ]:
                 user_weights_per_silo = self.coordinator.build_user_weights(
-                    weighted=False, sampling_rate_q=self.sampling_rate_q
+                    weighted=True, sampling_rate_q=self.sampling_rate_q
                 )
                 for silo_id, user_weights in user_weights_per_silo.items():
                     self.local_trainer_per_silos[silo_id].set_user_weights(user_weights)
