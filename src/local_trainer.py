@@ -303,7 +303,13 @@ class ClassificationTrainer:
                 grads_list.append(weighted_clipped_grads)
 
             # calculate the average gradient
-            avg_grads = noise_utils.torch_aggregation(grads_list, 1.0)
+            if len(grads_list) <= 0:
+                avg_grads = OrderedDict()
+                for name, param in model.named_parameters():
+                    if param.requires_grad:
+                        avg_grads[name] = torch.zeros_like(param.data)
+            else:
+                avg_grads = noise_utils.torch_aggregation(grads_list, 1.0)
             noisy_avg_grads = noise_utils.add_global_noise(
                 model,
                 avg_grads,
@@ -368,7 +374,13 @@ class ClassificationTrainer:
                 )
                 weights_diff_list.append(weighted_clipped_weights_diff)
 
-            avg_weights_diff = noise_utils.torch_aggregation(weights_diff_list, 1.0)
+            if len(weights_diff_list) <= 0:
+                avg_weights_diff = OrderedDict()
+                for name, param in model.named_parameters():
+                    if param.requires_grad:
+                        avg_weights_diff[name] = torch.zeros_like(param.data)
+            else:
+                avg_weights_diff = noise_utils.torch_aggregation(weights_diff_list, 1.0)
             noisy_avg_weights_diff = noise_utils.add_global_noise(
                 model,
                 avg_weights_diff,
