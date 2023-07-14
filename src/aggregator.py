@@ -65,7 +65,12 @@ class Aggregator:
             self.sigma = sigma
             self.delta = delta
             self.accountant = RDPAccountant()
-        elif self.strategy in ["RECORD-LEVEL-DP", "ULDP-GROUP"]:
+        elif self.strategy in [
+            "RECORD-LEVEL-DP",
+            "ULDP-GROUP",
+            "ULDP-GROUP-max",
+            "ULDP-GROUP-median",
+        ]:
             self.delta = delta
 
         self.model_dict = dict()
@@ -122,7 +127,7 @@ class Aggregator:
                 "strategy = {} is not implemented".format(self.strategy)
             )
 
-        logger.debug("Privacy spent: epsilon = {} (round {})".format(eps, round_idx))
+        logger.info("Privacy spent: epsilon = {} (round {})".format(eps, round_idx))
         self.results["privacy_budget"].append((round_idx, eps, self.delta))
 
     def add_local_trained_result(self, silo_id, model_params, n_sample, eps):
@@ -191,7 +196,14 @@ class Aggregator:
         for silo_id in silo_id_list_in_this_round:
             raw_client_model_or_grad_list.append(self.model_dict[silo_id])
 
-        if self.strategy in ["DEFAULT", "RECORD-LEVEL-DP", "ULDP-GROUP", "ULDP-NAIVE"]:
+        if self.strategy in [
+            "DEFAULT",
+            "RECORD-LEVEL-DP",
+            "ULDP-GROUP",
+            "ULDP-GROUP-max",
+            "ULDP-GROUP-median",
+            "ULDP-NAIVE",
+        ]:
             averaged_param_diff = noise_utils.torch_aggregation(
                 raw_client_model_or_grad_list, self.n_silo_per_round
             )

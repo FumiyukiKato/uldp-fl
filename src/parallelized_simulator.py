@@ -86,6 +86,8 @@ class FLSimulator:
 
         if self.agg_strategy in [
             "ULDP-GROUP",
+            "ULDP-GROUP-max",
+            "ULDP-GROUP-median",
             "ULDP-SGD",
             "ULDP-SGD-w",
             "ULDP-SGD-s",
@@ -133,6 +135,8 @@ class FLSimulator:
             self.local_trainer_per_silos[silo_id] = local_trainer
             if self.agg_strategy in [
                 "ULDP-GROUP",
+                "ULDP-GROUP-max",
+                "ULDP-GROUP-median",
                 "ULDP-SGD",
                 "ULDP-SGD-w",
                 "ULDP-SGD-s",
@@ -147,7 +151,7 @@ class FLSimulator:
     def run(self):
         logger.info("Start federated learning simulation")
 
-        if self.agg_strategy == "ULDP-GROUP":
+        if self.agg_strategy in ["ULDP-GROUP", "ULDP-GROUP-max", "ULDP-GROUP-median"]:
             if self.dataset_name == "tcga_brca":
                 min_count = 2
             else:

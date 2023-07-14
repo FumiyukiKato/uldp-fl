@@ -62,6 +62,11 @@ class FLSimulator:
         self.agg_strategy = agg_strategy
         self.dataset_name = dataset_name
         self.sampling_rate_q = sampling_rate_q
+        self.trial = trial
+        self.coordinator = Coordinator(
+            base_seed=seed, n_silos=n_silos, n_users=n_users, group_k=group_k
+        )
+        self.agg_strategy = agg_strategy
 
         self.aggregator = Aggregator(
             model=copy.deepcopy(model),
@@ -80,23 +85,6 @@ class FLSimulator:
             dataset_name=dataset_name,
             sampling_rate_q=sampling_rate_q,
         )
-
-        if self.agg_strategy in [
-            "ULDP-GROUP",
-            "ULDP-SGD",
-            "ULDP-SGD-w",
-            "ULDP-SGD-s",
-            "ULDP-SGD-ws",
-            "ULDP-AVG",
-            "ULDP-AVG-w",
-            "ULDP-AVG-s",
-            "ULDP-AVG-ws",
-        ]:
-            self.coordinator = Coordinator(
-                base_seed=seed, n_silos=n_silos, n_users=n_users
-            )
-            self.group_k = group_k
-            self.agg_strategy = agg_strategy
 
         self.local_trainer_per_silos: Dict[int, ClassificationTrainer] = {}
         for silo_id, (
@@ -130,6 +118,8 @@ class FLSimulator:
             self.local_trainer_per_silos[silo_id] = local_trainer
             if self.agg_strategy in [
                 "ULDP-GROUP",
+                "ULDP-GROUP-max",
+                "ULDP-GROUP-median",
                 "ULDP-SGD",
                 "ULDP-SGD-w",
                 "ULDP-SGD-s",
@@ -141,18 +131,29 @@ class FLSimulator:
             ]:
                 self.coordinator.set_user_hist_by_silo_id(silo_id, user_hist)
 
-            self.trial = trial
+        if self.agg_strategy == "ULDP-GROUP-max":
+            group_max = self.coordinator.get_group_max()
+            logger.info(f"Group max: {group_max}")
+            self.coordinator.set_group_k(group_max)
+            for local_trainer in self.local_trainer_per_silos.values():
+                local_trainer.set_group_k(group_max)
+        elif self.agg_strategy == "ULDP-GROUP-median":
+            group_median = self.coordinator.get_group_median()
+            logger.info(f"Group median: {group_median}")
+            self.coordinator.set_group_k(group_median)
+            for local_trainer in self.local_trainer_per_silos.values():
+                local_trainer.set_group_k(group_median)
 
     def run(self):
         logger.info("Start federated learning simulation")
 
-        if self.agg_strategy == "ULDP-GROUP":
+        if self.agg_strategy in ["ULDP-GROUP", "ULDP-GROUP-max", "ULDP-GROUP-median"]:
             if self.dataset_name == "tcga_brca":
                 min_count = 2
             else:
                 min_count = 1
             bounded_user_hist_per_silo = self.coordinator.build_user_bound_histograms(
-                self.group_k, self.coordinator.original_user_hist_dct, min_count
+                self.coordinator.original_user_hist_dct, min_count
             )
 
             for silo_id, bounded_user_hist in bounded_user_hist_per_silo.items():
@@ -217,6 +218,8 @@ class FLSimulator:
                 if self.agg_strategy in [
                     "DEFAULT",
                     "ULDP-GROUP",
+                    "ULDP-GROUP-max",
+                    "ULDP-GROUP-median",
                     "ULDP-NAIVE",
                 ]:
                     # test local model with global test dataset

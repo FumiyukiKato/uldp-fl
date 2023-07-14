@@ -54,7 +54,12 @@ class ClassificationTrainer:
         self.results = {"local_test": [], "train_time": [], "epsilon": []}
 
         self.agg_strategy = agg_strategy
-        if self.agg_strategy in ["RECORD-LEVEL-DP", "ULDP-GROUP"]:
+        if self.agg_strategy in [
+            "RECORD-LEVEL-DP",
+            "ULDP-GROUP",
+            "ULDP-GROUP-max",
+            "ULDP-GROUP-median",
+        ]:
             assert client_optimizer == "sgd"
             from opacus import PrivacyEngine
 
@@ -169,6 +174,9 @@ class ClassificationTrainer:
     def set_user_weights(self, user_weights: Dict[int, float]):
         self.user_weights = user_weights
 
+    def set_group_k(self, group_k: int):
+        self.group_k = group_k
+
     def make_user_level_data_loader(self) -> List[Tuple[int, DataLoader]]:
         shuffled_train_data_indices = np.arange(len(self.train_loader.dataset))
         self.random_state.shuffle(shuffled_train_data_indices)
@@ -225,6 +233,7 @@ class ClassificationTrainer:
         logger.debug("{} data is removed from training dataset".format(remove_counter))
 
         if len(new_local_train_dataset) <= 0:
+            logger.error("No training data is left after bounding user contributions")
             raise AssertionError(
                 "No training data is left after bounding user contributions"
             )
@@ -255,7 +264,12 @@ class ClassificationTrainer:
         criterion = self.criterion
 
         # Optimization step like CALCULATE GRADIENTS
-        if self.agg_strategy in ["RECORD-LEVEL-DP", "ULDP-GROUP"]:
+        if self.agg_strategy in [
+            "RECORD-LEVEL-DP",
+            "ULDP-GROUP",
+            "ULDP-GROUP-max",
+            "ULDP-GROUP-median",
+        ]:
             noise_generator = torch.Generator(device=self.device).manual_seed(
                 self.get_torch_manual_seed()
             )
@@ -440,19 +454,36 @@ class ClassificationTrainer:
             )
             self.results["epsilon"].append((global_round_index, eps))
             return weights_diff, len(train_loader)
-        elif self.agg_strategy in ["ULDP-GROUP"]:
+        elif self.agg_strategy in [
+            "ULDP-GROUP",
+            "ULDP-GROUP-max",
+            "ULDP-GROUP-median",
+        ]:
             model.remove_hooks()
-            group_eps, opt_alpha = noise_utils.get_group_privacy_spent(
+            group_eps_from_rdp, opt_alpha = noise_utils.get_group_privacy_spent(
+                group_k=self.group_k,
+                accountant_history=self.privacy_engine.accountant.history,
+                delta=self.local_delta,
+            )
+            (
+                group_eps_from_normal_dp_conversion,
+                delta,
+            ) = noise_utils.get_normal_group_privacy_spent(
                 group_k=self.group_k,
                 accountant_history=self.privacy_engine.accountant.history,
                 delta=self.local_delta,
             )
             logger.debug(
-                "Silo Id = {}\t (Group-Privacy) Epsilon: {:.6f} (delta: {:6f})".format(
-                    self.silo_id, group_eps, self.local_delta
+                "Silo Id = {}\t (Group-Privacy) Epsilon: {:.5f} (delta: {:8f}) (RDP Epsilon: {:.5f})".format(
+                    self.silo_id,
+                    group_eps_from_normal_dp_conversion,
+                    delta,
+                    group_eps_from_rdp,
                 )
             )
-            self.results["epsilon"].append((global_round_index, group_eps))
+            self.results["epsilon"].append(
+                (global_round_index, group_eps_from_normal_dp_conversion)
+            )
             return weights_diff, len(train_loader)
         elif self.agg_strategy in ["ULDP-NAIVE"]:
             clipped_weights_diff = noise_utils.global_clip(

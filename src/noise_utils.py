@@ -148,3 +148,87 @@ def get_group_privacy_spent(
             f"Optimal order is the {extreme} alpha. Please consider expanding the range of alphas to get a tighter privacy bound."
         )
     return eps[idx_opt], orders_vec[idx_opt] * group_k
+
+
+def get_normal_group_privacy_spent(
+    group_k: int, accountant_history: list, delta: float
+) -> tuple[float, float]:
+    log_final_delta = np.log(delta)
+    eps, alpha = get_privacy_spent(delta=delta, history=accountant_history)
+    if group_k == 1:
+        return eps, delta
+
+    log_group_delta = np.exp(1.0)
+    log_test_delta = log_final_delta
+    while log_group_delta > log_final_delta:
+        log_test_delta = log_test_delta - np.log(1.5)
+        eps, alpha = get_privacy_spent(
+            log_delta=log_test_delta, history=accountant_history
+        )
+        group_esp, group_delta = convert_to_group_privacy(
+            epsilon=eps, log_delta=log_test_delta, group_k=group_k
+        )
+        log_group_delta = np.log(group_delta)
+    return group_esp, np.exp(log_group_delta)
+
+
+def get_privacy_spent(*, history, delta: float = None, log_delta: float = None):
+    DEFAULT_ALPHAS = [1 + x / 10.0 for x in range(1, 100)] + list(range(12, 64))
+    alphas = DEFAULT_ALPHAS
+    rdp = sum(
+        [
+            analysis.compute_rdp(
+                q=sample_rate,
+                noise_multiplier=noise_multiplier,
+                steps=num_steps,
+                orders=alphas,
+            )
+            for (noise_multiplier, sample_rate, num_steps) in history
+        ]
+    )
+
+    orders_vec = np.atleast_1d(alphas)
+    rdp_vec = np.atleast_1d(rdp)
+
+    if len(orders_vec) != len(rdp_vec):
+        raise ValueError(
+            f"Input lists must have the same length.\n"
+            f"\torders_vec = {orders_vec}\n"
+            f"\trdp_vec = {rdp_vec}\n"
+        )
+
+    if log_delta is None:
+        eps = (
+            rdp_vec
+            - (np.log(delta) + np.log(orders_vec)) / (orders_vec - 1)
+            + np.log((orders_vec - 1) / orders_vec)
+        )
+    else:
+        eps = (
+            rdp_vec
+            - (log_delta + np.log(orders_vec)) / (orders_vec - 1)
+            + np.log((orders_vec - 1) / orders_vec)
+        )
+
+    # special case when there is no privacy
+    if np.isnan(eps).all():
+        return np.inf, np.nan
+
+    idx_opt = np.nanargmin(eps)  # Ignore NaNs
+    if idx_opt == 0 or idx_opt == len(eps) - 1:
+        extreme = "smallest" if idx_opt == 0 else "largest"
+        warnings.warn(
+            f"Optimal order is the {extreme} alpha. Please consider expanding the range of alphas to get a tighter privacy bound."
+        )
+    return eps[idx_opt], orders_vec[idx_opt]
+
+
+def convert_to_group_privacy(
+    epsilon: float, group_k: int, log_delta: float = None, delta: float = None
+):
+    if log_delta is None:
+        return epsilon * group_k, group_k * np.exp(
+            (group_k - 1) * epsilon + np.log(delta)
+        )
+    else:
+        return epsilon * group_k, group_k * np.exp((group_k - 1) * epsilon + log_delta)
