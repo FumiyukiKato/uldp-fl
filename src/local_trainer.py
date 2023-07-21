@@ -136,7 +136,7 @@ class ClassificationTrainer:
             local_train_dataset, batch_size=local_batch_size, shuffle=True
         )
         self.test_loader = DataLoader(local_test_dataset)
-        self.user_user_histogram = user_histogram
+        self.user_histogram = user_histogram
         self.user_ids_of_local_train_dataset = user_ids_of_local_train_dataset
         self.distinct_users = list(set(user_ids_of_local_train_dataset))
         if self.agg_strategy in [

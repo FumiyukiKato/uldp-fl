@@ -60,7 +60,7 @@ class Aggregator:
 
             assert (
                 clipping_bound is not None and sigma is not None and delta is not None
-            ), "Please specify clipping_bound, sigma, delta for SILO-LEVEL-DP."
+            ), f"Please specify clipping_bound, sigma, delta for {self.strategy}."
             self.clipping_bound = clipping_bound
             self.sigma = sigma
             self.delta = delta

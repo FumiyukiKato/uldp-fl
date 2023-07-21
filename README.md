@@ -88,6 +88,9 @@ tested at Python 3.9.2, OSX, Ubuntu18.04
         - The same privacy model is seen in e.g., https://arxiv.org/abs/2206.07902
 
 
+- Test
+    - python -m unittest -v src.tests.test_secure_aggregation
+
 
 --- 
 
