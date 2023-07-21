@@ -21,8 +21,7 @@ from secure_aggregation import (
     SecureAggregator,
     SecureLocalTrainer,
     PRIMARY_SILO_ID,
-    random_in_GFp,
-    get_perfect_divisible_number,
+    gen_random_int_in_GFp,
     non_recursive_mod_inverse,
     integerize,
     encode,
@@ -38,7 +37,7 @@ class TestSecureAggregation(unittest.TestCase):
         pk, sk = paillier.generate_paillier_keypair(n_length=3072)
         modulus = pk.n
         pk.max_int = modulus - 1
-        r = random_in_GFp(pk.max_int, np.random.RandomState())
+        r = gen_random_int_in_GFp(pk.max_int, np.random.RandomState())
         N = 900
         n = 90
         w = 0.01234567890123456789
@@ -150,9 +149,6 @@ class TestSecureAggregation(unittest.TestCase):
             channel_silo_to_server[silo_id] = local_trainer_per_silos[
                 silo_id
             ].get_dh_pubkey()
-
-        # server
-        for silo_id in range(n_silos):
             secure_aggregator.receive_dh_pubkey(
                 silo_id, channel_silo_to_server[silo_id]
             )
@@ -167,20 +163,19 @@ class TestSecureAggregation(unittest.TestCase):
         # silo
         for silo_id in range(n_silos):
             other_silo_pubkeys, paillier_public_key = channel_server_to_silos[silo_id]
-            local_trainer_per_silos[silo_id].gen_shared_keys(other_silo_pubkeys)
-            local_trainer_per_silos[silo_id].set_paillier_public_key(
+            local_trainer_per_silos[silo_id].receive_dh_pubkeys_and_gen_shared_keys(
+                other_silo_pubkeys
+            )
+            local_trainer_per_silos[silo_id].receive_paillier_public_key(
                 paillier_public_key
             )
 
-        # silo-0
+        # prepare shared random seed
+        # silo-0 -> server
         shared_random_seed_per_silo = local_trainer_per_silos[
             PRIMARY_SILO_ID
         ].gen_across_silos_shared_random_seed()
-
-        # silo-0 -> server
         channel_silo_to_server[PRIMARY_SILO_ID] = shared_random_seed_per_silo
-
-        # server
         secure_aggregator.receive_shared_random_seed(
             channel_silo_to_server[PRIMARY_SILO_ID]
         )
@@ -191,10 +186,6 @@ class TestSecureAggregation(unittest.TestCase):
                 channel_server_to_silos[
                     silo_id
                 ] = secure_aggregator.get_shared_random_seed()[silo_id]
-
-        # silo
-        for silo_id in range(n_silos):
-            if silo_id != PRIMARY_SILO_ID:
                 local_trainer_per_silos[
                     silo_id
                 ].receive_across_silos_shared_random_seed(
@@ -212,50 +203,26 @@ class TestSecureAggregation(unittest.TestCase):
 
         # silo -> server
         for silo_id in range(n_silos):
-            local_trainer_per_silos[
+            channel_silo_to_server[silo_id] = local_trainer_per_silos[
                 silo_id
-            ].gen_random_multiplicative_masks_for_each_user_by_across_silos_shared_random_seed()
-            multiplicative_blinded_user_hist = local_trainer_per_silos[
-                silo_id
-            ].multiplicative_blind_user_hist()
-            masked_user_hist = local_trainer_per_silos[silo_id].secagg_mask_user_hist(
-                multiplicative_blinded_user_hist
-            )
-            channel_silo_to_server[silo_id] = masked_user_hist
-
-        # server
-        for silo_id in range(n_silos):
-            secure_aggregator.receive_user_records_histogram(
+            ].make_blinded_user_hist()
+            secure_aggregator.receive_blinded_user_histogram(
                 silo_id, channel_silo_to_server[silo_id]
             )
-
-        print(time.time() - start_time, "sec")
 
         # Step 5: Compute inverse of blinded histogram and encrypt them by Paillier public key
         print(
             "Step 5: Compute inverse of blinded histogram and encrypt them by Paillier public key"
         )
-
-        inversed_blinded_histogram = secure_aggregator.compute_inverse()
-        # inversed_blinded_histogram = secure_aggregator.user_level_subsampling(
-        #     inversed_blinded_histogram
-        # )
-        encrypted_inversed_blinded_user_histogram = (
-            secure_aggregator.encrypt_inversed_blinded_user_histogram(
-                inversed_blinded_histogram
-            )
-        )
-
         # server -> silo
+        encrypted_inversed_blinded_user_histogram = (
+            secure_aggregator.get_encrypt_inversed_blinded_user_histogram()
+        )
         for silo_id in range(n_silos):
             channel_server_to_silos[silo_id] = encrypted_inversed_blinded_user_histogram
-
-        # silo
-        for silo_id in range(n_silos):
             local_trainer_per_silos[silo_id].receive_encrypted_weights(
                 channel_server_to_silos[silo_id]
             )
-
         print(time.time() - start_time, "sec")
 
         # Step 6: Local training with weighting with encrypted weights
@@ -281,11 +248,14 @@ class TestSecureAggregation(unittest.TestCase):
                 for key in encrypted_model_delta.keys():
                     summed_encrypted_model_delta[key] += model_delta_list[i][key]
 
-            encrypted_noised_model_delta = local_trainer.secure_add_noise(
-                sigma=0.0, encrypted_model_delta=summed_encrypted_model_delta
+            encrypted_noised_model_delta = local_trainer._secure_add_noise(
+                encrypted_model_delta=summed_encrypted_model_delta,
+                sigma=0.0,
+                random_state=local_trainer.random_state,
+                modulus=local_trainer.modulus,
             )
             masked_model_delta = local_trainer.secagg_mask_params(
-                encrypted_noised_model_delta, round_idx=0
+                encrypted_noised_model_delta, round_idx=0, modulus=local_trainer.modulus
             )
 
             channel_silo_to_server[silo_id] = masked_model_delta
@@ -293,7 +263,7 @@ class TestSecureAggregation(unittest.TestCase):
         # silo -> server
         for silo_id in range(n_silos):
             secure_aggregator.add_local_trained_result(
-                silo_id, channel_silo_to_server[silo_id], 1, 1
+                silo_id, channel_silo_to_server[silo_id], 0, 0
             )
 
         # # server

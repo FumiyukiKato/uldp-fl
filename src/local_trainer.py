@@ -340,7 +340,7 @@ class ClassificationTrainer:
             "ULDP-AVG-s",
             "ULDP-AVG-ws",
         ]:
-            # there is data that suddenly becomes unstable, but the cause is unknown. skip the update graident (call step()) for now.
+            # If suddenly becomes unstable, skip the update graident (call step()) for now.
             def loss_callback(loss):
                 if torch.isnan(loss):
                     logger.warn("loss is nan: skipping")

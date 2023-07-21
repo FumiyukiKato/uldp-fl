@@ -8,6 +8,7 @@ from dataset import load_dataset
 
 from results_saver import save_one_shot_results, args_to_hash
 import models
+from secure_simulator import SecureWeightingFLSimulator
 
 from simulator import FLSimulator
 
@@ -47,32 +48,59 @@ def run_simulation(args, path_project, trial=None, data_seed=None):
 
     # start training
     base_seed = np.random.RandomState(seed=args.seed).randint(2**32 - 1)
-    simulator = FLSimulator(
-        seed=base_seed,
-        model=model,
-        train_dataset=train_dataset,
-        test_dataset=test_dataset,
-        local_dataset_per_silos=local_dataset_per_silos,
-        n_silos=args.n_silos,
-        n_users=args.n_users,
-        device=device,
-        n_total_round=args.n_total_round,
-        n_silo_per_round=args.n_silo_per_round,
-        local_learning_rate=args.local_learning_rate,
-        global_learning_rate=args.global_learning_rate,
-        local_batch_size=args.local_batch_size,
-        weight_decay=args.weight_decay,
-        client_optimizer=args.client_optimizer,
-        local_epochs=args.local_epochs,
-        agg_strategy=args.agg_strategy,
-        clipping_bound=args.clipping_bound,
-        sigma=args.sigma,
-        delta=args.delta,
-        group_k=args.group_k,
-        trial=trial,
-        dataset_name=args.dataset_name,
-        sampling_rate_q=args.sampling_rate_q,
-    )
+    if args.secure_w:
+        simulator = SecureWeightingFLSimulator(
+            seed=base_seed,
+            model=model,
+            train_dataset=train_dataset,
+            test_dataset=test_dataset,
+            local_dataset_per_silos=local_dataset_per_silos,
+            n_silos=args.n_silos,
+            n_users=args.n_users,
+            device=device,
+            n_total_round=args.n_total_round,
+            n_silo_per_round=args.n_silo_per_round,
+            local_learning_rate=args.local_learning_rate,
+            global_learning_rate=args.global_learning_rate,
+            local_batch_size=args.local_batch_size,
+            weight_decay=args.weight_decay,
+            client_optimizer=args.client_optimizer,
+            local_epochs=args.local_epochs,
+            agg_strategy=args.agg_strategy,
+            clipping_bound=args.clipping_bound,
+            sigma=args.sigma,
+            delta=args.delta,
+            group_k=args.group_k,
+            dataset_name=args.dataset_name,
+            sampling_rate_q=args.sampling_rate_q,
+        )
+    else:
+        simulator = FLSimulator(
+            seed=base_seed,
+            model=model,
+            train_dataset=train_dataset,
+            test_dataset=test_dataset,
+            local_dataset_per_silos=local_dataset_per_silos,
+            n_silos=args.n_silos,
+            n_users=args.n_users,
+            device=device,
+            n_total_round=args.n_total_round,
+            n_silo_per_round=args.n_silo_per_round,
+            local_learning_rate=args.local_learning_rate,
+            global_learning_rate=args.global_learning_rate,
+            local_batch_size=args.local_batch_size,
+            weight_decay=args.weight_decay,
+            client_optimizer=args.client_optimizer,
+            local_epochs=args.local_epochs,
+            agg_strategy=args.agg_strategy,
+            clipping_bound=args.clipping_bound,
+            sigma=args.sigma,
+            delta=args.delta,
+            group_k=args.group_k,
+            trial=trial,
+            dataset_name=args.dataset_name,
+            sampling_rate_q=args.sampling_rate_q,
+        )
     simulator.run()
     results = simulator.get_results()
     return results

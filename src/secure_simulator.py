@@ -1,25 +1,13 @@
-from typing import Callable, List, Optional, Tuple, Dict
+import time
+from typing import List, Optional, Tuple, Dict
 import torch
 import copy
-import optuna
 
-from secure_aggregation import SecureAggregator, SecureLocalTrainer
-from coordinator import Coordinator
+from secure_aggregation import SecureAggregator, SecureLocalTrainer, PRIMARY_SILO_ID
 from mylogger import logger
 
 
-# Heuristic early pruning conditions for hyper-parameter tuning
-TEST_ACC_THRESHOLDS = {
-    "mnist": (3, 0.11),
-    "cifar10": (5, 0.11),
-    "cifar100": (5, 0.011),
-    "heart_disease": (3, 0.1),
-    "tcga_brca": (3, 0.1),
-    "isic": (3, 0.1),
-}
-
-
-class FLSimulator:
+class SecureWeightingFLSimulator:
     def __init__(
         self,
         seed: int,
@@ -51,7 +39,6 @@ class FLSimulator:
         sigma: Optional[float] = None,
         delta: Optional[float] = None,
         group_k: Optional[int] = None,
-        trial: optuna.Trial = None,
         dataset_name: str = None,
         sampling_rate_q: Optional[float] = None,
     ):
@@ -59,15 +46,23 @@ class FLSimulator:
         self.round_idx = 0
         model.to(device)
         self.agg_strategy = agg_strategy
+        if agg_strategy not in [
+            "ULDP-AVG-w",
+            "ULDP-AVG-ws",
+            "ULDP-SGD-w",
+            "ULDP-SGD-ws",
+        ]:
+            raise ValueError(f"agg_strategy {agg_strategy} is not supported.")
+
         self.dataset_name = dataset_name
         self.sampling_rate_q = sampling_rate_q
-        self.trial = trial
-        self.coordinator = Coordinator(
-            base_seed=seed, n_silos=n_silos, n_users=n_users, group_k=group_k
-        )
-        self.agg_strategy = agg_strategy
+        self.n_silos = n_silos
+        self.n_users = n_users
 
-        self.aggregator = Aggregator(
+        self.time_results = {"round_idx": [], "time": [], "kind": [], "counter": []}
+        self.time_counter = 0
+
+        self.secure_aggregator = SecureAggregator(
             model=copy.deepcopy(model),
             train_dataset=train_dataset,
             test_dataset=test_dataset,
@@ -85,14 +80,14 @@ class FLSimulator:
             sampling_rate_q=sampling_rate_q,
         )
 
-        self.local_trainer_per_silos: Dict[int, ClassificationTrainer] = {}
+        self.local_trainer_per_silos: Dict[int, SecureLocalTrainer] = {}
         for silo_id, (
             local_train_dataset,
             local_test_dataset,
             user_hist,
             user_ids,
         ) in local_dataset_per_silos.items():
-            local_trainer = ClassificationTrainer(
+            local_trainer = SecureLocalTrainer(
                 base_seed=seed,
                 model=copy.deepcopy(model),
                 silo_id=silo_id,
@@ -102,6 +97,8 @@ class FLSimulator:
                 local_test_dataset=local_test_dataset,
                 user_histogram=user_hist,
                 user_ids_of_local_train_dataset=user_ids,
+                n_users=n_users,
+                n_silos=n_silos,
                 client_optimizer=client_optimizer,
                 local_learning_rate=local_learning_rate,
                 local_batch_size=local_batch_size,
@@ -115,89 +112,127 @@ class FLSimulator:
                 dataset_name=dataset_name,
             )
             self.local_trainer_per_silos[silo_id] = local_trainer
-            if self.agg_strategy in [
-                "ULDP-GROUP",
-                "ULDP-GROUP-max",
-                "ULDP-GROUP-median",
-                "ULDP-SGD",
-                "ULDP-SGD-w",
-                "ULDP-SGD-s",
-                "ULDP-SGD-ws",
-                "ULDP-AVG",
-                "ULDP-AVG-w",
-                "ULDP-AVG-s",
-                "ULDP-AVG-ws",
-            ]:
-                self.coordinator.set_user_hist_by_silo_id(silo_id, user_hist)
 
-        if self.agg_strategy == "ULDP-GROUP-max":
-            group_max = self.coordinator.get_group_max()
-            logger.info(f"Group max: {group_max}")
-            self.coordinator.set_group_k(group_max)
-            for local_trainer in self.local_trainer_per_silos.values():
-                local_trainer.set_group_k(group_max)
-        elif self.agg_strategy == "ULDP-GROUP-median":
-            group_median = self.coordinator.get_group_median()
-            logger.info(f"Group median: {group_median}")
-            self.coordinator.set_group_k(group_median)
-            for local_trainer in self.local_trainer_per_silos.values():
-                local_trainer.set_group_k(group_median)
+    def record_time(self, start_time, kind: str):
+        self.time_results["round_idx"].append(self.round_idx)
+        self.time_results["time"].append(start_time - time.time())
+        self.time_results["kind"].append(kind)
+        self.time_results["counter"].append(self.time_counter)
+        self.time_counter += 1
 
     def run(self):
-        logger.info("Start federated learning simulation")
+        logger.info("Start federated learning simulation with secure weighting.")
+        start_time = time.time()
 
-        if self.agg_strategy in ["ULDP-GROUP", "ULDP-GROUP-max", "ULDP-GROUP-median"]:
-            if self.dataset_name == "tcga_brca":
-                min_count = 2
-            else:
-                min_count = 1
-            bounded_user_hist_per_silo = self.coordinator.build_user_bound_histograms(
-                self.coordinator.original_user_hist_dct, min_count
+        n_silos = self.n_silos
+        secure_aggregator = self.secure_aggregator
+
+        # mock up the communicatoin channel
+        channel_server_to_silos = {silo_id: {} for silo_id in range(n_silos)}
+        channel_silo_to_server = {silo_id: {} for silo_id in range(n_silos)}
+
+        # -- Step 1: key exchange
+        logger.debug("key exchange")
+
+        # silo -> server
+        for silo_id in range(n_silos):
+            channel_silo_to_server[silo_id] = self.local_trainer_per_silos[
+                silo_id
+            ].get_dh_pubkey()
+            secure_aggregator.receive_dh_pubkey(
+                silo_id, channel_silo_to_server[silo_id]
             )
 
-            for silo_id, bounded_user_hist in bounded_user_hist_per_silo.items():
-                self.local_trainer_per_silos[silo_id].bound_user_contributions(
-                    bounded_user_hist
-                )
-        elif self.agg_strategy in [
-            "ULDP-SGD",
-            "ULDP-AVG",
-            "ULDP-SGD-w",
-            "ULDP-AVG-w",
-        ]:
-            if self.agg_strategy in ["ULDP-SGD-w", "ULDP-AVG-w"]:
-                user_weights_per_silo = self.coordinator.build_user_weights(
-                    weighted=True
-                )
-            else:
-                user_weights_per_silo = self.coordinator.build_user_weights(
-                    weighted=False
-                )
-            for silo_id, user_weights in user_weights_per_silo.items():
-                self.local_trainer_per_silos[silo_id].set_user_weights(user_weights)
+        # server -> silo
+        for silo_id in range(n_silos):
+            channel_server_to_silos[silo_id] = (
+                secure_aggregator.client_keys,
+                secure_aggregator.paillier_public_key,
+            )
+        # silo
+        for silo_id in range(n_silos):
+            other_silo_pubkeys, paillier_public_key = channel_server_to_silos[silo_id]
+            self.local_trainer_per_silos[
+                silo_id
+            ].receive_dh_pubkeys_and_gen_shared_keys(other_silo_pubkeys)
+            self.local_trainer_per_silos[silo_id].receive_paillier_public_key(
+                paillier_public_key
+            )
 
+        # prepare shared random seed
+        # silo-0 -> server
+        shared_random_seed_per_silo = self.local_trainer_per_silos[
+            PRIMARY_SILO_ID
+        ].gen_across_silos_shared_random_seed()
+        channel_silo_to_server[PRIMARY_SILO_ID] = shared_random_seed_per_silo
+        secure_aggregator.receive_shared_random_seed(
+            channel_silo_to_server[PRIMARY_SILO_ID]
+        )
+
+        # server -> silo
+        for silo_id in range(n_silos):
+            if silo_id != PRIMARY_SILO_ID:
+                channel_server_to_silos[
+                    silo_id
+                ] = secure_aggregator.get_shared_random_seed()[silo_id]
+                self.local_trainer_per_silos[
+                    silo_id
+                ].receive_across_silos_shared_random_seed(
+                    channel_server_to_silos[silo_id]
+                )
+
+        self.record_time(start_time, "key_exchange")
+
+        # -- Step 2: generate multiplicative blinding masks
+        # -- Step 3: Calculate multiplicative blinded histogram
+        # -- Step 4: Secure aggregation for blinded histogram and Compute inverse of blinded histogram
+        logger.debug(
+            "generate multiplicative blinding masks, calculate multiplicative blinded histogram, secure aggregation for blinded histogram"
+        )
+
+        # silo -> server
+        for silo_id in range(n_silos):
+            channel_silo_to_server[silo_id] = self.local_trainer_per_silos[
+                silo_id
+            ].make_blinded_user_hist()
+            secure_aggregator.receive_blinded_user_histogram(
+                silo_id, channel_silo_to_server[silo_id]
+            )
+
+        if self.agg_strategy in ["ULDP-SGD-w", "ULDP-AVG-w"]:
+            # server -> silo
+            encrypted_inversed_blinded_user_histogram = (
+                secure_aggregator.get_encrypt_inversed_blinded_user_histogram()
+            )
+            for silo_id in range(n_silos):
+                channel_server_to_silos[
+                    silo_id
+                ] = encrypted_inversed_blinded_user_histogram
+                self.local_trainer_per_silos[silo_id].receive_encrypted_weights(
+                    channel_server_to_silos[silo_id]
+                )
+
+        self.record_time(start_time, "multiplicative_blind_user_hist")
+
+        # start round
         while self.round_idx < self.n_total_round:
-            silo_id_list_in_this_round = self.aggregator.silo_selection()
+            silo_id_list_in_this_round = secure_aggregator.silo_selection()
 
-            if self.agg_strategy in [
-                "ULDP-SGD-s",
-                "ULDP-AVG-s",
-            ]:
-                user_weights_per_silo = self.coordinator.build_user_weights(
-                    weighted=False, sampling_rate_q=self.sampling_rate_q
+            if self.agg_strategy in ["ULDP-SGD-ws", "ULDP-AVG-ws"]:
+                # server -> silo
+                encrypted_inversed_blinded_user_histogram = (
+                    secure_aggregator.get_encrypt_inversed_blinded_user_histogram_with_userlevel_subsampling()
                 )
-                for silo_id, user_weights in user_weights_per_silo.items():
-                    self.local_trainer_per_silos[silo_id].set_user_weights(user_weights)
-
-            elif self.agg_strategy in [
-                "ULDP-SGD-ws",
-                "ULDP-AVG-ws",
-            ]:
-                user_weights_per_silo = self.coordinator.build_user_weights(
-                    weighted=True, sampling_rate_q=self.sampling_rate_q
+                for silo_id in range(n_silos):
+                    channel_server_to_silos[
+                        silo_id
+                    ] = encrypted_inversed_blinded_user_histogram
+                    self.local_trainer_per_silos[silo_id].receive_encrypted_weights(
+                        channel_server_to_silos[silo_id]
+                    )
+                self.record_time(
+                    start_time, "multiplicative_blind_user_hist_with_subsampling"
                 )
-                for silo_id, user_weights in user_weights_per_silo.items():
-                    self.local_trainer_per_silos[silo_id].set_user_weights(user_weights)
 
             for silo_id in silo_id_list_in_this_round:
                 logger.debug(
@@ -206,37 +241,24 @@ class FLSimulator:
                 )
                 local_trainer = self.local_trainer_per_silos[silo_id]
                 local_trainer.set_model_params(
-                    self.aggregator.get_global_model_params()
+                    secure_aggregator.get_global_model_params()
                 )
 
-                local_updated_weights, n_local_sample = local_trainer.train(
-                    self.round_idx,
-                    loss_callback=build_loss_callback(self.trial),
+                local_updated_weights = local_trainer.train(self.round_idx)
+
+                secure_aggregator.add_local_trained_result(
+                    silo_id, local_updated_weights, 0, 0
                 )
-                local_trainer.test_local(self.round_idx)
-                if self.agg_strategy in [
-                    "DEFAULT",
-                    "ULDP-GROUP",
-                    "ULDP-GROUP-max",
-                    "ULDP-GROUP-median",
-                    "ULDP-NAIVE",
-                ]:
-                    # test local model with global test dataset
-                    self.aggregator.test_global(
-                        self.round_idx, model=local_trainer.model, silo_id=silo_id
-                    )
-                self.aggregator.add_local_trained_result(
-                    silo_id,
-                    local_updated_weights,
-                    n_local_sample,
-                    local_trainer.get_latest_epsilon(),
-                )
+                self.record_time(start_time, f"training_silo_{silo_id}")
 
             logger.debug(
                 "============ AGGREGATION: ROUND %d ============" % (self.round_idx)
             )
-            self.aggregator.aggregate(silo_id_list_in_this_round, self.round_idx)
-            test_acc, _ = self.aggregator.test_global(self.round_idx)
+            secure_aggregator.aggregate(silo_id_list_in_this_round, self.round_idx)
+            self.record_time(start_time, "aggregation")
+
+            test_acc, _ = secure_aggregator.test_global(self.round_idx)
+            self.record_time(start_time, "global_test")
             logger.debug(
                 "\n\n========== end {}-th round training ===========\n".format(
                     self.round_idx
@@ -244,46 +266,11 @@ class FLSimulator:
             )
             self.round_idx += 1
 
-            if self.trial is not None:
-                self.trial.report(1.0 - test_acc, self.round_idx)
-                if self.trial.should_prune():
-                    logger.warning(
-                        "PRUNED BECAUSE OF TOO LOW ACCURACY COMPARED TO MEDIAN"
-                    )
-                    raise optuna.exceptions.TrialPruned()
-
-                threshould = TEST_ACC_THRESHOLDS[self.dataset_name]
-                if self.round_idx + 1 >= threshould[0] and test_acc <= threshould[1]:
-                    logger.warning("PRUNED BECAUSE OF TOO LOW ACCURACY")
-                    raise optuna.exceptions.TrialPruned()
-
+        self.record_time(start_time, "total")
         logger.info("Finish federated learning simulation")
 
     def get_results(self) -> Dict:
         results = dict()
-        results["global"] = self.aggregator.get_results()
-        # if self.agg_strategy in ["ULDP-SGD", "ULDP-AVG", "ULDP-SGD-w", "ULDP-AVG-w"]:
-        #     pass
-        # else:
-        #     results["local"] = dict()
-        #     for silo_id, lt in self.local_trainer_per_silos.items():
-        #         results["local"][silo_id] = lt.get_results()
+        results["global"] = self.secure_aggregator.get_results()
+        results["time"] = self.time_results
         return results
-
-
-def build_loss_callback(trial) -> Callable:
-    if trial is None:
-
-        def loss_callback(loss):
-            if torch.isnan(loss):
-                raise OverflowError("Stop because Loss is NaN")
-
-    else:
-
-        def loss_callback(loss):
-            # check if loss is nan
-            if torch.isnan(loss):
-                logger.warning("PRUNED LOSS IS NAN")
-                raise optuna.exceptions.TrialPruned()
-
-    return loss_callback

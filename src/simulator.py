@@ -66,7 +66,6 @@ class FLSimulator:
         self.coordinator = Coordinator(
             base_seed=seed, n_silos=n_silos, n_users=n_users, group_k=group_k
         )
-        self.agg_strategy = agg_strategy
 
         self.aggregator = Aggregator(
             model=copy.deepcopy(model),
