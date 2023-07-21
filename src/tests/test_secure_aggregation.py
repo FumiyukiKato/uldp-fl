@@ -102,6 +102,7 @@ class TestSecureAggregation(unittest.TestCase):
             sigma=1.0,
             delta=1e-5,
             dataset_name=dataset_name,
+            sampling_rate_q=0.2,
         )
 
         local_trainer_per_silos: Dict[int, SecureLocalTrainer] = {}
@@ -236,6 +237,9 @@ class TestSecureAggregation(unittest.TestCase):
         )
 
         inversed_blinded_histogram = secure_aggregator.compute_inverse()
+        # inversed_blinded_histogram = secure_aggregator.user_level_subsampling(
+        #     inversed_blinded_histogram
+        # )
         encrypted_inversed_blinded_user_histogram = (
             secure_aggregator.encrypt_inversed_blinded_user_histogram(
                 inversed_blinded_histogram
@@ -262,13 +266,14 @@ class TestSecureAggregation(unittest.TestCase):
 
         # silo
         for silo_id in range(n_silos):
+            local_trainer = local_trainer_per_silos[silo_id]
+
             model_delta_list = []
             for user_id in range(n_users):
                 udpated_weight = model.state_dict()  # Mock of local trained model
-                encrypted_model_delta = local_trainer_per_silos[
-                    silo_id
-                ].secure_weighting(udpated_weight, user_id)
-                # encrypted_model_delta = local_trainer_per_silos[silo_id].secure_add_noise(0.0001, encrypted_model_delta)
+                encrypted_model_delta = local_trainer.secure_weighting(
+                    udpated_weight, user_id
+                )
                 model_delta_list.append(encrypted_model_delta)
 
             summed_encrypted_model_delta = model_delta_list[0]
@@ -276,8 +281,11 @@ class TestSecureAggregation(unittest.TestCase):
                 for key in encrypted_model_delta.keys():
                     summed_encrypted_model_delta[key] += model_delta_list[i][key]
 
-            masked_model_delta = local_trainer_per_silos[silo_id].secagg_mask_params(
-                summed_encrypted_model_delta, round_idx=0
+            encrypted_noised_model_delta = local_trainer.secure_add_noise(
+                sigma=0.0, encrypted_model_delta=summed_encrypted_model_delta
+            )
+            masked_model_delta = local_trainer.secagg_mask_params(
+                encrypted_noised_model_delta, round_idx=0
             )
 
             channel_silo_to_server[silo_id] = masked_model_delta
@@ -291,6 +299,7 @@ class TestSecureAggregation(unittest.TestCase):
         # # server
         global_weights = secure_aggregator.aggregate(list(range(n_silos)), 0)
 
+        # Correctness Check
         for key in global_weights.keys():
             diff = global_weights[key] - model.state_dict()[key]
             abs_diff = np.abs(diff * n_silos - model.state_dict()[key])
@@ -298,6 +307,16 @@ class TestSecureAggregation(unittest.TestCase):
                 (abs_diff.max() < 1e-7).item(),
                 "The error is too large and aggregation might not be correct",
             )
+
+        # Correctness Check (noise)
+        # if given noise
+        # for key in global_weights.keys():
+        #     diff = (global_weights[key] - noise[key]/(n_users*n_silos)) - model.state_dict()[key]
+        #     abs_diff = np.abs(diff * n_silos  - model.state_dict()[key])
+        #     self.assertTrue(
+        #         (abs_diff.max() < 1e-7).item(),
+        #         "The error is too large and aggregation might not be correct",
+        #     )
 
 
 if __name__ == "__main__":

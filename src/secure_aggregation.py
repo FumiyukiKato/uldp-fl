@@ -175,18 +175,20 @@ class SecureAggregator(Aggregator):
         return inversed_blinded_user_histogram
 
     def user_level_subsampling(
-        self, inversed_blinded_user_histogram: Dict[int, int], sampling_rate_q: float
-    ):
-        inversed_blinded_user_histogram = dict()
+        self, inversed_blinded_user_histogram: Dict[int, int]
+    ) -> Dict[int, int]:
+        sampled_inversed_blinded_user_histogram = copy.deepcopy(
+            inversed_blinded_user_histogram
+        )
         user_ids = np.array(range(self.n_users))
         sampled_user_ids = user_ids[
-            self.random_state.rand(len(user_ids)) < sampling_rate_q
+            self.random_state.rand(len(user_ids)) < self.sampling_rate_q
         ]
         sampled_user_ids_set = set(sampled_user_ids)
-        for silo_id in range(self.n_silos):
-            for user_id in range(self.n_users):
-                if user_id not in sampled_user_ids_set:
-                    inversed_blinded_user_histogram[silo_id][user_id] = 0
+        for user_id in range(self.n_users):
+            if user_id not in sampled_user_ids_set:
+                sampled_inversed_blinded_user_histogram[user_id] = 0
+        return sampled_inversed_blinded_user_histogram
 
     def encrypt_inversed_blinded_user_histogram(
         self, inversed_blinded_user_histogram: Dict[int, int]
@@ -476,9 +478,9 @@ class SecureLocalTrainer(ClassificationTrainer):
         noised_encrypted_model_delta = OrderedDict()
         for key, value in encrypted_model_delta.items():
             noise = self.random_state.normal(0, sigma, value.shape)
-            int_noise = integerize(noise.numpy(), PRECISION)
+            int_noise = integerize(noise, PRECISION)
             encoded_int_noise = encode(int_noise, self.modulus)
             noised_encrypted_model_delta[key] = (
-                encoded_int_noise * DIVISIBLE_NUM + value
-            )
+                encoded_int_noise * DIVISIBLE_NUM
+            ) % self.modulus + value
         return noised_encrypted_model_delta
