@@ -482,7 +482,11 @@ class ClassificationTrainer:
                 )
             )
             self.results["epsilon"].append(
-                (global_round_index, group_eps_from_normal_dp_conversion)
+                (
+                    global_round_index,
+                    group_eps_from_normal_dp_conversion,
+                    group_eps_from_rdp,
+                )
             )
             return weights_diff, len(train_loader)
         elif self.agg_strategy in ["ULDP-NAIVE"]:

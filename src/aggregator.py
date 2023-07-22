@@ -98,7 +98,12 @@ class Aggregator:
                 sample_rate=self.n_silo_per_round / self.n_silos,
             )
             eps = self.accountant.get_epsilon(self.delta)
-        elif self.strategy in ["RECORD-LEVEL-DP", "ULDP-GROUP"]:
+        elif self.strategy in [
+            "RECORD-LEVEL-DP",
+            "ULDP-GROUP",
+            "ULDP-GROUP-median",
+            "ULDP-GROUP-max",
+        ]:
             eps = self.latest_eps
             self.latest_eps = 0.0
         elif self.strategy in ["ULDP-NAIVE"]:

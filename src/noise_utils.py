@@ -98,6 +98,7 @@ def get_group_privacy_spent(
         return 0.0
 
     if group_k > 0 and (group_k & (group_k - 1)) != 0:
+        return 0.0, 0.0
         raise ValueError(
             "The group size must be a power of 2, but got group size = {}".format(
                 group_k
