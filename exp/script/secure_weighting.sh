@@ -8,9 +8,14 @@ RUN_SIMULATION_PATH="$SCRIPT_PATH/../../src/run_simulation.py"
 VERSION=0
 TIMES=5
 
-# DRY_RUN="--dry_run"
 DRY_RUN=""
-
+for arg in "$@"
+do
+    if [ "$arg" == "--dry_run" ]; then
+        # --dry_run
+        DRY_RUN="--dry_run"
+    fi
+done
 
 ## heart_disease
 n_users_list=(10 100)

@@ -132,7 +132,7 @@ if __name__ == "__main__":
         args.seed = args.seed + i
         try:
             sim_results = run_simulation(args, path_project)
-            results_list.append(sim_results["global"])
+            results_list.append(sim_results)
         except OverflowError:
             results_list.append("LOSS IS NAN")
         except AssertionError:

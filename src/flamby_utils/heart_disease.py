@@ -35,7 +35,7 @@ def build_user_dist(
     alpha: float = 1.5,
     user_dist: str = "zipf",
 ):
-    if user_dist == "zipf":
+    if user_dist.startswith("zipf"):
         # Ensure that every user has at least one record
         # Other data is allocated according to the zipf distribution
         n_total = np.sum(TRAIN_SIZE_LIST)
@@ -83,7 +83,7 @@ def build_user_dist(
                 user_ids_per_silo[silo_id].append(user_id)
                 user_hist_per_silo[silo_id][user_id] += 1
 
-    elif user_dist == "uniform":
+    elif user_dist.startswith("uniform"):
         user_ids_per_silo = {}
         user_hist_per_silo = {}
         for silo_id in range(N_SILO):
