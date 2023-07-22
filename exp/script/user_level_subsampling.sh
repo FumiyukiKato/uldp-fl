@@ -8,8 +8,8 @@ RUN_SIMULATION_PATH="$SCRIPT_PATH/../../src/run_simulation.py"
 VERSION=1
 TIMES=5
 
-DRY_RUN="--dry_run"
-# DRY_RUN=""
+# DRY_RUN="--dry_run"
+DRY_RUN=""
 
 # GPU="--gpu=0"
 GPU=""
