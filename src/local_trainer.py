@@ -430,11 +430,11 @@ class ClassificationTrainer:
                         )
                     )
                     continue
-                logger.debug(
-                    "Silo Id = {}\tEpoch: {}\tLoss: {:.6f}".format(
-                        self.silo_id, epoch, sum(batch_loss) / len(batch_loss)
-                    )
-                )
+                # logger.debug(
+                #     "Silo Id = {}\tEpoch: {}\tLoss: {:.6f}".format(
+                #         self.silo_id, epoch, sum(batch_loss) / len(batch_loss)
+                #     )
+                # )
 
             weights = self.get_model_params()
             weights_diff = self.diff_weights(global_weights, weights)
@@ -460,34 +460,34 @@ class ClassificationTrainer:
             "ULDP-GROUP-median",
         ]:
             model.remove_hooks()
-            group_eps_from_rdp, opt_alpha = noise_utils.get_group_privacy_spent(
-                group_k=self.group_k,
-                accountant_history=self.privacy_engine.accountant.history,
-                delta=self.local_delta,
-            )
-            (
-                group_eps_from_normal_dp_conversion,
-                delta,
-            ) = noise_utils.get_normal_group_privacy_spent(
-                group_k=self.group_k,
-                accountant_history=self.privacy_engine.accountant.history,
-                delta=self.local_delta,
-            )
-            logger.debug(
-                "Silo Id = {}\t (Group-Privacy) Epsilon: {:.5f} (delta: {:8f}) (RDP Epsilon: {:.5f})".format(
-                    self.silo_id,
-                    group_eps_from_normal_dp_conversion,
-                    delta,
-                    group_eps_from_rdp,
-                )
-            )
-            self.results["epsilon"].append(
-                (
-                    global_round_index,
-                    group_eps_from_normal_dp_conversion,
-                    group_eps_from_rdp,
-                )
-            )
+            # group_eps_from_rdp, opt_alpha = noise_utils.get_group_privacy_spent(
+            #     group_k=self.group_k,
+            #     accountant_history=self.privacy_engine.accountant.history,
+            #     delta=self.local_delta,
+            # )
+            # (
+            #     group_eps_from_normal_dp_conversion,
+            #     delta,
+            # ) = noise_utils.get_normal_group_privacy_spent(
+            #     group_k=self.group_k,
+            #     accountant_history=self.privacy_engine.accountant.history,
+            #     delta=self.local_delta,
+            # )
+            # logger.debug(
+            #     "Silo Id = {}\t (Group-Privacy) Epsilon: {:.5f} (delta: {:8f}) (RDP Epsilon: {:.5f})".format(
+            #         self.silo_id,
+            #         group_eps_from_normal_dp_conversion,
+            #         delta,
+            #         group_eps_from_rdp,
+            #     )
+            # )
+            # self.results["epsilon"].append(
+            #     (
+            #         global_round_index,
+            #         group_eps_from_normal_dp_conversion,
+            #         group_eps_from_rdp,
+            #     )
+            # )
             return weights_diff, len(train_loader)
         elif self.agg_strategy in ["ULDP-NAIVE"]:
             clipped_weights_diff = noise_utils.global_clip(

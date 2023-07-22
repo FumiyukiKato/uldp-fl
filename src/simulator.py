@@ -66,6 +66,7 @@ class FLSimulator:
         self.coordinator = Coordinator(
             base_seed=seed, n_silos=n_silos, n_users=n_users, group_k=group_k
         )
+        self.group_k = group_k
 
         self.aggregator = Aggregator(
             model=copy.deepcopy(model),
@@ -134,12 +135,14 @@ class FLSimulator:
             group_max = self.coordinator.get_group_max()
             logger.info(f"Group max: {group_max}")
             self.coordinator.set_group_k(group_max)
+            self.group_k = group_k
             for local_trainer in self.local_trainer_per_silos.values():
                 local_trainer.set_group_k(group_max)
         elif self.agg_strategy == "ULDP-GROUP-median":
             group_median = self.coordinator.get_group_median()
             logger.info(f"Group median: {group_median}")
             self.coordinator.set_group_k(group_median)
+            self.group_k = group_k
             for local_trainer in self.local_trainer_per_silos.values():
                 local_trainer.set_group_k(group_median)
 
@@ -213,18 +216,18 @@ class FLSimulator:
                     self.round_idx,
                     loss_callback=build_loss_callback(self.trial),
                 )
-                local_trainer.test_local(self.round_idx)
-                if self.agg_strategy in [
-                    "DEFAULT",
-                    "ULDP-GROUP",
-                    "ULDP-GROUP-max",
-                    "ULDP-GROUP-median",
-                    "ULDP-NAIVE",
-                ]:
-                    # test local model with global test dataset
-                    self.aggregator.test_global(
-                        self.round_idx, model=local_trainer.model, silo_id=silo_id
-                    )
+                # local_trainer.test_local(self.round_idx)
+                # if self.agg_strategy in [
+                #     "DEFAULT",
+                #     "ULDP-GROUP",
+                #     "ULDP-GROUP-max",
+                #     "ULDP-GROUP-median",
+                #     "ULDP-NAIVE",
+                # ]:
+                #     # test local model with global test dataset
+                #     self.aggregator.test_global(
+                #         self.round_idx, model=local_trainer.model, silo_id=silo_id
+                #     )
                 self.aggregator.add_local_trained_result(
                     silo_id,
                     local_updated_weights,
@@ -257,17 +260,31 @@ class FLSimulator:
                     logger.warning("PRUNED BECAUSE OF TOO LOW ACCURACY")
                     raise optuna.exceptions.TrialPruned()
 
+        if self.agg_strategy in [
+            "ULDP-GROUP",
+            "ULDP-GROUP-max",
+            "ULDP-GROUP-median",
+        ]:
+            self.aggregator.results["privacy_info"] = {
+                "group_k": self.group_k,
+                "history": [
+                    (silo_id, local_trainer.privacy_engine.accountant.history)
+                    for silo_id, local_trainer in self.local_trainer_per_silos.items()
+                ],
+            }
+
         logger.info("Finish federated learning simulation")
 
     def get_results(self) -> Dict:
         results = dict()
         results["global"] = self.aggregator.get_results()
-        # if self.agg_strategy in ["ULDP-SGD", "ULDP-AVG", "ULDP-SGD-w", "ULDP-AVG-w"]:
-        #     pass
-        # else:
-        #     results["local"] = dict()
-        #     for silo_id, lt in self.local_trainer_per_silos.items():
-        #         results["local"][silo_id] = lt.get_results()
+
+        if self.agg_strategy in [
+            "ULDP-GROUP",
+            "ULDP-GROUP-max",
+            "ULDP-GROUP-median",
+        ]:
+            results["privacy_info"] = self.aggregator.results["privacy_info"]
         return results
 
 
