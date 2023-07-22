@@ -84,6 +84,7 @@ def args_parser(path_project: str) -> argparse.Namespace:
     if args.dataset_name == "isic" and args.gpu_id is None:
         logger.warning("ISIC dataset is too hevay, you should set --gpu_id to use GPU.")
 
-    pretty_print_args(args)
+    if not args.dry_run:
+        pretty_print_args(args)
 
     return args
