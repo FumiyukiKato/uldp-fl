@@ -114,15 +114,19 @@ class SecureWeightingFLSimulator:
             self.local_trainer_per_silos[silo_id] = local_trainer
 
     def record_time(self, start_time, kind: str):
+        this_time = time.time()
+        print(kind, this_time - self.previous_time)
         self.time_results["round_idx"].append(self.round_idx)
-        self.time_results["time"].append(start_time - time.time())
+        self.time_results["time"].append(this_time - start_time)
         self.time_results["kind"].append(kind)
         self.time_results["counter"].append(self.time_counter)
         self.time_counter += 1
+        self.previous_time = this_time
 
     def run(self):
         logger.info("Start federated learning simulation with secure weighting.")
         start_time = time.time()
+        self.previous_time = start_time
 
         n_silos = self.n_silos
         secure_aggregator = self.secure_aggregator
@@ -259,7 +263,7 @@ class SecureWeightingFLSimulator:
 
             test_acc, _ = secure_aggregator.test_global(self.round_idx)
             self.record_time(start_time, "global_test")
-            logger.debug(
+            logger.info(
                 "\n\n========== end {}-th round training ===========\n".format(
                     self.round_idx
                 )

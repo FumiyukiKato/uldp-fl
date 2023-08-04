@@ -21,21 +21,22 @@ done
 GPU=""
 
 
-# ## creditcard
-# n_silos_list=(5 20 50)
-# dist_list=("uniform" "zipf")
-# method_list=("ULDP-AVG" "ULDP-AVG-w")
+## creditcard
+n_silos_list=(5 20 50)
+dist_list=("zipf")
+method_list=("ULDP-AVG" "ULDP-AVG-w")
 
-# for n_silos in "${n_silos_list[@]}"
-# do
-#     for dist in "${dist_list[@]}"
-#     do
-#         for method in "${method_list[@]}"
-#         do
-#             python $RUN_SIMULATION_PATH --dataset_name=creditcard --verbose=1 --agg_strategy=$method --n_users=1000 --global_learning_rate=10.0 --clipping_bound=1.0 --n_total_round=100 --local_learning_rate=0.01 --local_epochs=30 --sigma=5.0 --user_dist=$dist --user_alpha=0.5 --silo_dist=$dist --silo_alpha=2.0 --times=$TIMES --version=$VERSION $DRY_RUN --n_silos=$n_silos --n_silo_per_round=$n_silos
-#         done
-#     done
-# done
+for n_silos in "${n_silos_list[@]}"
+do
+    for dist in "${dist_list[@]}"
+    do
+        for method in "${method_list[@]}"
+        do
+            python $RUN_SIMULATION_PATH --dataset_name=creditcard --verbose=1 --agg_strategy=$method --n_users=1000 --global_learning_rate=10.0 --clipping_bound=1.0 --n_total_round=100 --local_learning_rate=0.01 --local_epochs=30 --sigma=5.0 --user_dist=$dist --user_alpha=0.5 --silo_dist=$dist --silo_alpha=2.0 --times=$TIMES --version=$VERSION $DRY_RUN --n_silos=$n_silos --n_silo_per_round=$n_silos
+        done
+    done
+done
+
 
 
 ## tcga_brca

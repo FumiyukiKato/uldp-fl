@@ -17,7 +17,7 @@ from mylogger import logger
 
 N_LENGTH = 3072
 PRECISION = 1e-10  # considering python's float64 precision, ~ 1e-15 is the appropriate precision
-MAX_N_USER = 1000
+MAX_N_USER = 2000
 PRIMARY_SILO_ID = 0
 
 

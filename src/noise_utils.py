@@ -154,23 +154,35 @@ def get_group_privacy_spent(
 def get_normal_group_privacy_spent(
     group_k: int, accountant_history: list, delta: float
 ) -> tuple[float, float]:
-    log_final_delta = np.log(delta)
-    eps, alpha = get_privacy_spent(delta=delta, history=accountant_history)
     if group_k == 1:
+        eps, alpha = get_privacy_spent(delta=delta, history=accountant_history)
         return eps, delta
+    if (
+        group_k > 62
+    ):  # using sigma=5.0 and opacus accountant, group_k > 62 cannot compute
+        warnings.warn(
+            "GROUP-k is larger than 62, compute for group_k=62, which means fairly underestimate"
+        )
+        group_k = 55
 
-    log_group_delta = np.exp(1.0)
-    log_test_delta = log_final_delta
-    while log_group_delta > log_final_delta:
-        log_test_delta = log_test_delta - np.log(1.5)
-        eps, alpha = get_privacy_spent(
-            log_delta=log_test_delta, history=accountant_history
-        )
+    upper = np.log(delta)
+    lower = -1e20
+    group_delta = lower
+    accuracy = delta / 1e3
+    first = True
+    while np.abs(delta - group_delta) > accuracy:
+        middle = (upper + lower) / 2.0
+        eps, alpha = get_privacy_spent(log_delta=middle, history=accountant_history)
         group_esp, group_delta = convert_to_group_privacy(
-            epsilon=eps, log_delta=log_test_delta, group_k=group_k
+            epsilon=eps, log_delta=middle, group_k=group_k
         )
-        log_group_delta = np.log(group_delta)
-    return group_esp, np.exp(log_group_delta)
+        if first:
+            if group_delta == np.inf:
+                raise ValueError("Cannot compute group delta")
+            first = False
+        upper = middle if group_delta > delta else upper
+        lower = middle if group_delta < delta else lower
+    return group_esp, group_delta
 
 
 def get_privacy_spent(*, history, delta: float = None, log_delta: float = None):

@@ -232,7 +232,7 @@ class FLSimulator:
             )
             self.aggregator.aggregate(silo_id_list_in_this_round, self.round_idx)
             test_acc, _ = self.aggregator.test_global(self.round_idx)
-            logger.debug(
+            logger.info(
                 "\n\n========== end {}-th round training ===========\n".format(
                     self.round_idx
                 )

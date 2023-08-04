@@ -135,14 +135,14 @@ class FLSimulator:
             group_max = self.coordinator.get_group_max()
             logger.info(f"Group max: {group_max}")
             self.coordinator.set_group_k(group_max)
-            self.group_k = group_k
+            self.group_k = group_max
             for local_trainer in self.local_trainer_per_silos.values():
                 local_trainer.set_group_k(group_max)
         elif self.agg_strategy == "ULDP-GROUP-median":
             group_median = self.coordinator.get_group_median()
             logger.info(f"Group median: {group_median}")
             self.coordinator.set_group_k(group_median)
-            self.group_k = group_k
+            self.group_k = group_median
             for local_trainer in self.local_trainer_per_silos.values():
                 local_trainer.set_group_k(group_median)
 
@@ -240,7 +240,7 @@ class FLSimulator:
             )
             self.aggregator.aggregate(silo_id_list_in_this_round, self.round_idx)
             test_acc, _ = self.aggregator.test_global(self.round_idx)
-            logger.debug(
+            logger.info(
                 "\n\n========== end {}-th round training ===========\n".format(
                     self.round_idx
                 )

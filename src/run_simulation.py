@@ -129,6 +129,7 @@ if __name__ == "__main__":
     results_list = []
     org_args = copy.deepcopy(args)
     for i in range(args.times):
+        print("======== TIME:", i, "start")
         args.seed = args.seed + i
         try:
             sim_results = run_simulation(args, path_project)
