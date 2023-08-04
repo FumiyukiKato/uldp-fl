@@ -23,7 +23,7 @@ GPU=""
 
 ## creditcard
 n_silos_list=(5 20 50)
-dist_list=("zipf")
+dist_list=("uniform" "zipf")
 method_list=("ULDP-AVG" "ULDP-AVG-w")
 
 for n_silos in "${n_silos_list[@]}"
