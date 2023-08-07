@@ -544,6 +544,7 @@ def load_dataset(
         y_test = torch.FloatTensor(y_test.values)
 
         percentage = 0.1  # under sampling
+        # sample num =24584
         majority_label = 0
         target_X_train = X_train[y_train == majority_label]
         target_y_train = y_train[y_train == majority_label]

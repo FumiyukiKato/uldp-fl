@@ -163,7 +163,7 @@ def get_normal_group_privacy_spent(
         warnings.warn(
             "GROUP-k is larger than 62, compute for group_k=62, which means fairly underestimate"
         )
-        group_k = 55
+        group_k = 62
 
     upper = np.log(delta)
     lower = -1e20
