@@ -1,5 +1,6 @@
 from typing import Dict, List, Optional, Tuple
 import torch
+import copy
 
 from comm_manager import GRPCCommManager
 from local_trainer import ClassificationTrainer
@@ -26,6 +27,7 @@ class FLSilo:
         silo_id: int,
         client_id: int,
         n_total_round: int,
+        n_silo_per_round: int,
         weight_decay: Optional[float] = None,
         local_sigma: Optional[float] = None,
         local_delta: Optional[float] = None,
@@ -36,10 +38,10 @@ class FLSilo:
     ):
         local_trainer = ClassificationTrainer(
             base_seed=seed,
-            model=model,
+            model=copy.deepcopy(model),
             silo_id=silo_id,
-            device=device,
             agg_strategy=agg_strategy,
+            device=device,
             local_train_dataset=local_train_dataset,
             local_test_dataset=local_test_dataset,
             user_histogram=user_histogram,
@@ -53,7 +55,7 @@ class FLSilo:
             local_delta=local_delta,
             local_clipping_bound=local_clipping_bound,
             group_k=group_k,
-            user_weights=user_weights,
+            n_silo_per_round=n_silo_per_round,
             dataset_name=dataset_name,
         )
         self.client_manager = SiloManager(

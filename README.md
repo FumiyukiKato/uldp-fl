@@ -1,46 +1,46 @@
-# Acsilo
+# ULDP-FL: Federated Learning with Across Silo User-Level Differentially Privacy
 
 tested at Python 3.9.2, OSX, Ubuntu18.04
 
-## Setup FL
-0. Git clone
-
-
+## Setup
 1. Run pip install 
 
     ```bash
     $ pip install -r requirements.txt
     ```
 
+## Run
+Run simulator mode.
 
-2. Run simulator mode
-
-    In simulator mode, we don't use real communication path in the FL rounds.
-
-    ```bash
-    $ cd src
-    $ python run_simulation.py --n_silos=3 --n_silo_per_round=2 --n_total_round=5 --local_batch_size=64 --learning_rate=0.05
-    ```
+In simulator mode, we don't use real communication path in the FL rounds.
 
 
-3. Run real mode (server and silos based on grpc)
+Example.
 
-    Wake up server
-    ```bash
-    $ cd src
-    $ python run_server.py --n_silos=3 --n_silo_per_round=2 --n_total_round=3
-    ```
-
-    Wake up 3 silos
-    ```bash
-    $ cd src
-    $ python run_silo.py --n_silos=3 --n_silo_per_round=2 --silo_id=0 --n_total_round=3
-    $ python run_silo.py --n_silos=3 --n_silo_per_round=2 --silo_id=1 --n_total_round=3
-    $ python run_silo.py --n_silos=3 --n_silo_per_round=2 --silo_id=2 --n_total_round=3
-    ```
+```bash
+$ cd src
+$ python run_simulation.py --dataset_name=creditcard --verbose=1 --agg_strategy=ULDP-AVG-w --n_users=1000 --global_learning_rate=10.0 --clipping_bound=1.0 --n_total_round=100 --local_learning_rate=0.01 --local_epoch=30 --sigma=5.0 --sampling_rate_q=0.5 --user_dist=zipf --user_alpha=0.5 --silo_dist=zipf --silo_alpha=2.0
+```
 
 
-4. Medical dataset
+## Exeprimental script
+
+Experimental scripts used in the paper are located in `exp/script`.
+
+Example.
+
+```bash
+$ exp/script/privacy_utility.sh
+```
+
+
+## Dataset 
+1. Creditcard dataset
+
+    Download from https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud .
+    Put `dataset/creditcard/creditcard.csv` .
+
+2. Medical dataset
 
     This repository accesses the medical dataset for cross-silo FL reseaches through [FLamby](https://github.com/owkin/FLamby), but does not contain the data itself. **If users want to use the data, please carefully read yourself with the license stated in FLamby.**
 
@@ -53,45 +53,5 @@ tested at Python 3.9.2, OSX, Ubuntu18.04
 
     (Tips: 1. You should download some dataset in FLamby such as [Heart Disease](https://github.com/owkin/FLamby/blob/main/flamby/datasets/fed_heart_disease/README.md) before pip-install. (This is because some parts of their implementation rely on relative paths from module files to specify data directories.) 2. When you install FLamby with `pip` in some virtual environments and get error, changing [`sys.executable`](https://github.com/owkin/FLamby/blob/4dfc53479ec4141849d67a6adace1137819317a2/setup.py#L11) path in setup.py may work. )
 
-### Others
-- Regenerate GPRC snipet
-
-    ```bash
-    $ cd src
-    $ python acsilo_grpc/code_gen.py
-    ```
-
-- FL Parameters
-    - default parameters
-        - see `src/default_params.yaml`
-    - args
-        - see `src/options.py`
-
-- IP setting
-    - see `src/ip_utils.py`
-
-- Methods
-    - `DEFAULT`
-        - FedAVG without differential privacy
-    - `ULDP-NAIVE`
-        - Naive user-level DP based on DP-FedAVG
-    - `ULDP-GROUP`
-        - Group-privacy based method
-    - `ULDP-SGD`
-        - User-level DP Fed-SGD
-    - `ULDP-AVG`
-        - User-level DP Fed-AVG
-    - (not our main focus) `SILO-LEVEL-DP`
-        - The privacy model is the same as in client-level DP in cross-device FL such as in https://arxiv.org/abs/1710.06963
-    - (not our main focus) `RECORD-LEVEL-DP`
-        - The algorithm is simple DP-SGD (https://arxiv.org/abs/1607.00133) in each silo
-        - The same privacy model is seen in e.g., https://arxiv.org/abs/2206.07902
-
-
-- Test
-    - python -m unittest -v src.tests.test_secure_aggregation
-
 
 --- 
-
-The source code is based on a simplified version of FedML (https://github.com/FedML-AI/FedML).

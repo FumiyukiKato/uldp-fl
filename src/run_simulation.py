@@ -12,8 +12,6 @@ from secure_simulator import SecureWeightingFLSimulator
 
 from simulator import FLSimulator
 
-# from parallelized_simulator import FLSimulator
-
 from mylogger import logger_set_debug
 
 

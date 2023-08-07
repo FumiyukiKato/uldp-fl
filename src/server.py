@@ -1,6 +1,7 @@
 import time
 from typing import List, Optional, Tuple, Dict
 import torch
+import copy
 
 from message_type import FLMessage, GRPCMessage
 from comm_manager import GRPCCommManager
@@ -27,10 +28,11 @@ class FLServer:
         sigma: float = None,
         delta: float = None,
         global_learning_rate: float = None,
+        sampling_rate_q: float = None,
         dataset_name: Optional[str] = None,
     ):
         aggregator = Aggregator(
-            model=model,
+            model=copy.deepcopy(model),
             train_dataset=train_dataset,
             test_dataset=test_dataset,
             n_users=n_users,
@@ -44,6 +46,7 @@ class FLServer:
             delta=delta,
             global_learning_rate=global_learning_rate,
             dataset_name=dataset_name,
+            sampling_rate_q=sampling_rate_q,
         )
 
         self.server_manger = ServerManager(

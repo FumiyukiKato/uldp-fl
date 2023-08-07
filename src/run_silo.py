@@ -64,6 +64,7 @@ if __name__ == "__main__":
         silo_id=args.silo_id,
         client_id=client_id,
         n_total_round=args.n_total_round,
+        n_silo_per_round=args.n_silo_per_round,
         weight_decay=args.weight_decay,
         local_sigma=args.sigma,
         local_delta=args.delta,

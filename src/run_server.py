@@ -63,6 +63,7 @@ if __name__ == "__main__":
         clipping_bound=args.clipping_bound,
         sigma=args.sigma,
         delta=args.delta,
+        sampling_rate_q=args.sampling_rate_q,
         dataset_name=args.dataset_name,
     )
     server.run()
