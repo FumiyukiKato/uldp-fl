@@ -21,6 +21,10 @@ TEST_ACC_THRESHOLDS = {
 
 
 class FLSimulator:
+    """
+    Federated learning simulator on memory.
+    """
+
     def __init__(
         self,
         seed: int,

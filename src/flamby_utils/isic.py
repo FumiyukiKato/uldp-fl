@@ -26,7 +26,6 @@ def update_args(args):
     return updated_args
 
 
-# とりあえず適当に作った
 def build_user_dist(
     all_train_dataset: FedIsic2019,
     n_users: int = 5000,

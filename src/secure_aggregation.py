@@ -14,6 +14,9 @@ from local_trainer import ClassificationTrainer
 import noise_utils
 from mylogger import logger
 
+"""
+This file implements the private weighting protocol.
+"""
 
 N_LENGTH = 3072
 PRECISION = 1e-10  # considering python's float64 precision, ~ 1e-15 is the appropriate precision

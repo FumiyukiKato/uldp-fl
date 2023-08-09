@@ -168,7 +168,7 @@ class GRPCCommManager:
         self.receive_message(msg_type, msg_params)
 
 
-# Protobufの関数を呼び出すレイヤ
+# Call Protobuf functions
 class GRPCCommServicer(aggregation_server_pb2_grpc.gRPCCommManagerServicer):
     def __init__(self, host, port, client_id):
         self.host = host
@@ -183,7 +183,6 @@ class GRPCCommServicer(aggregation_server_pb2_grpc.gRPCCommManagerServicer):
         self.message_q = queue.Queue()
 
     def sendMessage(self, request, context):
-        # この関数がRPCを通じて通信相手から呼び出されることに注意
         context_ip = context.peer().split(":")[1]
         logger.debug(
             "client_{} got something from client_{} from ip address {}".format(
