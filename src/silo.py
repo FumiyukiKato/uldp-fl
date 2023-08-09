@@ -55,6 +55,7 @@ class FLSilo:
             local_delta=local_delta,
             local_clipping_bound=local_clipping_bound,
             group_k=group_k,
+            user_weights=user_weights,
             n_silo_per_round=n_silo_per_round,
             dataset_name=dataset_name,
         )
@@ -131,8 +132,14 @@ class SiloManager(GRPCCommManager):
         )
 
         self.register_message_receive_handler(
-            FLMessage.MSG_TYPE_S2C_INIT_CONFIG, self.handle_message_init
+            FLMessage.MSG_TYPE_S2C_USER_HISTOGRAM, self.handle_message_user_histogram
         )
+
+        self.register_message_receive_handler(
+            FLMessage.MSG_TYPE_S2C_TRAINING_PREPARATION,
+            self.handle_message_init_user_weights,
+        )
+
         self.register_message_receive_handler(
             FLMessage.MSG_TYPE_S2C_SYNC_MODEL_TO_CLIENT,
             self.handle_message_receive_model_from_server,
@@ -151,26 +158,53 @@ class SiloManager(GRPCCommManager):
     def handle_message_check_status(self, msg_params):
         self.send_client_status(ip_utils.AGGREGATION_SERVER_ID)
 
-    def handle_message_init(self, msg_params):
+    def handle_message_user_histogram(self, msg_params):
+        message = GRPCMessage(
+            FLMessage.MSG_TYPE_C2S_USER_HISTOGRAM,
+            self.client_id,
+            ip_utils.AGGREGATION_SERVER_ID,
+        )
+        message.add_params(
+            FLMessage.MSG_ARG_KEY_USER_HIST, self.local_trainer.user_histogram
+        )
+        message.add_params(FLMessage.MSG_ARG_KEY_SILO_ID, self.silo_id)
+        self.send_message(message)
+
+    def handle_message_init_user_weights(self, msg_params):
         if self.is_initialized:
             return
-
         self.is_initialized = True
 
-        global_model_params = msg_params.get(FLMessage.MSG_ARG_KEY_MODEL_PARAMS)
-        silo_id = msg_params.get(FLMessage.MSG_ARG_KEY_SILO_ID)
-        logger.info("SILO ID = %s" % str(silo_id))
-
-        self.local_trainer.set_model_params(global_model_params)
-        self.local_round_idx = 0
-
-        self.__train(global_round_index=0)
-        self.local_round_idx += 1
+        user_weights = msg_params.get(FLMessage.MSG_ARG_KEY_USER_WEIGHTS)
+        if self.local_trainer.agg_strategy in [
+            "ULDP-GROUP",
+            "ULDP-GROUP-max",
+            "ULDP-GROUP-median",
+        ]:
+            self.local_trainer.bound_user_contributions(user_weights)
+        elif self.local_trainer.agg_strategy in [
+            "ULDP-SGD",
+            "ULDP-AVG",
+            "ULDP-SGD-w",
+            "ULDP-AVG-w",
+        ]:
+            self.local_trainer.set_user_weights(user_weights)
+        self.send_complete_preparation()
 
     def handle_message_receive_model_from_server(self, msg_params):
         logger.debug("handle_message_receive_model_from_server.")
         model_params = msg_params.get(FLMessage.MSG_ARG_KEY_MODEL_PARAMS)
         global_round_idx = msg_params.get(FLMessage.MSG_ARG_KEY_ROUND_IDX)
+
+        if self.local_trainer.agg_strategy in [
+            "ULDP-SGD-s",
+            "ULDP-AVG-s",
+            "ULDP-SGD-ws",
+            "ULDP-AVG-ws",
+        ]:
+            user_weights = msg_params.get(FLMessage.MSG_ARG_KEY_USER_WEIGHTS)
+            self.local_trainer.set_user_weights(user_weights)
+
         self.local_trainer.set_model_params(model_params)
         if global_round_idx < self.num_rounds:
             self.__train(global_round_idx)
@@ -188,6 +222,15 @@ class SiloManager(GRPCCommManager):
 
     def cleanup(self):
         self.finish()
+
+    def send_complete_preparation(self):
+        message = GRPCMessage(
+            FLMessage.MSG_TYPE_C2S_COMPLETE_PREPARATION,
+            self.client_id,
+            ip_utils.AGGREGATION_SERVER_ID,
+        )
+        message.add_params(FLMessage.MSG_ARG_KEY_SILO_ID, self.silo_id)
+        self.send_message(message)
 
     def send_client_status(self, receive_id, status=ONLINE_STATUS_FLAG):
         logger.debug("send_client_status")

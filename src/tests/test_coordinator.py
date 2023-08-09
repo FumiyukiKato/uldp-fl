@@ -70,7 +70,12 @@ class TestCoodinator(unittest.TestCase):
         n_silos = 3
         seed = 100
         sampling_rate_q = 0.3
-        cood = Coordinator(base_seed=seed, n_silos=n_silos, n_users=n_users)
+        cood = Coordinator(
+            base_seed=seed,
+            n_silos=n_silos,
+            n_users=n_users,
+            sampling_rate_q=sampling_rate_q,
+        )
         user_hist_per_silo = {
             0: {0: 3, 1: 1, 3: 3, 4: 1, 6: 2, 7: 2, 8: 3, 9: 2},
             1: {1: 2, 2: 5, 3: 2, 4: 2, 5: 2, 6: 3, 7: 3, 8: 2},
@@ -78,9 +83,7 @@ class TestCoodinator(unittest.TestCase):
         }
         for silo_id in user_hist_per_silo:
             cood.set_user_hist_by_silo_id(silo_id, user_hist_per_silo[silo_id])
-        user_weights = cood.build_user_weights(
-            weighted=True, sampling_rate_q=sampling_rate_q
-        )
+        user_weights = cood.build_user_weights(weighted=True, is_sample=True)
         self.assertDictEqual(
             user_weights,
             {
@@ -182,7 +185,12 @@ class TestCoodinator(unittest.TestCase):
         n_silos = 3
         seed = 100
         sampling_rate_q = 0.3
-        cood = Coordinator(base_seed=seed, n_silos=n_silos, n_users=n_users)
+        cood = Coordinator(
+            base_seed=seed,
+            n_silos=n_silos,
+            n_users=n_users,
+            sampling_rate_q=sampling_rate_q,
+        )
         user_hist_per_silo = {
             0: {0: 3, 1: 1, 3: 3, 4: 1, 6: 2, 7: 2, 8: 3, 9: 2},
             1: {1: 2, 2: 5, 3: 2, 4: 2, 5: 2, 6: 3, 7: 3, 8: 2},
@@ -190,9 +198,7 @@ class TestCoodinator(unittest.TestCase):
         }
         for silo_id in user_hist_per_silo:
             cood.set_user_hist_by_silo_id(silo_id, user_hist_per_silo[silo_id])
-        user_weights = cood.build_user_weights(
-            weighted=False, sampling_rate_q=sampling_rate_q
-        )
+        user_weights = cood.build_user_weights(weighted=False, is_sample=True)
         self.assertDictEqual(
             user_weights,
             {
@@ -239,10 +245,10 @@ class TestCoodinator(unittest.TestCase):
         n_users = 10
         n_silos = 3
         group_k = 5
-        cood = Coordinator(base_seed=seed, n_silos=n_silos, n_users=n_users)
-        user_bound_histograms = cood.build_user_bound_histograms(
-            group_k=group_k,
+        cood = Coordinator(
+            base_seed=seed, n_silos=n_silos, n_users=n_users, group_k=group_k
         )
+        user_bound_histograms = cood.build_user_bound_histograms()
         self.assertDictEqual(
             user_bound_histograms,
             {
@@ -256,14 +262,15 @@ class TestCoodinator(unittest.TestCase):
         n_users = 10
         n_silos = 3
         group_k = 3
-        cood = Coordinator(base_seed=seed, n_silos=n_silos, n_users=n_users)
+        cood = Coordinator(
+            base_seed=seed, n_silos=n_silos, n_users=n_users, group_k=group_k
+        )
         user_histogram_dct = {
             0: {0: 1, 1: 3, 2: 5, 4: 1},
             1: {0: 1, 1: 3, 2: 5, 4: 1},
             2: {0: 3, 1: 2, 3: 3, 4: 1, 5: 5},
         }
         user_bound_histograms = cood.build_user_bound_histograms(
-            group_k=group_k,
             old_user_histogram_dct=user_histogram_dct,
         )
         self.assertDictEqual(
@@ -280,14 +287,15 @@ class TestCoodinator(unittest.TestCase):
         n_silos = 3
         group_k = 4
         min_value = 2
-        cood = Coordinator(base_seed=seed, n_silos=n_silos, n_users=n_users)
+        cood = Coordinator(
+            base_seed=seed, n_silos=n_silos, n_users=n_users, group_k=group_k
+        )
         user_histogram_dct = {
             0: {0: 1, 1: 3, 2: 5, 4: 1},
             1: {0: 1, 1: 3, 2: 5, 4: 1},
             2: {0: 3, 1: 2, 3: 3, 4: 1, 5: 5},
         }
         user_bound_histograms = cood.build_user_bound_histograms(
-            group_k=group_k,
             old_user_histogram_dct=user_histogram_dct,
             minimum_number_of_records=min_value,
         )

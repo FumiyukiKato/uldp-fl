@@ -1,6 +1,8 @@
 import json
 import sys
 
+# The source code is based on a simplified version of FedML (https://github.com/FedML-AI/FedML).
+
 
 class FLMessage(object):
     """
@@ -15,12 +17,16 @@ class FLMessage(object):
     MSG_TYPE_S2C_SYNC_MODEL_TO_CLIENT = 2
     MSG_TYPE_S2C_CHECK_CLIENT_STATUS = 6
     MSG_TYPE_S2C_FINISH = 7
+    MSG_TYPE_S2C_USER_HISTOGRAM = 9
+    MSG_TYPE_S2C_TRAINING_PREPARATION = 12
 
     # client to server
     MSG_TYPE_C2S_SEND_MODEL_TO_SERVER = 3
     MSG_TYPE_C2S_SEND_STATS_TO_SERVER = 4
     MSG_TYPE_C2S_CLIENT_STATUS = 5
     MSG_TYPE_C2S_FINISHED = 8
+    MSG_TYPE_C2S_USER_HISTOGRAM = 10
+    MSG_TYPE_C2S_COMPLETE_PREPARATION = 11
 
     MSG_ARG_KEY_TYPE = "msg_type"
     MSG_ARG_KEY_SENDER = "sender"
@@ -31,6 +37,8 @@ class FLMessage(object):
     """
     MSG_ARG_KEY_NUM_SAMPLES = "num_samples"
     MSG_ARG_KEY_MODEL_PARAMS = "model_params"
+    MSG_ARG_KEY_USER_WEIGHTS = "user_weights"
+    MSG_ARG_KEY_USER_HIST = "user_hist"
     MSG_ARG_KEY_MODEL_PARAMS_URL = "model_params_url"
     MSG_ARG_KEY_MODEL_PARAMS_KEY = "model_params_key"
     MSG_ARG_KEY_SILO_ID = "silo_id"

@@ -149,7 +149,7 @@ class GRPCCommManager:
                 msg_type = msg.get_type()
                 self.receive_message(msg_type, msg)
                 lock.release()
-            time.sleep(0.0001)
+            time.sleep(0.001)
         return
 
     def finish(self):

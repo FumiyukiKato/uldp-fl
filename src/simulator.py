@@ -64,9 +64,13 @@ class FLSimulator:
         self.sampling_rate_q = sampling_rate_q
         self.trial = trial
         self.coordinator = Coordinator(
-            base_seed=seed, n_silos=n_silos, n_users=n_users, group_k=group_k
+            base_seed=seed,
+            n_silos=n_silos,
+            n_users=n_users,
+            group_k=group_k,
+            sampling_rate_q=sampling_rate_q,
+            agg_strategy=agg_strategy,
         )
-        self.group_k = group_k
 
         self.aggregator = Aggregator(
             model=copy.deepcopy(model),
@@ -131,23 +135,14 @@ class FLSimulator:
             ]:
                 self.coordinator.set_user_hist_by_silo_id(silo_id, user_hist)
 
-        if self.agg_strategy == "ULDP-GROUP-max":
-            group_max = self.coordinator.get_group_max()
-            logger.info(f"Group max: {group_max}")
-            self.coordinator.set_group_k(group_max)
-            self.group_k = group_max
-            for local_trainer in self.local_trainer_per_silos.values():
-                local_trainer.set_group_k(group_max)
-        elif self.agg_strategy == "ULDP-GROUP-median":
-            group_median = self.coordinator.get_group_median()
-            logger.info(f"Group median: {group_median}")
-            self.coordinator.set_group_k(group_median)
-            self.group_k = group_median
-            for local_trainer in self.local_trainer_per_silos.values():
-                local_trainer.set_group_k(group_median)
+        self.coordinator.is_ready()
+        self.group_k = self.coordinator.group_k
 
     def run(self):
         logger.info("Start federated learning simulation")
+
+        for local_trainer in self.local_trainer_per_silos.values():
+            local_trainer.set_group_k(self.group_k)
 
         if self.agg_strategy in ["ULDP-GROUP", "ULDP-GROUP-max", "ULDP-GROUP-median"]:
             if self.dataset_name == "tcga_brca":
@@ -187,7 +182,7 @@ class FLSimulator:
                 "ULDP-AVG-s",
             ]:
                 user_weights_per_silo = self.coordinator.build_user_weights(
-                    weighted=False, sampling_rate_q=self.sampling_rate_q
+                    weighted=False, is_sample=True
                 )
                 for silo_id, user_weights in user_weights_per_silo.items():
                     self.local_trainer_per_silos[silo_id].set_user_weights(user_weights)
@@ -197,7 +192,7 @@ class FLSimulator:
                 "ULDP-AVG-ws",
             ]:
                 user_weights_per_silo = self.coordinator.build_user_weights(
-                    weighted=True, sampling_rate_q=self.sampling_rate_q
+                    weighted=True, is_sample=True
                 )
                 for silo_id, user_weights in user_weights_per_silo.items():
                     self.local_trainer_per_silos[silo_id].set_user_weights(user_weights)

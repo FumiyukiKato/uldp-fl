@@ -65,6 +65,7 @@ if __name__ == "__main__":
         delta=args.delta,
         sampling_rate_q=args.sampling_rate_q,
         dataset_name=args.dataset_name,
+        group_k=args.group_k,
     )
     server.run()
 

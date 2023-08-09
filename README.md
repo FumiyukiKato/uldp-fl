@@ -54,4 +54,31 @@ $ exp/script/privacy_utility.sh
     (Tips: 1. You should download some dataset in FLamby such as [Heart Disease](https://github.com/owkin/FLamby/blob/main/flamby/datasets/fed_heart_disease/README.md) before pip-install. (This is because some parts of their implementation rely on relative paths from module files to specify data directories.) 2. When you install FLamby with `pip` in some virtual environments and get error, changing [`sys.executable`](https://github.com/owkin/FLamby/blob/4dfc53479ec4141849d67a6adace1137819317a2/setup.py#L11) path in setup.py may work. )
 
 
+## Run Server and Client
+
+Wake up server
+
+```bash
+$ cd src
+$ python run_server.py --dataset_name=creditcard --verbose=1 --agg_strategy=ULDP-AVG-w --n_users=1000 --global_learning_rate=10.0 --clipping_bound=1.0 --n_total_round=100 --local_learning_rate=0.01 --local_epoch=30 --sigma=5.0 --sampling_rate_q=0.5 --user_dist=zipf --user_alpha=0.5 --silo_dist=zipf --silo_alpha=2.0 --n_silos=3 --n_silo_per_round=3
+```
+
+Wake up 3 silos
+
+```bash
+$ cd src
+$ python run_silo.py --silo_id=0 --dataset_name=creditcard --verbose=1--agg_strategy=ULDP-AVG-ws --n_users=1000 --global_learning_rate=10.0 --clipping_bound=1.0 --n_total_round=100 --local_learning_rate=0.01 --local_epoch=30 --sigma=5.0 --sampling_rate_q=0.5 --user_dist=zipf --user_alpha=0.5 --silo_dist=zipf --silo_alpha=2.0
+$ python run_silo.py --silo_id=1 --dataset_name=creditcard --verbose=1 --agg_strategy=ULDP-AVG-ws --n_users=1000 --global_learning_rate=10.0 --clipping_bound=1.0 --n_total_round=100 --local_learning_rate=0.01 --local_epoch=30 --sigma=5.0 --sampling_rate_q=0.5 --user_dist=zipf --user_alpha=0.5 --silo_dist=zipf --silo_alpha=2.0
+$ python run_silo.py --silo_id=2 --dataset_name=creditcard --verbose=1 --agg_strategy=ULDP-AVG-ws --n_users=1000 --global_learning_rate=10.0 --clipping_bound=1.0 --n_total_round=100 --local_learning_rate=0.01 --local_epoch=30 --sigma=5.0 --sampling_rate_q=0.5 --user_dist=zipf --user_alpha=0.5 --silo_dist=zipf --silo_alpha=2.0
+```
+
+
+#### regression test
+```bash
+
+$ python -m unittest src.tests.test_coordinator
+$ python -m unittest src.tests.test_dataset
+$ python -m unittest src.tests.test_secure_aggregation
+$ python -m unittest src.tests.test_simulation
+```
 --- 
