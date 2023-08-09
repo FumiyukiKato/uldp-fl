@@ -19,6 +19,10 @@ class FLMessage(object):
     MSG_TYPE_S2C_FINISH = 7
     MSG_TYPE_S2C_USER_HISTOGRAM = 9
     MSG_TYPE_S2C_TRAINING_PREPARATION = 12
+    MSG_TYPE_S2C_START_SECURE_PROTOCOL = 13
+    MSG_TYPE_S2C_KEY_DISTRIBUTION = 15
+    MSG_TYPE_S2C_SHARED_RANDOM_SEED = 17
+    MSG_TYPE_S2C_ENCRYPTED_WEIGHTS = 19
 
     # client to server
     MSG_TYPE_C2S_SEND_MODEL_TO_SERVER = 3
@@ -27,6 +31,9 @@ class FLMessage(object):
     MSG_TYPE_C2S_FINISHED = 8
     MSG_TYPE_C2S_USER_HISTOGRAM = 10
     MSG_TYPE_C2S_COMPLETE_PREPARATION = 11
+    MSG_TYPE_C2S_DH_KEY_EXCHANGE = 14
+    MSG_TYPE_C2S_SHARED_RANDOM_SEEDS = 16
+    MSG_TYPE_C2S_BLINDED_USER_HISTOGRAM = 18
 
     MSG_ARG_KEY_TYPE = "msg_type"
     MSG_ARG_KEY_SENDER = "sender"
@@ -42,6 +49,13 @@ class FLMessage(object):
     MSG_ARG_KEY_MODEL_PARAMS_URL = "model_params_url"
     MSG_ARG_KEY_MODEL_PARAMS_KEY = "model_params_key"
     MSG_ARG_KEY_SILO_ID = "silo_id"
+    MSG_ARG_KEY_DH_PUBKEY = "dh_pubkey"
+    MSG_ARG_KEY_DH_PUBKEY_DCT = "dh_pubkey_dct"
+    MSG_ARG_KEY_PAILLIER_PUBKEY = "paillier_public_key"
+    MSG_ARG_KEY_SHARED_RANDOM_SEEDS = "shared_random_seeds"
+    MSG_ARG_KEY_SHARED_RANDOM_SEED = "shared_random_seed"
+    MSG_ARG_KEY_BLINDED_USER_HISTOGRAM = "blinded_user_histogram"
+    MSG_ARG_KEY_ENCRYPTED_WEIGHTS = "encrypted_weights"
 
     MSG_ARG_KEY_TRAIN_CORRECT = "train_correct"
     MSG_ARG_KEY_TRAIN_ERROR = "train_error"

@@ -9,6 +9,7 @@ from comm_manager import GRPCCommManager
 from aggregator import Aggregator
 import ip_utils
 from mylogger import logger
+from secure_aggregation import SecureAggregator
 
 
 class FLServer:
@@ -32,24 +33,52 @@ class FLServer:
         sampling_rate_q: float = None,
         dataset_name: Optional[str] = None,
         group_k: Optional[int] = None,
+        is_secure: bool = False,
     ):
-        aggregator = Aggregator(
-            model=copy.deepcopy(model),
-            train_dataset=train_dataset,
-            test_dataset=test_dataset,
-            n_users=n_users,
-            n_silos=n_silos,
-            n_silo_per_round=n_silo_per_round,
-            device=device,
-            base_seed=seed,
-            strategy=agg_strategy,
-            clipping_bound=clipping_bound,
-            sigma=sigma,
-            delta=delta,
-            global_learning_rate=global_learning_rate,
-            dataset_name=dataset_name,
-            sampling_rate_q=sampling_rate_q,
-        )
+        if is_secure:
+            if agg_strategy not in [
+                "ULDP-AVG-w",
+                "ULDP-AVG-ws",
+                "ULDP-SGD-w",
+                "ULDP-SGD-ws",
+            ]:
+                raise ValueError(f"agg_strategy {agg_strategy} is not supported.")
+
+            aggregator = SecureAggregator(
+                model=copy.deepcopy(model),
+                train_dataset=train_dataset,
+                test_dataset=test_dataset,
+                n_users=n_users,
+                n_silos=n_silos,
+                n_silo_per_round=n_silo_per_round,
+                device=device,
+                base_seed=seed,
+                strategy=agg_strategy,
+                clipping_bound=clipping_bound,
+                sigma=sigma,
+                delta=delta,
+                global_learning_rate=global_learning_rate,
+                dataset_name=dataset_name,
+                sampling_rate_q=sampling_rate_q,
+            )
+        else:
+            aggregator = Aggregator(
+                model=copy.deepcopy(model),
+                train_dataset=train_dataset,
+                test_dataset=test_dataset,
+                n_users=n_users,
+                n_silos=n_silos,
+                n_silo_per_round=n_silo_per_round,
+                device=device,
+                base_seed=seed,
+                strategy=agg_strategy,
+                clipping_bound=clipping_bound,
+                sigma=sigma,
+                delta=delta,
+                global_learning_rate=global_learning_rate,
+                dataset_name=dataset_name,
+                sampling_rate_q=sampling_rate_q,
+            )
 
         coordinator = Coordinator(
             base_seed=seed,
@@ -66,6 +95,7 @@ class FLServer:
             n_total_round,
             n_silo_per_round,
             silo_client_id_mapping,
+            is_secure,
         )
 
     def run(self):
@@ -88,6 +118,7 @@ class ServerManager(GRPCCommManager):
         n_total_round: int,
         n_silo_per_round: int,
         silo_client_id_mapping: dict[int, int],
+        is_secure: bool = False,
     ):
         client_ids = list(silo_client_id_mapping.values())
         super().__init__(
@@ -99,9 +130,10 @@ class ServerManager(GRPCCommManager):
         )
         self.round_idx = 0
         self.n_silo_per_round = n_silo_per_round
-        self.aggregator = aggregator
+        self.aggregator: SecureAggregator = aggregator
         self.coordinator = coordinator
         self.n_total_round = n_total_round
+        self.is_secure = is_secure
         self.client_online_mapping = {}
         self.client_finished_mapping = {}
 
@@ -135,6 +167,21 @@ class ServerManager(GRPCCommManager):
         )
 
         super().register_message_receive_handler(
+            FLMessage.MSG_TYPE_C2S_DH_KEY_EXCHANGE,
+            self.handle_message_dh_key_exchange,
+        )
+
+        super().register_message_receive_handler(
+            FLMessage.MSG_TYPE_C2S_SHARED_RANDOM_SEEDS,
+            self.handle_message_shared_random_seeds,
+        )
+
+        super().register_message_receive_handler(
+            FLMessage.MSG_TYPE_C2S_BLINDED_USER_HISTOGRAM,
+            self.handle_message_blinded_user_histogram,
+        )
+
+        super().register_message_receive_handler(
             FLMessage.MSG_TYPE_C2S_CLIENT_STATUS,
             self.handle_message_client_status_update,
         )
@@ -150,7 +197,7 @@ class ServerManager(GRPCCommManager):
             self.silo_id_list_in_this_round = self.aggregator.silo_selection()
 
             # check silo status in case that some silos start earlier than the server
-            for silo_id in self.silo_id_list_in_this_round:
+            for silo_id, client_id in self.silo_client_id_mapping.items():
                 try:
                     self.send_message_check_client_status(
                         self.silo_client_id_mapping[silo_id],
@@ -196,7 +243,6 @@ class ServerManager(GRPCCommManager):
             "self.client_online_mapping = {}".format(self.client_online_mapping)
         )
 
-        # 最初のみ，silo_sectionの結果に関わらず全員チェックする
         all_client_is_online = True
         for silo_id, client_id in self.silo_client_id_mapping.items():
             if not self.client_online_mapping.get(str(client_id), False):
@@ -211,7 +257,10 @@ class ServerManager(GRPCCommManager):
         if all_client_is_online:
             self.is_initialized = True
             # ----------- Before starting the training round ------------
-            self.send_init_user_histogram_msg()
+            if self.is_secure:
+                self.broadcast_start_secure_protocol()
+            else:
+                self.send_init_user_histogram_msg()
 
     def handle_message_receive_user_hist(self, msg_params):
         silo_id = msg_params.get(FLMessage.MSG_ARG_KEY_SILO_ID)
@@ -221,6 +270,45 @@ class ServerManager(GRPCCommManager):
 
         if self.coordinator.is_ready():
             self.send_init_user_weights()
+
+    def handle_message_dh_key_exchange(self, msg_params):
+        silo_id = msg_params.get(FLMessage.MSG_ARG_KEY_SILO_ID)
+        dh_pubkey = msg_params.get(FLMessage.MSG_ARG_KEY_DH_PUBKEY)
+
+        client_keys = self.aggregator.receive_dh_pubkey(silo_id, dh_pubkey)
+        if client_keys is not None:
+            self.broadcast_keys_to_clients()
+
+    def handle_message_shared_random_seeds(self, msg_params):
+        shared_random_seed_per_silo = msg_params.get(
+            FLMessage.MSG_ARG_KEY_SHARED_RANDOM_SEEDS
+        )
+        self.broadcast_shared_random_seed(shared_random_seed_per_silo)
+
+    def handle_message_blinded_user_histogram(self, msg_params):
+        silo_id = msg_params.get(FLMessage.MSG_ARG_KEY_SILO_ID)
+        blinded_user_histogram = msg_params.get(
+            FLMessage.MSG_ARG_KEY_BLINDED_USER_HISTOGRAM
+        )
+        inversed_blinded_user_histogram = (
+            self.aggregator.receive_blinded_user_histogram(
+                silo_id, blinded_user_histogram
+            )
+        )
+
+        if inversed_blinded_user_histogram is not None:
+            if self.aggregator.strategy in ["ULDP-SGD-w", "ULDP-AVG-w"]:
+                encrypted_inversed_blinded_user_histogram = (
+                    self.aggregator.get_encrypt_inversed_blinded_user_histogram()
+                )
+                self.broadcast_encrypted_weights(
+                    encrypted_inversed_blinded_user_histogram
+                )
+            else:
+                global_model_params = self.aggregator.get_global_model_params()
+                self._run_training_round(
+                    round_idx=0, global_model_params=global_model_params
+                )
 
     def handle_message_receive_complete_preparation(self, msg_params):
         silo_id = msg_params.get(FLMessage.MSG_ARG_KEY_SILO_ID)
@@ -315,26 +403,42 @@ class ServerManager(GRPCCommManager):
         logger.debug("Start global FL round {}...".format(round_idx))
         self.silo_id_list_in_this_round = self.aggregator.silo_selection()
 
-        user_weights_per_silo = {}
-        if self.aggregator.strategy in ["ULDP-SGD-s", "ULDP-AVG-s"]:
-            user_weights_per_silo = self.coordinator.build_user_weights(
-                weighted=False, is_sample=True
-            )
-        elif self.aggregator.strategy in ["ULDP-SGD-ws", "ULDP-AVG-ws"]:
-            user_weights_per_silo = self.coordinator.build_user_weights(
-                weighted=True, is_sample=True
-            )
+        if self.is_secure:
+            encrypted_inversed_blinded_user_histogram = None
+            if self.aggregator.strategy in ["ULDP-SGD-ws", "ULDP-AVG-ws"]:
+                encrypted_inversed_blinded_user_histogram = self.aggregator.get_encrypt_inversed_blinded_user_histogram_with_userlevel_subsampling(
+                    round_idx
+                )
+            for silo_id in self.silo_id_list_in_this_round:
+                receiver_id = self.silo_client_id_mapping[silo_id]
+                self.send_message_sync_model_to_client(
+                    receiver_id,
+                    global_model_params,
+                    silo_id,
+                    round_idx,
+                    user_weights=encrypted_inversed_blinded_user_histogram,
+                )
+        else:
+            user_weights_per_silo = {}
+            if self.aggregator.strategy in ["ULDP-SGD-s", "ULDP-AVG-s"]:
+                user_weights_per_silo = self.coordinator.build_user_weights(
+                    weighted=False, is_sample=True
+                )
+            elif self.aggregator.strategy in ["ULDP-SGD-ws", "ULDP-AVG-ws"]:
+                user_weights_per_silo = self.coordinator.build_user_weights(
+                    weighted=True, is_sample=True
+                )
 
-        for silo_id in self.silo_id_list_in_this_round:
-            receiver_id = self.silo_client_id_mapping[silo_id]
-            user_weights = user_weights_per_silo.get(silo_id)
-            self.send_message_sync_model_to_client(
-                receiver_id,
-                global_model_params,
-                silo_id,
-                round_idx,
-                user_weights=user_weights,
-            )
+            for silo_id in self.silo_id_list_in_this_round:
+                receiver_id = self.silo_client_id_mapping[silo_id]
+                user_weights = user_weights_per_silo.get(silo_id)
+                self.send_message_sync_model_to_client(
+                    receiver_id,
+                    global_model_params,
+                    silo_id,
+                    round_idx,
+                    user_weights=user_weights,
+                )
 
     def handle_message_receive_model_from_client(self, msg_params):
         sender_id = msg_params.get(FLMessage.MSG_ARG_KEY_SENDER)
@@ -408,3 +512,54 @@ class ServerManager(GRPCCommManager):
             receive_id,
         )
         self.send_message(message)
+
+    def broadcast_start_secure_protocol(self):
+        for silo_id, client_id in self.silo_client_id_mapping.items():
+            message = GRPCMessage(
+                FLMessage.MSG_TYPE_S2C_START_SECURE_PROTOCOL,
+                self.get_sender_id(),
+                client_id,
+            )
+            message.add_params(FLMessage.MSG_ARG_KEY_SILO_ID, str(silo_id))
+            super().send_message(message)
+
+    def broadcast_keys_to_clients(self):
+        for silo_id, client_id in self.silo_client_id_mapping.items():
+            message = GRPCMessage(
+                FLMessage.MSG_TYPE_S2C_KEY_DISTRIBUTION,
+                self.get_sender_id(),
+                client_id,
+            )
+            message.add_params(
+                FLMessage.MSG_ARG_KEY_PAILLIER_PUBKEY,
+                self.aggregator.paillier_public_key,
+            )
+            message.add_params(
+                FLMessage.MSG_ARG_KEY_DH_PUBKEY_DCT, self.aggregator.client_keys
+            )
+            super().send_message(message)
+
+    def broadcast_shared_random_seed(self, shared_random_seed_per_silo):
+        for silo_id, client_id in self.silo_client_id_mapping.items():
+            message = GRPCMessage(
+                FLMessage.MSG_TYPE_S2C_SHARED_RANDOM_SEED,
+                self.get_sender_id(),
+                client_id,
+            )
+            message.add_params(
+                FLMessage.MSG_ARG_KEY_SHARED_RANDOM_SEED,
+                shared_random_seed_per_silo.get(silo_id),
+            )
+            super().send_message(message)
+
+    def broadcast_encrypted_weights(self, encrypted_weights):
+        for silo_id, client_id in self.silo_client_id_mapping.items():
+            message = GRPCMessage(
+                FLMessage.MSG_TYPE_S2C_ENCRYPTED_WEIGHTS,
+                self.get_sender_id(),
+                client_id,
+            )
+            message.add_params(
+                FLMessage.MSG_ARG_KEY_ENCRYPTED_WEIGHTS, encrypted_weights
+            )
+            super().send_message(message)

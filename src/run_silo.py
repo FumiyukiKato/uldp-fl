@@ -71,6 +71,9 @@ if __name__ == "__main__":
         local_clipping_bound=args.clipping_bound,
         group_k=args.group_k,
         dataset_name=args.dataset_name,
+        is_secure=args.secure_w,
+        n_silos=args.n_silos,
+        n_users=args.n_users,
     )
     silo.run()
 

@@ -66,6 +66,7 @@ if __name__ == "__main__":
         sampling_rate_q=args.sampling_rate_q,
         dataset_name=args.dataset_name,
         group_k=args.group_k,
+        is_secure=args.secure_w,
     )
     server.run()
 

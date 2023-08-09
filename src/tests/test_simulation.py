@@ -221,7 +221,6 @@ class TestSimulater(unittest.TestCase):
         args.agg_strategy = "ULDP-AVG-ws"
         args.sampling_rate_q = 0.1
         results = run_simulation(args, path_project)
-        print(results)
         self.assertTupleEqual(
             results["global"]["global_test"][1],
             (1, 0.1086, 20597.387268066406),
