@@ -1,6 +1,6 @@
 # ULDP-FL: Federated Learning with Across Silo User-Level Differentially Privacy
 
-Tested at Python 3.9.2, OSX/Ubuntu18.04
+Tested at Python 3.9.2, Ubuntu18.04/macOS Monterey v12.1, Apple M1 Max Chip
 
 ## Setup
 1. Run pip install 
