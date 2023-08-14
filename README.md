@@ -13,14 +13,15 @@ Tested at Python 3.9.2, Ubuntu18.04/macOS Monterey v12.1, Apple M1 Max Chip
 ### Dataset 
 1. Creditcard dataset
 
-    Download from https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud .
-    Put `dataset/creditcard/creditcard.csv` .
+    Download from https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud.
+    Put `dataset/creditcard/creditcard.csv`.
 
-2. Medical dataset
+2. Medical dataset ([HeartDisease](https://github.com/owkin/FLamby/tree/main/flamby/datasets/fed_heart_disease) and [TcgaBrca](https://github.com/owkin/FLamby/tree/main/flamby/datasets/fed_tcga_brca))
 
     This repository uses the medical dataset for cross-silo FL reseaches through [FLamby](https://github.com/owkin/FLamby), but does not contain the data itself. **If users want to use the data, please carefully read yourself with the license stated in FLamby.**
 
-    We tested at release version 0.0.1 in [FLamby](https://github.com/owkin/FLamby). If you use the medical dataset. You try, for example,
+    We tested at release version 0.0.1 in [FLamby](https://github.com/owkin/FLamby).  
+    If you use the medical dataset. You can try, for example,
     ```bash
     $  SKLEARN_ALLOW_DEPRECATED_SKLEARN_PACKAGE_INSTALL=True `pip install 'git+https://github.com/owkin/FLamby.git@0.0.1[all_extra]'`
     ```
@@ -29,7 +30,11 @@ Tested at Python 3.9.2, Ubuntu18.04/macOS Monterey v12.1, Apple M1 Max Chip
 
     (Tips: 1. You should download some dataset in FLamby such as [Heart Disease](https://github.com/owkin/FLamby/blob/main/flamby/datasets/fed_heart_disease/README.md) before pip-install. (This is because some parts of their implementation rely on relative paths from module files to specify data directories.) 2. When you install FLamby with `pip` in some virtual environments and get error, changing [`sys.executable`](https://github.com/owkin/FLamby/blob/4dfc53479ec4141849d67a6adace1137819317a2/setup.py#L11) path in setup.py may work. )
 
+4. MNIST
 
+   We use the dataset from torchvision. https://pytorch.org/vision/stable/generated/torchvision.datasets.MNIST.html.
+
+   
 ## Run
 Run simulator mode.
 
@@ -46,7 +51,7 @@ $ python run_simulation.py --dataset_name=creditcard --verbose=1 --agg_strategy=
 
 ## Exeprimental script
 
-Experimental scripts used in the paper are located in `exp/script`.
+Experimental scripts including the all of hyperparameters used in the paper are located in `exp/script`.
 
 ```bash
 $ exp/script/privacy_utility.sh
@@ -56,6 +61,8 @@ $ exp/script/user_level_subsampling.sh
 ```
 
 ## Run real server and client
+
+GRPC-based implementation based on [FedML](https://github.com/FedML-AI/FedML).
 
 Wake up server
 
