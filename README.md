@@ -16,28 +16,28 @@ with Python 3.9.2
     $ pip install -r requirements.txt
     ```
 
+2. Install datasets
 
-### Dataset 
-1. Creditcard dataset
+    1. **Creditcard dataset**
 
-    Download from https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud.
-    Put `dataset/creditcard/creditcard.csv`.
+        Download from https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud.
+        Put `dataset/creditcard/creditcard.csv`.
 
-2. Medical dataset ([HeartDisease](https://github.com/owkin/FLamby/tree/main/flamby/datasets/fed_heart_disease) and [TcgaBrca](https://github.com/owkin/FLamby/tree/main/flamby/datasets/fed_tcga_brca))
+    2. **Medical dataset ([HeartDisease](https://github.com/owkin/FLamby/tree/main/flamby/datasets/fed_heart_disease) and [TcgaBrca](https://github.com/owkin/FLamby/tree/main/flamby/datasets/fed_tcga_brca))**
 
-    This repository uses the medical dataset for cross-silo FL reseaches through [FLamby](https://github.com/owkin/FLamby). **If users want to use the data, please carefully read yourself with the license stated in FLamby.**
+        This repository uses the medical dataset for cross-silo FL reseaches through [FLamby](https://github.com/owkin/FLamby). **If users want to use the data, please carefully read yourself with the license stated in FLamby.**
 
-    We tested at release version 0.0.1 in [FLamby](https://github.com/owkin/FLamby).
+        We tested at release version 0.0.1 in [FLamby](https://github.com/owkin/FLamby).
 
-    - TcgaBrca
-        - Preprocessed data is stored in the package in the file `flamby/datasets/fed_heart_disease/brca.csv`.
-    - HeartDisease
-        - We need to download the data.
-        - Execute this script `./download_heart_disease_dataset.sh`.
+        - TcgaBrca
+            - Preprocessed data is stored in the package in the file `flamby/datasets/fed_heart_disease/brca.csv`.
+        - HeartDisease
+            - We need to download the data.
+            - Execute this script `./download_heart_disease_dataset.sh`.
 
-3. MNIST
+    3. **MNIST dataset**
 
-   We use the dataset from torchvision. https://pytorch.org/vision/stable/generated/torchvision.datasets.MNIST.html.
+        We use the dataset from torchvision. https://pytorch.org/vision/stable/generated/torchvision.datasets.MNIST.html.
 
    
 ## Run
