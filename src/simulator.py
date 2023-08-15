@@ -1,7 +1,6 @@
 from typing import Callable, List, Optional, Tuple, Dict
 import torch
 import copy
-import optuna
 
 from aggregator import Aggregator
 from coordinator import Coordinator
@@ -54,7 +53,6 @@ class FLSimulator:
         sigma: Optional[float] = None,
         delta: Optional[float] = None,
         group_k: Optional[int] = None,
-        trial: optuna.Trial = None,
         dataset_name: str = None,
         sampling_rate_q: Optional[float] = None,
     ):
@@ -64,7 +62,6 @@ class FLSimulator:
         self.agg_strategy = agg_strategy
         self.dataset_name = dataset_name
         self.sampling_rate_q = sampling_rate_q
-        self.trial = trial
         self.coordinator = Coordinator(
             base_seed=seed,
             n_silos=n_silos,
@@ -211,7 +208,7 @@ class FLSimulator:
 
                 local_updated_weights, n_local_sample = local_trainer.train(
                     self.round_idx,
-                    loss_callback=build_loss_callback(self.trial),
+                    loss_callback=build_loss_callback(),
                 )
                 # local_trainer.test_local(self.round_idx)
                 # if self.agg_strategy in [
@@ -244,19 +241,6 @@ class FLSimulator:
             )
             self.round_idx += 1
 
-            if self.trial is not None:
-                self.trial.report(1.0 - test_acc, self.round_idx)
-                if self.trial.should_prune():
-                    logger.warning(
-                        "PRUNED BECAUSE OF TOO LOW ACCURACY COMPARED TO MEDIAN"
-                    )
-                    raise optuna.exceptions.TrialPruned()
-
-                threshould = TEST_ACC_THRESHOLDS[self.dataset_name]
-                if self.round_idx + 1 >= threshould[0] and test_acc <= threshould[1]:
-                    logger.warning("PRUNED BECAUSE OF TOO LOW ACCURACY")
-                    raise optuna.exceptions.TrialPruned()
-
         if self.agg_strategy in [
             "ULDP-GROUP",
             "ULDP-GROUP-max",
@@ -285,19 +269,9 @@ class FLSimulator:
         return results
 
 
-def build_loss_callback(trial) -> Callable:
-    if trial is None:
-
-        def loss_callback(loss):
-            if torch.isnan(loss):
-                raise OverflowError("Stop because Loss is NaN")
-
-    else:
-
-        def loss_callback(loss):
-            # check if loss is nan
-            if torch.isnan(loss):
-                logger.warning("PRUNED LOSS IS NAN")
-                raise optuna.exceptions.TrialPruned()
+def build_loss_callback() -> Callable:
+    def loss_callback(loss):
+        if torch.isnan(loss):
+            raise OverflowError("Stop because Loss is NaN")
 
     return loss_callback

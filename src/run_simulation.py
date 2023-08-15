@@ -15,7 +15,7 @@ from simulator import FLSimulator
 from mylogger import logger_set_debug
 
 
-def run_simulation(args, path_project, trial=None, data_seed=None):
+def run_simulation(args, path_project, data_seed=None):
     if args.dry_run:
         # print(str(args))
         print("========> Hash value: ", args_to_hash(args))
@@ -96,7 +96,6 @@ def run_simulation(args, path_project, trial=None, data_seed=None):
             sigma=args.sigma,
             delta=args.delta,
             group_k=args.group_k,
-            trial=trial,
             dataset_name=args.dataset_name,
             sampling_rate_q=args.sampling_rate_q,
         )
