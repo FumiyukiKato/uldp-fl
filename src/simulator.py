@@ -8,15 +8,6 @@ from local_trainer import ClassificationTrainer
 from mylogger import logger
 
 
-# Heuristic early pruning conditions for hyper-parameter tuning
-TEST_ACC_THRESHOLDS = {
-    "mnist": (3, 0.11),
-    "heart_disease": (3, 0.1),
-    "tcga_brca": (3, 0.1),
-    "isic": (3, 0.1),
-}
-
-
 class FLSimulator:
     """
     Federated learning simulator on memory.

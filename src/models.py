@@ -35,11 +35,6 @@ def create_model(model_name: str, dataset_name: str, seed: int = None) -> nn.Mod
 
         model = tcga_brca.custom_model()
 
-    elif dataset_name == "isic":
-        import flamby_utils.isic as isic
-
-        model = isic.custom_model()
-
     elif dataset_name == "creditcard":
         model = PrivateFraudNet(30, 30, 4)
 

@@ -103,18 +103,6 @@ class ClassificationTrainer:
             self.criterion = custom_loss()
             self.optimizer = custom_optimizer(self.model, self.local_learning_rate)
             self.metric = custom_metric()
-        elif self.dataset_name == "isic":
-            from flamby_utils.isic import (
-                custom_loss,
-                custom_optimizer,
-                custom_metric,
-                custom_scheduler,
-            )
-
-            self.criterion = custom_loss(local_train_dataset, self.device)
-            self.optimizer = custom_optimizer(self.model, self.local_learning_rate)
-            self.metric = custom_metric()
-            self.scheduler = custom_scheduler(self.optimizer)
         else:
             self.criterion = nn.CrossEntropyLoss().to(self.device)
             if client_optimizer == "sgd":
@@ -228,7 +216,7 @@ class ClassificationTrainer:
                 new_user_ids_of_local_train_dataset.append(user_id)
             else:
                 remove_counter += 1
-                if self.dataset_name not in ["heart_disease", "tcga_brca", "isic"]:
+                if self.dataset_name not in ["heart_disease", "tcga_brca"]:
                     new_local_test_dataset.append(data)
         logger.debug("{} data is removed from training dataset".format(remove_counter))
 
@@ -420,8 +408,6 @@ class ClassificationTrainer:
                     loss_callback(loss)
                     loss.backward()
                     optimizer.step()
-                    if self.dataset_name in ["isic"]:
-                        self.scheduler.step()
                     batch_loss.append(loss.item())
                 if len(batch_loss) == 0:
                     logger.debug(
@@ -560,7 +546,7 @@ class ClassificationTrainer:
             logger.debug("Skip local test as dataset size is too small")
             return
 
-        if self.dataset_name in ["heart_disease", "tcga_brca", "isic"]:
+        if self.dataset_name in ["heart_disease", "tcga_brca"]:
             with torch.no_grad():
                 y_pred_final = []
                 y_true_final = []
@@ -571,8 +557,6 @@ class ClassificationTrainer:
                     y_pred = model(x)
                     loss = self.criterion(y_pred, y)
                     test_loss += loss.item()
-                    if self.dataset_name == "isic":
-                        _, y_pred = torch.max(y_pred, 1)
                     y_pred_final.append(y_pred.numpy())
                     y_true_final.append(y.numpy())
                     n_total_data += len(y)

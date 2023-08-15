@@ -373,16 +373,7 @@ def load_pre_seperated_dataset(
             user_alpha=user_alpha,
             user_dist=user_dist,
         )
-    elif dataset_name == "isic":
-        from flamby_utils import isic
 
-        dataset = isic.custom_load_dataset(
-            random_state=random_state,
-            silo_id=silo_id,
-            n_users=n_users,
-            user_alpha=user_alpha,
-            user_dist=user_dist,
-        )
     elif dataset_name == "tcga_brca":
         from flamby_utils import tcga_brca
 
@@ -413,7 +404,7 @@ def load_dataset(
     is_simulation: bool = False,
 ) -> Tuple[List[Tuple[torch.Tensor, int]], List[Tuple[torch.Tensor, int]]]:
     logger.debug("Start prepare dataset...")
-    if dataset_name in ["heart_disease", "isic", "tcga_brca"]:
+    if dataset_name in ["heart_disease", "tcga_brca"]:
         # for simulator
         if is_simulation:
             return load_pre_seperated_dataset(

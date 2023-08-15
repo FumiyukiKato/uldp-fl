@@ -281,7 +281,7 @@ class Aggregator:
 
         test_loader = DataLoader(test_data, batch_size=512)
 
-        if self.dataset_name in ["heart_disease", "tcga_brca", "isic"]:
+        if self.dataset_name in ["heart_disease", "tcga_brca"]:
             if self.dataset_name == "heart_disease":
                 from flamby_utils.heart_disease import (
                     custom_loss,
@@ -289,11 +289,6 @@ class Aggregator:
                 )
             elif self.dataset_name == "tcga_brca":
                 from flamby_utils.tcga_brca import (
-                    custom_loss,
-                    custom_metric,
-                )
-            elif self.dataset_name == "isic":
-                from flamby_utils.isic import (
                     custom_loss,
                     custom_metric,
                 )
@@ -309,8 +304,6 @@ class Aggregator:
                     y_pred = model(x)
                     loss = criterion(y_pred, y)
                     metrics["test_loss"] += loss.item()
-                    if self.dataset_name == "isic":
-                        _, y_pred = torch.max(y_pred, 1)
                     y_pred_final.append(y_pred.cpu().numpy())
                     y_true_final.append(y.cpu().numpy())
                     metrics["test_total"] += len(y)

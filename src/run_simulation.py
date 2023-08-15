@@ -115,10 +115,7 @@ if __name__ == "__main__":
         from flamby_utils.heart_disease import update_args
 
         args = update_args(args)
-    elif args.dataset_name == "isic":
-        from flamby_utils.isic import update_args
 
-        args = update_args(args)
     elif args.dataset_name == "tcga_brca":
         from flamby_utils.tcga_brca import update_args
 
