@@ -443,25 +443,8 @@ def load_dataset(
         )
         return all_training_dataset, all_test_dataset
 
-    elif dataset_name in ["mnist", "cifar10", "cifar100"]:
-        if dataset_name == "cifar10":
-            data_dir = os.path.join(path_project, DATA_SET_DIR, "cifar10")
-            apply_transform = transforms.Compose(
-                [
-                    transforms.ToTensor(),
-                    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-                ]
-            )
-            train_dataset = datasets.CIFAR10(
-                data_dir, train=True, download=True, transform=apply_transform
-            )
-            test_dataset = datasets.CIFAR10(
-                data_dir, train=False, download=True, transform=apply_transform
-            )
-            train_dataset.targets = torch.tensor(train_dataset.targets)
-            test_dataset.targets = torch.tensor(test_dataset.targets)
-
-        elif dataset_name == "mnist":
+    if dataset_name in ["mnist"]:
+        if dataset_name == "mnist":
             data_dir = os.path.join(path_project, DATA_SET_DIR, "mnist")
             apply_transform = transforms.Compose(
                 [
@@ -476,45 +459,6 @@ def load_dataset(
             test_dataset = datasets.MNIST(
                 data_dir, train=False, download=True, transform=apply_transform
             )
-
-        elif dataset_name == "cifar100":
-            # For simplicity, we use statistics of the first traindaset to the first testdaset though the both dataset are mixed in later
-            data_dir = os.path.join(path_project, DATA_SET_DIR, "cifar100")
-            CIFAR100_TRAIN_MEAN = (
-                0.5070751592371323,
-                0.48654887331495095,
-                0.4409178433670343,
-            )
-            CIFAR100_TRAIN_STD = (
-                0.2673342858792401,
-                0.2564384629170883,
-                0.27615047132568404,
-            )
-            transform_train = transforms.Compose(
-                [
-                    # transforms.ToPILImage(),
-                    transforms.RandomCrop(32, padding=4),
-                    transforms.RandomHorizontalFlip(),
-                    transforms.RandomRotation(15),
-                    transforms.ToTensor(),
-                    transforms.Normalize(CIFAR100_TRAIN_MEAN, CIFAR100_TRAIN_STD),
-                ]
-            )
-            transform_test = transforms.Compose(
-                [
-                    transforms.ToTensor(),
-                    transforms.Normalize(CIFAR100_TRAIN_MEAN, CIFAR100_TRAIN_STD),
-                ]
-            )
-            train_dataset = datasets.CIFAR100(
-                data_dir, train=True, download=True, transform=transform_train
-            )
-            test_dataset = datasets.CIFAR100(
-                data_dir, train=False, download=True, transform=transform_test
-            )
-            train_dataset.targets = torch.tensor(train_dataset.targets)
-            test_dataset.targets = torch.tensor(test_dataset.targets)
-
         else:
             raise ValueError("Dataset not supported")
 

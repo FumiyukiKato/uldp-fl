@@ -17,6 +17,7 @@ from mylogger import logger_set_debug
 
 def run_simulation(args, path_project, trial=None, data_seed=None):
     if args.dry_run:
+        # print(str(args))
         print("========> Hash value: ", args_to_hash(args))
         exit(0)
     if args.gpu_id:
