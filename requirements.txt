@@ -1,0 +1,22 @@
+torch==2.0.0
+torchvision==0.15.1
+opacus==1.4.0
+numpy==1.24.3
+grpcio==1.42.0
+grpcio-tools==1.42.0
+seaborn==0.12.2
+matplotlib==3.7.1
+PyYAML==6.0
+scikit-learn==1.2.2
+pandas==2.0.0
+phe==1.5.0
+pyDH==0.1.6
+git+https://github.com/owkin/FLamby.git@0.0.1#egg=flamby[heart,tcga]
+
+# From remote repository of FLamby. 
+# git+https://github.com/owkin/FLamby.git@0.0.1[all_extra]
+# In the case using pyenv-virtualenv like us, It caused an error.
+# We needed to rewrite the `sys.executable` in setup.py of FLamby.
+
+# From local repository of FLamby, 
+# -e /path/to/local/FLamby/Repo[all_extra]

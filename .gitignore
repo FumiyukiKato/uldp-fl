@@ -1,0 +1,21 @@
+# local cofigurations
+.vscode/
+.python-version
+
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints
+
+log/*
+dataset/*
+
+exp/results/*
+exp/img/*
+
+!*/**/.gitkeep
+
+**/target
+
+*.db
+
+.DS_Store
