@@ -1,5 +1,7 @@
 # ULDP-FL: Federated Learning with Across Silo User-Level Differentially Privacy
 
+The paper has been uploaded in arxiv https://arxiv.org/abs/2308.12210.
+
 Tested at all of  
 - `Ubuntu18.04`
 - `macOS Monterey v12.1, Apple M1 Max Chip`
