@@ -1,4 +1,4 @@
-# ULDP-FL: Federated Learning with Across Silo User-Level Differentially Privacy
+# ULDP-FL: Federated Learning with Across Silo User-Level Differential Privacy
 
 The paper has been uploaded in arxiv https://arxiv.org/abs/2308.12210.
 
