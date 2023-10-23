@@ -1,5 +1,6 @@
 from typing import Callable, List, Optional, Tuple, Dict
 import torch
+import numpy as np
 import copy
 
 from aggregator import Aggregator
@@ -46,6 +47,8 @@ class FLSimulator:
         group_k: Optional[int] = None,
         dataset_name: str = None,
         sampling_rate_q: Optional[float] = None,
+        C_u: Optional[Dict] = None,
+        q_u: Optional[Dict] = None,
     ):
         self.n_total_round = n_total_round
         self.round_idx = 0
@@ -60,6 +63,7 @@ class FLSimulator:
             group_k=group_k,
             sampling_rate_q=sampling_rate_q,
             agg_strategy=agg_strategy,
+            q_u=q_u,
         )
 
         self.aggregator = Aggregator(
@@ -79,6 +83,9 @@ class FLSimulator:
             dataset_name=dataset_name,
             sampling_rate_q=sampling_rate_q,
         )
+
+        if self.agg_strategy == "PULDP-AVG":
+            self.aggregator.sampling_rate_q = np.mean(list(q_u.values()))
 
         self.local_trainer_per_silos: Dict[int, ClassificationTrainer] = {}
         for silo_id, (
@@ -108,6 +115,7 @@ class FLSimulator:
                 group_k=group_k,
                 n_silo_per_round=n_silo_per_round,
                 dataset_name=dataset_name,
+                C_u=C_u,
             )
             self.local_trainer_per_silos[silo_id] = local_trainer
             if self.agg_strategy in [
@@ -122,6 +130,7 @@ class FLSimulator:
                 "ULDP-AVG-w",
                 "ULDP-AVG-s",
                 "ULDP-AVG-ws",
+                "PULDP-AVG",
             ]:
                 self.coordinator.set_user_hist_by_silo_id(silo_id, user_hist)
 
@@ -180,6 +189,7 @@ class FLSimulator:
             elif self.agg_strategy in [
                 "ULDP-SGD-ws",
                 "ULDP-AVG-ws",
+                "PULDP-AVG",
             ]:
                 user_weights_per_silo = self.coordinator.build_user_weights(
                     weighted=True, is_sample=True

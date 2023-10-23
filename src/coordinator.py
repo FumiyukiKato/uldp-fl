@@ -18,12 +18,14 @@ class Coordinator:
         group_k: int = None,
         agg_strategy: str = None,
         sampling_rate_q: float = None,
+        q_u: Optional[Dict] = None,
     ):
         self.random_state = np.random.RandomState(seed=base_seed + 2000000)
         self.n_users = n_users
         self.n_silos = n_silos
         self.group_k = group_k
         self.sampling_rate_q = sampling_rate_q
+        self.q_u = q_u
         self.agg_strategy = agg_strategy
         self.ready_silos = set()
         self.original_user_hist_dct = {silo_id: {} for silo_id in range(n_silos)}
@@ -106,9 +108,15 @@ class Coordinator:
 
         if is_sample:
             user_ids = np.array(range(self.n_users))
-            sampled_user_ids = user_ids[
-                self.random_state.rand(len(user_ids)) < self.sampling_rate_q
-            ]
+            if self.agg_strategy == "PULDP-AVG":
+                sampled_user_ids = user_ids[
+                    self.random_state.rand(len(self.q_u))
+                    < np.array(list(self.q_u.values()))
+                ]
+            else:
+                sampled_user_ids = user_ids[
+                    self.random_state.rand(len(user_ids)) < self.sampling_rate_q
+                ]
             sampled_user_ids_set = set(sampled_user_ids)
             for silo_id in range(self.n_silos):
                 for user_id in range(self.n_users):

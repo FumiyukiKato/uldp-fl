@@ -125,7 +125,7 @@ class Aggregator:
                 noise_multiplier=self.sigma, sample_rate=self.sampling_rate_q
             )
             eps = self.accountant.get_epsilon(self.delta)
-        elif self.strategy in ["DEFAULT"]:
+        elif self.strategy in ["DEFAULT", "PULDP-AVG"]:
             return
         else:
             raise NotImplementedError(
@@ -229,7 +229,7 @@ class Aggregator:
             global_weights = self.update_parameters_from_gradients(
                 averaged_grads, self.global_learning_rate
             )
-        elif self.strategy in ["ULDP-AVG-s", "ULDP-AVG-ws"]:
+        elif self.strategy in ["ULDP-AVG-s", "ULDP-AVG-ws", "PULDP-AVG"]:
             averaged_param_diff = noise_utils.torch_aggregation(
                 raw_client_model_or_grad_list,
                 int(self.n_users * self.n_silo_per_round * self.sampling_rate_q),
