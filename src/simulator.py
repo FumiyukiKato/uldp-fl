@@ -263,6 +263,11 @@ class FLSimulator:
 def build_loss_callback() -> Callable:
     def loss_callback(loss):
         if torch.isnan(loss):
-            raise OverflowError("Stop because Loss is NaN")
+            raise NanError("Stop because Loss is NaN")
 
     return loss_callback
+
+
+class NanError(Exception):
+    def __init__(self, message):
+        super().__init__(message)

@@ -254,16 +254,33 @@ def allocate_data_noniid(
             rand_set = set(random_state.choice(unique_labels, n_labels, replace=False))
         else:
             rand_set = set(unique_labels)
-        n_data_of_user_of_label = int(np.round(n_data_of_user / len(rand_set)))
+
+        # Round-robin assignment of numbers to the labels in the rand_set, summing to n_data_of_user
+        n_data_of_user_of_label_for_label = {}
         for rand_label in rand_set:
+            n_data_of_user_of_label_for_label[rand_label] = 0
+        count = 0
+        while count < n_data_of_user:
+            for rand_label in rand_set:
+                n_data_of_user_of_label_for_label[rand_label] += 1
+                count += 1
+                if count >= n_data_of_user:
+                    break
+
+        for (
+            rand_label,
+            n_data_of_user_of_label,
+        ) in n_data_of_user_of_label_for_label.items():
+            if n_data_of_user_of_label == 0:
+                continue
             selected_data = idxs_per_label[rand_label][
                 cursor_per_label[rand_label] : cursor_per_label[rand_label]
                 + n_data_of_user_of_label
             ]
-            # Corner scenaio: data is not enough for this user and this label
+            # Corner scenario: data is not enough for this user and this label
             if len(selected_data) < n_data_of_user_of_label:
                 # data is over half of the data
-                if len(selected_data) > n_data_of_user_of_label * 0.5:
+                if len(selected_data) > n_data_of_user_of_label * 0.8:
                     updated_user_indices_of_data[selected_data] = user_id
                     unique_labels = unique_labels[unique_labels != rand_label]
                     logger.debug(
@@ -285,7 +302,7 @@ def allocate_data_noniid(
                             cursor_per_label[label] += n_data_of_user_of_label
                             done = True
                             break
-                        elif len(selected_data_retry) > n_data_of_user_of_label * 0.5:
+                        elif len(selected_data_retry) > 0:
                             updated_user_indices_of_data[selected_data_retry] = user_id
                             unique_labels = unique_labels[unique_labels != label]
                             done = True
@@ -301,7 +318,7 @@ def allocate_data_noniid(
                         logger.debug(
                             f"Minor Warning: data is not enough ({n_data_of_user_of_label} - {len(selected_data)}) for user {user_id} and label {rand_label}."
                         )
-            else:  # Normal scenaio: if the number of data is enough
+            else:  # Normal scenario: if the number of data is enough
                 updated_user_indices_of_data[selected_data] = user_id
                 cursor_per_label[rand_label] += n_data_of_user_of_label
     logger.debug(
@@ -486,7 +503,7 @@ def load_dataset(
         non_target_X_train = X_train[y_train != majority_label]
         non_target_y_train = y_train[y_train != majority_label]
         limit_size = int(len(target_X_train) * percentage)
-        selected_indices = np.random.choice(
+        selected_indices = random_state.choice(
             len(target_X_train), size=limit_size, replace=False
         )
         target_X_train = target_X_train[selected_indices]

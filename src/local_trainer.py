@@ -367,14 +367,18 @@ class ClassificationTrainer:
                     #     )
                     # )
                 weights = model_u.state_dict()
-                weights_diff = self.diff_weights(global_weights, weights)
-                clipped_weights_diff = noise_utils.global_clip(
-                    model_u, weights_diff, self.local_clipping_bound
-                )
-                weighted_clipped_weights_diff = noise_utils.multiple_weights(
-                    model_u, clipped_weights_diff, self.user_weights[user_id]
-                )
-                weights_diff_list.append(weighted_clipped_weights_diff)
+                if check_nan_inf(model_u):
+                    # If it includes Nan or Inf, then
+                    pass
+                else:
+                    weights_diff = self.diff_weights(global_weights, weights)
+                    clipped_weights_diff = noise_utils.global_clip(
+                        model_u, weights_diff, self.local_clipping_bound
+                    )
+                    weighted_clipped_weights_diff = noise_utils.multiple_weights(
+                        model_u, clipped_weights_diff, self.user_weights[user_id]
+                    )
+                    weights_diff_list.append(weighted_clipped_weights_diff)
 
             if len(weights_diff_list) <= 0:
                 avg_weights_diff = OrderedDict()
@@ -616,3 +620,9 @@ class ClassificationTrainer:
                 f"\t |----- Local Test/Acc: {test_metric} ({test_correct} / {n_total_data}), Local Test/Loss: {test_loss}"
             )
         self.results["local_test"].append((round_idx, test_metric, test_loss))
+
+    
+def check_nan_inf(model):
+    # モデルの全パラメータを一つのテンソルに結合してチェック
+    all_params = torch.cat([p.view(-1) for p in model.parameters()])
+    return torch.isnan(all_params).any() or torch.isinf(all_params).any()
