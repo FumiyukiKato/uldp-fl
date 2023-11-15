@@ -451,24 +451,32 @@ def load_dataset(
         )
         return all_training_dataset, all_test_dataset
 
-    if dataset_name in ["mnist"]:
-        if dataset_name == "mnist":
-            data_dir = os.path.join(path_project, DATA_SET_DIR, "mnist")
-            apply_transform = transforms.Compose(
-                [
-                    transforms.ToTensor(),
-                    # https://discuss.pytorch.org/t/normalization-in-the-mnist-example/457
-                    transforms.Normalize((0.1307,), (0.3081,)),
-                ]
-            )
-            train_dataset = datasets.MNIST(
-                data_dir, train=True, download=True, transform=apply_transform
-            )
-            test_dataset = datasets.MNIST(
-                data_dir, train=False, download=True, transform=apply_transform
-            )
-        else:
-            raise ValueError("Dataset not supported")
+    if dataset_name in ["mnist", "light_mnist"]:
+        data_dir = os.path.join(path_project, DATA_SET_DIR, "mnist")
+        apply_transform = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                # https://discuss.pytorch.org/t/normalization-in-the-mnist-example/457
+                transforms.Normalize((0.1307,), (0.3081,)),
+            ]
+        )
+        train_dataset = datasets.MNIST(
+            data_dir, train=True, download=True, transform=apply_transform
+        )
+        test_dataset = datasets.MNIST(
+            data_dir, train=False, download=True, transform=apply_transform
+        )
+
+        if dataset_name == "light_mnist":
+            num_samples = len(train_dataset)
+            num_train = int(0.1 * num_samples)
+
+            # ランダムにインデックスを取得
+            indices = torch.randperm(num_samples)[:num_train]
+
+            # train_dataset.dataとtrain_dataset.targetsを直接編集
+            train_dataset.data = train_dataset.data[indices]
+            train_dataset.targets = train_dataset.targets[indices]
 
         train_dataset, test_dataset = shuffle_test_and_train(
             random_state, train_dataset, test_dataset

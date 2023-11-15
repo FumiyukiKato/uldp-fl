@@ -6,7 +6,7 @@ import warnings
 from opacus.accountants.analysis import rdp as analysis
 
 
-def torch_aggregation(raw_grad_list: List[Dict], N: int) -> Dict:
+def torch_aggregation(raw_grad_list: List[Dict], N: float = 1.0) -> Dict:
     """
     Aggregate the local trained models from the selected silos for Pytorch model.
 

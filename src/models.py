@@ -40,7 +40,7 @@ def create_model(model_name: str, dataset_name: str, seed: int = None) -> nn.Mod
 
     elif model_name == "cnn":
         # Convolutional neural network
-        if dataset_name == "mnist":
+        if dataset_name == "mnist" or dataset_name == "light_mnist":
             model = CNNMnist()
         else:
             raise NotImplementedError

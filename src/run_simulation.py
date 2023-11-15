@@ -98,6 +98,10 @@ def run_simulation(args, path_project, data_seed=None):
             group_k=args.group_k,
             dataset_name=args.dataset_name,
             sampling_rate_q=args.sampling_rate_q,
+            C_u=args.C_u,
+            q_u=args.q_u,
+            epsilon_u=args.epsilon_u,
+            group_thresholds=args.group_thresholds,
         )
     simulator.run()
     results = simulator.get_results()

@@ -39,6 +39,7 @@ class ClassificationTrainer:
         user_weights: Optional[Dict[int, float]] = None,
         n_silo_per_round: Optional[int] = None,
         dataset_name: Optional[str] = None,
+        C_u: Optional[Dict] = None,
     ):
         self.random_state = np.random.RandomState(seed=base_seed + silo_id + 1)
         self.model: nn.Module = model
@@ -79,9 +80,12 @@ class ClassificationTrainer:
             "ULDP-AVG-w",
             "ULDP-AVG-s",
             "ULDP-AVG-ws",
+            "PULDP-AVG",
+            "PULDP-AVG-online",
         ]:
             self.local_sigma = local_sigma
             self.local_clipping_bound = local_clipping_bound
+            self.C_u = C_u
 
         if self.dataset_name == "heart_disease":
             from flamby_utils.heart_disease import (
@@ -136,6 +140,8 @@ class ClassificationTrainer:
             "ULDP-AVG-s",
             "ULDP-AVG-ws",
             "ULDP-SGD-ws",
+            "PULDP-AVG",
+            "PULDP-AVG-online",
         ]:
             self.user_level_data_loader = self.make_user_level_data_loader()
 
@@ -161,6 +167,21 @@ class ClassificationTrainer:
 
     def set_user_weights(self, user_weights: Dict[int, float]):
         self.user_weights = user_weights
+
+    def set_epsilon_groups(self, epsilon_groups: Dict[int, float]):
+        self.epsilon_groups = epsilon_groups
+
+    def set_user_weights_with_optimization(
+        self,
+        user_weights: Dict[int, float],
+        C_u_list: np.ndarray,
+        stepped_user_weights: Dict[int, float],
+        stepped_C_u_list: np.ndarray,
+    ):
+        self.user_weights = user_weights
+        self.stepped_user_weights = stepped_user_weights
+        self.C_u_list = C_u_list
+        self.stepped_C_u_list = stepped_C_u_list
 
     def set_group_k(self, group_k: int):
         self.group_k = group_k
@@ -311,7 +332,7 @@ class ClassificationTrainer:
                     if param.requires_grad:
                         avg_grads[name] = torch.zeros_like(param.data)
             else:
-                avg_grads = noise_utils.torch_aggregation(grads_list, 1.0)
+                avg_grads = noise_utils.torch_aggregation(grads_list)
             noisy_avg_grads = noise_utils.add_global_noise(
                 model,
                 avg_grads,
@@ -386,7 +407,7 @@ class ClassificationTrainer:
                     if param.requires_grad:
                         avg_weights_diff[name] = torch.zeros_like(param.data)
             else:
-                avg_weights_diff = noise_utils.torch_aggregation(weights_diff_list, 1.0)
+                avg_weights_diff = noise_utils.torch_aggregation(weights_diff_list)
             noisy_avg_weights_diff = noise_utils.add_global_noise(
                 model,
                 avg_weights_diff,
@@ -396,6 +417,192 @@ class ClassificationTrainer:
                 / np.sqrt(self.n_silo_per_round),
                 device=self.device,
             )
+
+        elif self.agg_strategy in ["PULDP-AVG"]:
+            # If suddenly becomes unstable, skip the update graident (call step()) for now.
+            def loss_callback(loss):
+                if torch.isnan(loss):
+                    logger.warn("loss is nan: skipping")
+                    return True
+                return False
+
+            weights_diff_list = []  # TODO: memory optimization (use online aggregation)
+            for user_id, user_train_loader in self.user_level_data_loader:
+                if (
+                    self.user_weights[user_id] <= 0.0
+                ):  # for efficiency, if w is encrypted for DDP, it can't work
+                    continue
+                model_u = copy.deepcopy(model)
+                optimizer_u = torch.optim.SGD(
+                    filter(lambda p: p.requires_grad, model_u.parameters()),
+                    lr=self.local_learning_rate,
+                )
+                for epoch in range(self.local_epochs):
+                    batch_loss = []
+                    for x, labels in user_train_loader:
+                        x, labels = x.to(self.device), labels.to(self.device)
+                        optimizer_u.zero_grad()
+                        log_probs = model_u(x)
+                        if self.dataset_name in ["creditcard"]:
+                            labels = labels.long()
+                        loss = criterion(log_probs, labels)
+                        if loss_callback(loss):
+                            continue
+                        loss.backward()
+                        optimizer_u.step()
+                        batch_loss.append(loss.item())
+                    if len(batch_loss) > 0:
+                        logger.debug(
+                            "Silo Id = {}\tEpoch: {}\tLoss: {:.6f}".format(
+                                self.silo_id, epoch, sum(batch_loss) / len(batch_loss)
+                            )
+                        )
+                weights = model_u.state_dict()
+                weights_diff = self.diff_weights(global_weights, weights)
+                clipped_weights_diff = noise_utils.global_clip(
+                    model_u, weights_diff, self.C_u[user_id]
+                )
+                weighted_clipped_weights_diff = noise_utils.multiple_weights(
+                    model_u, clipped_weights_diff, self.user_weights[user_id]
+                )
+                weights_diff_list.append(weighted_clipped_weights_diff)
+
+            if len(weights_diff_list) <= 0:
+                avg_weights_diff = OrderedDict()
+                for name, param in model.named_parameters():
+                    if param.requires_grad:
+                        avg_weights_diff[name] = torch.zeros_like(param.data)
+            else:
+                avg_weights_diff = noise_utils.torch_aggregation(weights_diff_list)
+            noisy_avg_weights_diff = noise_utils.add_global_noise(
+                model,
+                avg_weights_diff,
+                self.random_state,
+                self.local_sigma
+                / np.sqrt(
+                    self.n_silo_per_round
+                ),  # this local_sigma is the standard deviation of normal dist itself
+                device=self.device,
+            )
+
+        elif self.agg_strategy in ["PULDP-AVG-online"]:
+
+            def loss_callback(loss):
+                if torch.isnan(loss):
+                    logger.warn("loss is nan: skipping")
+                    return True
+                return False
+
+            weights_diff_dct_per_epsilon_group = {}
+            stepped_weights_diff_dct_per_epsilon_group = {}
+            for eps_u, user_ids_per_eps_u in self.epsilon_groups.items():
+                user_ids_per_eps_u_set = set(user_ids_per_eps_u)
+                for user_weights, sensitivities, is_stepped in [
+                    (self.user_weights, self.C_u_list, False),
+                    (self.stepped_user_weights, self.stepped_C_u_list, True),
+                ]:
+                    weights_diff_list = []
+                    for user_id, user_train_loader in self.user_level_data_loader:
+                        # to compute model delta per epsilon group
+                        if user_id not in user_ids_per_eps_u_set:
+                            continue
+                        if (  # not sampled users
+                            user_weights[user_id] <= 0.0
+                        ):  # for efficiency, if w is encrypted for DDP, it can't work
+                            continue
+                        model_u = copy.deepcopy(model)
+                        optimizer_u = torch.optim.SGD(
+                            filter(lambda p: p.requires_grad, model_u.parameters()),
+                            lr=self.local_learning_rate,
+                        )
+                        for epoch in range(self.local_epochs):
+                            batch_loss = []
+                            for x, labels in user_train_loader:
+                                x, labels = x.to(self.device), labels.to(self.device)
+                                optimizer_u.zero_grad()
+                                log_probs = model_u(x)
+                                if self.dataset_name in ["creditcard"]:
+                                    labels = labels.long()
+                                loss = criterion(log_probs, labels)
+                                if loss_callback(loss):
+                                    continue
+                                loss.backward()
+                                optimizer_u.step()
+                                batch_loss.append(loss.item())
+                            if len(batch_loss) > 0:
+                                logger.debug(
+                                    "Silo Id = {}\tEpoch: {}\tLoss: {:.6f}".format(
+                                        self.silo_id,
+                                        epoch,
+                                        sum(batch_loss) / len(batch_loss),
+                                    )
+                                )
+                        weights = model_u.state_dict()
+                        weights_diff = self.diff_weights(global_weights, weights)
+                        clipped_weights_diff = noise_utils.global_clip(
+                            model_u, weights_diff, sensitivities[user_id]
+                        )
+                        weighted_clipped_weights_diff = noise_utils.multiple_weights(
+                            model_u, clipped_weights_diff, user_weights[user_id]
+                        )
+                        weights_diff_list.append(weighted_clipped_weights_diff)
+
+                    # average weights diff in the same epsilon group
+                    if len(weights_diff_list) <= 0:
+                        avg_weights_diff = OrderedDict()
+                        for name, param in model.named_parameters():
+                            if param.requires_grad:
+                                avg_weights_diff[name] = torch.zeros_like(param.data)
+                    else:
+                        avg_weights_diff = noise_utils.torch_aggregation(
+                            weights_diff_list
+                        )
+                    if is_stepped:
+                        stepped_weights_diff_dct_per_epsilon_group[
+                            eps_u
+                        ] = avg_weights_diff
+                    else:
+                        weights_diff_dct_per_epsilon_group[eps_u] = avg_weights_diff
+
+            # compute delta(q_u, C_u)
+            default_avg_weights_diff = noise_utils.torch_aggregation(
+                list(weights_diff_dct_per_epsilon_group.values())
+            )
+            default_noisy_avg_weights_diff = noise_utils.add_global_noise(
+                model,
+                default_avg_weights_diff,
+                self.random_state,
+                self.local_sigma
+                / np.sqrt(
+                    self.n_silo_per_round
+                ),  # this local_sigma is the standard deviation of normal dist itself
+                device=self.device,
+            )
+            DEFAULT_NAME = "default"
+            noisy_avg_weights_diff_dct = {DEFAULT_NAME: default_noisy_avg_weights_diff}
+
+            # For finite difference method, compute delta(q_u_i, C_u_i)
+            for eps_u in self.epsilon_groups.keys():
+                # When eps_u, use stepped q_u and C_u
+                avg_avg_weights_diff = noise_utils.torch_aggregation(
+                    [
+                        avg_weights_diff
+                        for _eps_u, avg_weights_diff in weights_diff_dct_per_epsilon_group.items()
+                        if eps_u != _eps_u
+                    ]
+                    + [stepped_weights_diff_dct_per_epsilon_group[eps_u]]
+                )
+                noisy_avg_avg_weights_diff = noise_utils.add_global_noise(
+                    model,
+                    avg_avg_weights_diff,
+                    self.random_state,
+                    self.local_sigma
+                    / np.sqrt(
+                        self.n_silo_per_round
+                    ),  # this local_sigma is the standard deviation of normal dist itself
+                    device=self.device,
+                )
+                noisy_avg_weights_diff_dct[eps_u] = noisy_avg_avg_weights_diff
 
         else:
             for epoch in range(self.local_epochs):
@@ -510,8 +717,11 @@ class ClassificationTrainer:
             "ULDP-AVG-w",
             "ULDP-AVG-s",
             "ULDP-AVG-ws",
+            "PULDP-AVG",
         ]:
             return noisy_avg_weights_diff, len(self.train_loader)
+        elif self.agg_strategy in ["PULDP-AVG-online"]:
+            return noisy_avg_weights_diff_dct
         elif self.agg_strategy in ["DEFAULT"]:
             return weights_diff, len(train_loader)
         else:
@@ -621,7 +831,7 @@ class ClassificationTrainer:
             )
         self.results["local_test"].append((round_idx, test_metric, test_loss))
 
-    
+
 def check_nan_inf(model):
     # モデルの全パラメータを一つのテンソルに結合してチェック
     all_params = torch.cat([p.view(-1) for p in model.parameters()])

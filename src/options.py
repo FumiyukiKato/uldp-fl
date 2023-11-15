@@ -1,6 +1,7 @@
 import os
 import argparse
 import yaml
+import ast
 
 from mylogger import logger
 
@@ -55,12 +56,17 @@ def args_parser(path_project: str) -> argparse.Namespace:
     parser.add_argument("--weight_decay", type=float, help="weight_decay")
     parser.add_argument("--client_optimizer", type=str, help="local of optimizer")
 
-    parser.add_argument("--agg_strategy", type=str, help="aggregation strategy [DEFAULT, ULDP-NAIVE, ULDP-GROUP, ULDP-GROUP-max, ULDP-GROUP-median, ULDP-SGD, ULDP-AVG, ULDP-AVG-w (better weighting strategy), ULDP-AVG-s (user-level sub-sampling), ULDP-AVG-ws (better weighting strategy and user-level sub-sampling)]")
+    parser.add_argument("--agg_strategy", type=str, help="aggregation strategy [DEFAULT, ULDP-NAIVE, ULDP-GROUP, ULDP-GROUP-max, ULDP-GROUP-median, ULDP-SGD, ULDP-AVG, ULDP-AVG-w (better weighting strategy), ULDP-AVG-s (user-level sub-sampling), ULDP-AVG-ws (better weighting strategy and user-level sub-sampling), PULDP-AVG]")
     parser.add_argument("--group_k", type=int, help="k (maximum number of user contribution) of group privacy")
     parser.add_argument("--sigma", type=float, help="noise multiplier (Note: std_dev = sigma * clipping_bound))")
     parser.add_argument("--clipping_bound", type=float, help="clipping bound for differential privacy")
     parser.add_argument("--delta", type=float, help="delta for differential privacy")
     parser.add_argument("--sampling_rate_q", type=float, help="sampling rate q for user-level sub-sampling")
+
+    parser.add_argument("--C_u", type=ast.literal_eval, default={}, help="Clipping bound dict for personalized uldp.")
+    parser.add_argument("--q_u", type=ast.literal_eval, default={}, help="Sample rate dict for personalized uldp.")
+    parser.add_argument("--epsilon_u", type=ast.literal_eval, default={}, help="Epsilon list for users.")
+    parser.add_argument("--group_thresholds", type=ast.literal_eval, default=[], help="For grouping by epsilon.")
 
     parser.add_argument("--verbose", type=int, help="verbose (set logging at DEBUG level)")
     parser.add_argument("--hyper_parameter_tuning", type=int, help="is hyper-parameter tuning")

@@ -1,6 +1,4 @@
-# ULDP-FL: Federated Learning with Across Silo User-Level Differential Privacy
-
-The paper has been uploaded in arxiv https://arxiv.org/abs/2308.12210.
+# ULDP-FL: Federated Learning with Across Silo User-Level Differentially Privacy
 
 Tested at all of  
 - `Ubuntu18.04`
@@ -70,7 +68,7 @@ $ exp/script/user_level_subsampling.sh
 
 ## Run real server and client
 
-GRPC-based implementation (reference implementation: [FedML](https://github.com/FedML-AI/FedML)).
+GRPC-based implementation based on [FedML](https://github.com/FedML-AI/FedML).
 
 Wake up server
 

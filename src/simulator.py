@@ -1,8 +1,10 @@
 from typing import Callable, List, Optional, Tuple, Dict
 import torch
+import numpy as np
 import copy
 
 from aggregator import Aggregator
+from constant import METHOD_PULDP_AVG, METHOD_PULDP_AVG_ONLINE
 from coordinator import Coordinator
 from local_trainer import ClassificationTrainer
 from mylogger import logger
@@ -46,6 +48,10 @@ class FLSimulator:
         group_k: Optional[int] = None,
         dataset_name: str = None,
         sampling_rate_q: Optional[float] = None,
+        C_u: Optional[Dict] = None,
+        q_u: Optional[Dict] = None,
+        epsilon_u: Optional[Dict] = None,
+        group_thresholds: Optional[List] = None,
     ):
         self.n_total_round = n_total_round
         self.round_idx = 0
@@ -60,6 +66,12 @@ class FLSimulator:
             group_k=group_k,
             sampling_rate_q=sampling_rate_q,
             agg_strategy=agg_strategy,
+            q_u=q_u,
+            epsilon_u=epsilon_u,
+            group_thresholds=group_thresholds,
+            delta=delta,
+            sigma=sigma,
+            n_total_round=n_total_round,
         )
 
         self.aggregator = Aggregator(
@@ -79,6 +91,11 @@ class FLSimulator:
             dataset_name=dataset_name,
             sampling_rate_q=sampling_rate_q,
         )
+
+        if self.agg_strategy in [METHOD_PULDP_AVG]:
+            self.aggregator.sampling_rate_q = np.mean(list(q_u.values()))
+        if self.agg_strategy == METHOD_PULDP_AVG_ONLINE:
+            self.aggregator.set_epsilon_groups(self.coordinator.epsilon_groups)
 
         self.local_trainer_per_silos: Dict[int, ClassificationTrainer] = {}
         for silo_id, (
@@ -108,6 +125,7 @@ class FLSimulator:
                 group_k=group_k,
                 n_silo_per_round=n_silo_per_round,
                 dataset_name=dataset_name,
+                C_u=C_u,
             )
             self.local_trainer_per_silos[silo_id] = local_trainer
             if self.agg_strategy in [
@@ -122,8 +140,12 @@ class FLSimulator:
                 "ULDP-AVG-w",
                 "ULDP-AVG-s",
                 "ULDP-AVG-ws",
+                METHOD_PULDP_AVG,
+                METHOD_PULDP_AVG_ONLINE,
             ]:
                 self.coordinator.set_user_hist_by_silo_id(silo_id, user_hist)
+            if self.agg_strategy == METHOD_PULDP_AVG_ONLINE:
+                local_trainer.set_epsilon_groups(self.coordinator.get_epsilon_groups())
 
         self.coordinator.is_ready()
         self.group_k = self.coordinator.group_k
@@ -180,12 +202,33 @@ class FLSimulator:
             elif self.agg_strategy in [
                 "ULDP-SGD-ws",
                 "ULDP-AVG-ws",
+                METHOD_PULDP_AVG,
             ]:
                 user_weights_per_silo = self.coordinator.build_user_weights(
                     weighted=True, is_sample=True
                 )
                 for silo_id, user_weights in user_weights_per_silo.items():
                     self.local_trainer_per_silos[silo_id].set_user_weights(user_weights)
+            elif self.agg_strategy in [METHOD_PULDP_AVG_ONLINE]:
+                # compute stepped q_u and C_u to calculate finite difference
+                (
+                    user_weights_per_silo,
+                    C_u_list,
+                    stepped_user_weights_per_silo,
+                    stepped_C_u_list,
+                ) = self.coordinator.build_user_weights_with_online_optimization(
+                    weighted=True,
+                )
+                for silo_id in user_weights_per_silo.keys():
+                    self.local_trainer_per_silos[
+                        silo_id
+                    ].set_user_weights_with_optimization(
+                        user_weights_per_silo[silo_id],
+                        C_u_list,
+                        stepped_user_weights_per_silo[silo_id],
+                        stepped_C_u_list,
+                    )
+                self.aggregator.sampling_rate_q = np.mean(self.coordinator.q_u_list)
 
             for silo_id in silo_id_list_in_this_round:
                 logger.debug(
@@ -197,34 +240,60 @@ class FLSimulator:
                     self.aggregator.get_global_model_params()
                 )
 
-                local_updated_weights, n_local_sample = local_trainer.train(
-                    self.round_idx,
-                    loss_callback=build_loss_callback(),
-                )
-                # local_trainer.test_local(self.round_idx)
-                # if self.agg_strategy in [
-                #     "DEFAULT",
-                #     "ULDP-GROUP",
-                #     "ULDP-GROUP-max",
-                #     "ULDP-GROUP-median",
-                #     "ULDP-NAIVE",
-                # ]:
-                #     # test local model with global test dataset
-                #     self.aggregator.test_global(
-                #         self.round_idx, model=local_trainer.model, silo_id=silo_id
-                #     )
-                self.aggregator.add_local_trained_result(
-                    silo_id,
-                    local_updated_weights,
-                    n_local_sample,
-                    local_trainer.get_latest_epsilon(),
-                )
+                if self.agg_strategy == METHOD_PULDP_AVG_ONLINE:
+                    local_updated_weights_dct = local_trainer.train(
+                        self.round_idx,
+                        loss_callback=build_loss_callback(),
+                    )
+                    self.aggregator.add_local_trained_result_with_optimization(
+                        silo_id,
+                        local_updated_weights_dct,
+                        local_trainer.get_latest_epsilon(),
+                    )
+
+                else:
+                    local_updated_weights, n_local_sample = local_trainer.train(
+                        self.round_idx,
+                        loss_callback=build_loss_callback(),
+                    )
+                    # local_trainer.test_local(self.round_idx)
+                    # if self.agg_strategy in [
+                    #     "DEFAULT",
+                    #     "ULDP-GROUP",
+                    #     "ULDP-GROUP-max",
+                    #     "ULDP-GROUP-median",
+                    #     "ULDP-NAIVE",
+                    # ]:
+                    #     # test local model with global test dataset
+                    #     self.aggregator.test_global(
+                    #         self.round_idx, model=local_trainer.model, silo_id=silo_id
+                    #     )
+                    self.aggregator.add_local_trained_result(
+                        silo_id,
+                        local_updated_weights,
+                        n_local_sample,
+                        local_trainer.get_latest_epsilon(),
+                    )
 
             logger.debug(
                 "============ AGGREGATION: ROUND %d ============" % (self.round_idx)
             )
             self.aggregator.aggregate(silo_id_list_in_this_round, self.round_idx)
-            test_acc, _ = self.aggregator.test_global(self.round_idx)
+            test_acc, test_loss = self.aggregator.test_global(self.round_idx)
+
+            if self.agg_strategy == METHOD_PULDP_AVG_ONLINE:
+                loss_diff_dct = self.aggregator.compute_loss_diff(
+                    test_acc,
+                    test_loss,
+                    silo_id_list_in_this_round,
+                    q_u_list=self.coordinator.q_u_list,
+                    stepped_q_u_list=self.coordinator.stepped_q_u_list,
+                )
+                self.coordinator.online_optimize(loss_diff_dct)
+                logger.info(
+                    self.coordinator.hp_dct_by_eps,
+                )
+
             logger.info(
                 "\n\n========== end {}-th round training ===========\n".format(
                     self.round_idx
@@ -257,6 +326,10 @@ class FLSimulator:
             "ULDP-GROUP-median",
         ]:
             results["privacy_info"] = self.aggregator.results["privacy_info"]
+
+        if self.agg_strategy == METHOD_PULDP_AVG_ONLINE:
+            results["param_history"] = self.coordinator.param_history
+            results["loss_history"] = self.coordinator.loss_history
         return results
 
 
