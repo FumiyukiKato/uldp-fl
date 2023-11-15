@@ -15,7 +15,7 @@ from simulator import FLSimulator
 from mylogger import logger_set_debug
 
 
-def run_simulation(args, path_project, data_seed=None):
+def run_simulation(args, path_project, data_seed=None, given_simulator=None):
     if args.dry_run:
         # print(str(args))
         print("========> Hash value: ", args_to_hash(args))
@@ -47,7 +47,9 @@ def run_simulation(args, path_project, data_seed=None):
 
     # start training
     base_seed = np.random.RandomState(seed=args.seed).randint(2**32 - 1)
-    if args.secure_w:
+    if given_simulator:
+        simulator = given_simulator
+    elif args.secure_w:
         simulator = SecureWeightingFLSimulator(
             seed=base_seed,
             model=model,
@@ -100,6 +102,8 @@ def run_simulation(args, path_project, data_seed=None):
             sampling_rate_q=args.sampling_rate_q,
             C_u=args.C_u,
             q_u=args.q_u,
+            epsilon_u=args.epsilon_u,
+            group_thresholds=args.group_thresholds,
         )
     simulator.run()
     results = simulator.get_results()
