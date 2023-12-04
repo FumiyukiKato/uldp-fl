@@ -3,11 +3,20 @@ from typing import List, Optional, Tuple, Dict
 import torch
 import copy
 from coordinator import Coordinator
+from dataset import TCGA_BRCA
 
 from message_type import FLMessage, GRPCMessage
 from comm_manager import GRPCCommManager
 from aggregator import Aggregator
 import ip_utils
+from method_group import (
+    METHOD_GROUP_NO_SAMPLING,
+    METHOD_GROUP_NO_WEIGHTS,
+    METHOD_GROUP_SAMPLING,
+    METHOD_GROUP_SECURE_WEIGHTING,
+    METHOD_GROUP_ULDP_GROUPS,
+    METHOD_GROUP_WEIGHTS,
+)
 from mylogger import logger
 from secure_aggregation import SecureAggregator
 
@@ -36,12 +45,7 @@ class FLServer:
         is_secure: bool = False,
     ):
         if is_secure:
-            if agg_strategy not in [
-                "ULDP-AVG-w",
-                "ULDP-AVG-ws",
-                "ULDP-SGD-w",
-                "ULDP-SGD-ws",
-            ]:
+            if agg_strategy not in METHOD_GROUP_SECURE_WEIGHTING:
                 raise ValueError(f"agg_strategy {agg_strategy} is not supported.")
 
             aggregator = SecureAggregator(
@@ -297,7 +301,9 @@ class ServerManager(GRPCCommManager):
         )
 
         if inversed_blinded_user_histogram is not None:
-            if self.aggregator.strategy in ["ULDP-SGD-w", "ULDP-AVG-w"]:
+            if self.aggregator.strategy in METHOD_GROUP_SECURE_WEIGHTING.intersection(
+                METHOD_GROUP_NO_SAMPLING
+            ):
                 encrypted_inversed_blinded_user_histogram = (
                     self.aggregator.get_encrypt_inversed_blinded_user_histogram()
                 )
@@ -349,12 +355,9 @@ class ServerManager(GRPCCommManager):
 
     def send_init_user_weights(self):
         user_weights_per_silo = {}
-        if self.aggregator.strategy in [
-            "ULDP-GROUP",
-            "ULDP-GROUP-max",
-            "ULDP-GROUP-median",
-        ]:
-            if self.aggregator.dataset_name == "tcga_brca":
+        if self.aggregator.strategy in METHOD_GROUP_ULDP_GROUPS:
+            if self.aggregator.dataset_name == TCGA_BRCA:
+                # To calculate Cox-loss for TCGA-BRCA, we need at least 2 samples per user
                 min_count = 2
             else:
                 min_count = 1
@@ -362,19 +365,9 @@ class ServerManager(GRPCCommManager):
                 self.coordinator.original_user_hist_dct, min_count
             )
             user_weights_per_silo = bounded_user_hist_per_silo
-        elif self.aggregator.strategy in [
-            "ULDP-SGD",
-            "ULDP-AVG",
-            "ULDP-SGD-s",
-            "ULDP-AVG-s",
-        ]:
+        elif self.aggregator.strategy in METHOD_GROUP_NO_WEIGHTS:
             user_weights_per_silo = self.coordinator.build_user_weights(weighted=False)
-        elif self.aggregator.strategy in [
-            "ULDP-SGD-w",
-            "ULDP-AVG-w",
-            "ULDP-SGD-ws",
-            "ULDP-AVG-ws",
-        ]:
+        elif self.aggregator.strategy in METHOD_GROUP_WEIGHTS:
             user_weights_per_silo = self.coordinator.build_user_weights(weighted=True)
 
         for silo_id, client_id in self.silo_client_id_mapping.items():
@@ -405,7 +398,9 @@ class ServerManager(GRPCCommManager):
 
         if self.is_secure:
             encrypted_inversed_blinded_user_histogram = None
-            if self.aggregator.strategy in ["ULDP-SGD-ws", "ULDP-AVG-ws"]:
+            if self.aggregator.strategy in METHOD_GROUP_SECURE_WEIGHTING.intersection(
+                METHOD_GROUP_SAMPLING
+            ):
                 encrypted_inversed_blinded_user_histogram = self.aggregator.get_encrypt_inversed_blinded_user_histogram_with_userlevel_subsampling(
                     round_idx
                 )
@@ -420,11 +415,15 @@ class ServerManager(GRPCCommManager):
                 )
         else:
             user_weights_per_silo = {}
-            if self.aggregator.strategy in ["ULDP-SGD-s", "ULDP-AVG-s"]:
+            if self.aggregator.strategy in METHOD_GROUP_SAMPLING.intersection(
+                METHOD_GROUP_NO_WEIGHTS
+            ):
                 user_weights_per_silo = self.coordinator.build_user_weights(
                     weighted=False, is_sample=True
                 )
-            elif self.aggregator.strategy in ["ULDP-SGD-ws", "ULDP-AVG-ws"]:
+            elif self.aggregator.strategy in METHOD_GROUP_SAMPLING.intersection(
+                METHOD_GROUP_WEIGHTS
+            ):
                 user_weights_per_silo = self.coordinator.build_user_weights(
                     weighted=True, is_sample=True
                 )

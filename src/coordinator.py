@@ -2,6 +2,7 @@ from typing import Dict, Optional, List, Tuple
 import numpy as np
 import copy
 from opacus.accountants import RDPAccountant
+from method_group import METHOD_ULDP_GROUP_MAX, METHOD_ULDP_GROUP_MEDIAN
 
 from mylogger import logger
 
@@ -70,11 +71,11 @@ class Coordinator:
 
     def is_ready(self) -> bool:
         if len(self.ready_silos) == self.n_silos:
-            if self.agg_strategy == "ULDP-GROUP-max":
+            if self.agg_strategy == METHOD_ULDP_GROUP_MAX:
                 group_max = self.get_group_max()
                 logger.info(f"Group max: {group_max}")
                 self.set_group_k(group_max)
-            elif self.agg_strategy == "ULDP-GROUP-median":
+            elif self.agg_strategy == METHOD_ULDP_GROUP_MEDIAN:
                 group_median = self.get_group_median()
                 logger.info(f"Group median: {group_median}")
                 self.set_group_k(group_median)

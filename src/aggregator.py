@@ -3,7 +3,22 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 from typing import Dict, List, Optional, OrderedDict, Union
-from constant import METHOD_PULDP_AVG, METHOD_PULDP_AVG_ONLINE, METHOD_SILO_LEVEL_DP
+from dataset import CREDITCARD, HEART_DISEASE, TCGA_BRCA
+from method_group import (
+    METHOD_GROUP_AGGREGATOR_PRIVACY_ACCOUNTING,
+    METHOD_GROUP_AVG,
+    METHOD_GROUP_DP,
+    METHOD_GROUP_GRADIENT,
+    METHOD_GROUP_NO_SAMPLING,
+    METHOD_GROUP_PARAMETER_DIFF,
+    METHOD_GROUP_SAMPLING,
+    METHOD_GROUP_WEIGHTS,
+    METHOD_NO_DP_ACCOUNTING,
+    METHOD_PULDP_AVG,
+    METHOD_PULDP_AVG_ONLINE,
+    METHOD_SILO_LEVEL_DP,
+    METHOD_ULDP_NAIVE,
+)
 
 from mylogger import logger
 import noise_utils
@@ -44,21 +59,7 @@ class Aggregator:
         self.strategy = strategy
         self.global_learning_rate = global_learning_rate
         self.sampling_rate_q = sampling_rate_q
-        if self.strategy in [
-            METHOD_SILO_LEVEL_DP,
-            "ULDP-NAIVE",
-            "RECORD-LEVEL-DP",
-            "ULDP-SGD",
-            "ULDP-SGD-w",
-            "ULDP-SGD-s",
-            "ULDP-SGD-ws",
-            "ULDP-AVG",
-            "ULDP-AVG-w",
-            "ULDP-AVG-s",
-            "ULDP-AVG-ws",
-            METHOD_PULDP_AVG,
-            METHOD_PULDP_AVG_ONLINE,
-        ]:
+        if self.strategy in METHOD_GROUP_AGGREGATOR_PRIVACY_ACCOUNTING:
             from opacus.accountants import RDPAccountant
 
             assert (
@@ -68,12 +69,7 @@ class Aggregator:
             self.sigma = sigma
             self.delta = delta
             self.accountant = RDPAccountant()
-        elif self.strategy in [
-            "RECORD-LEVEL-DP",
-            "ULDP-GROUP",
-            "ULDP-GROUP-max",
-            "ULDP-GROUP-median",
-        ]:
+        elif self.strategy in METHOD_GROUP_DP:
             self.delta = delta
 
         self.model_dict = dict()
@@ -102,40 +98,32 @@ class Aggregator:
         self.epsilon_groups = epsilon_groups
 
     def record_epsilon(self, round_idx):
-        if self.strategy in [METHOD_SILO_LEVEL_DP]:
+        if self.strategy == METHOD_SILO_LEVEL_DP:  #
             self.accountant.step(
                 noise_multiplier=self.sigma,
                 sample_rate=self.n_silo_per_round / self.n_silos,
             )
             eps = self.accountant.get_epsilon(self.delta)
-        elif self.strategy in [
-            "RECORD-LEVEL-DP",
-            "ULDP-GROUP",
-            "ULDP-GROUP-median",
-            "ULDP-GROUP-max",
-        ]:
+        elif self.strategy in METHOD_GROUP_DP.difference(
+            METHOD_GROUP_AGGREGATOR_PRIVACY_ACCOUNTING
+        ):
             eps = self.latest_eps
             self.latest_eps = 0.0
-        elif self.strategy in ["ULDP-NAIVE"]:
+        elif self.strategy == METHOD_ULDP_NAIVE:
             self.accountant.step(noise_multiplier=self.sigma, sample_rate=1.0)
             eps = self.accountant.get_epsilon(self.delta)
-        elif self.strategy in ["ULDP-SGD", "ULDP-AVG", "ULDP-SGD-w", "ULDP-AVG-w"]:
+        elif self.strategy in METHOD_GROUP_NO_SAMPLING:
             self.accountant.step(
                 noise_multiplier=self.sigma,
                 sample_rate=1.0,
             )
             eps = self.accountant.get_epsilon(self.delta)
-        elif self.strategy in [
-            "ULDP-SGD-s",
-            "ULDP-AVG-s",
-            "ULDP-SGD-ws",
-            "ULDP-AVG-ws",
-        ]:
+        elif self.strategy in METHOD_GROUP_SAMPLING.difference({METHOD_PULDP_AVG}):
             self.accountant.step(
                 noise_multiplier=self.sigma, sample_rate=self.sampling_rate_q
             )
             eps = self.accountant.get_epsilon(self.delta)
-        elif self.strategy in ["DEFAULT", METHOD_PULDP_AVG, METHOD_PULDP_AVG_ONLINE]:
+        elif self.strategy in METHOD_NO_DP_ACCOUNTING:
             return
         else:
             raise NotImplementedError(
@@ -189,7 +177,7 @@ class Aggregator:
             self.n_silo_per_round,
             replace=False,
         )
-        logger.debug("Silo selection reuslt: {}".format(silo_id_list_in_this_round))
+        logger.debug("Silo selection result: {}".format(silo_id_list_in_this_round))
         return list(silo_id_list_in_this_round)
 
     def check_whether_all_receive(self, silo_id_list_in_this_round: List[int]):
@@ -223,40 +211,30 @@ class Aggregator:
         for silo_id in silo_id_list_in_this_round:
             raw_client_model_or_grad_list.append(self.model_dict[silo_id])
 
-        if self.strategy in [
-            "DEFAULT",
-            "RECORD-LEVEL-DP",
-            "ULDP-GROUP",
-            "ULDP-GROUP-max",
-            "ULDP-GROUP-median",
-            "ULDP-NAIVE",
-        ]:
+        if self.strategy in METHOD_GROUP_PARAMETER_DIFF.difference(
+            METHOD_GROUP_NO_SAMPLING
+        ):
             averaged_param_diff = noise_utils.torch_aggregation(
                 raw_client_model_or_grad_list, self.n_silo_per_round
             )
             global_weights = self.update_global_weights_from_diff(
                 averaged_param_diff, self.global_learning_rate
             )
-        elif self.strategy in ["ULDP-AVG", "ULDP-AVG-w"]:
+        elif self.strategy in METHOD_GROUP_AVG.difference(METHOD_GROUP_SAMPLING):
             averaged_param_diff = noise_utils.torch_aggregation(
                 raw_client_model_or_grad_list, self.n_users * self.n_silo_per_round
             )
             global_weights = self.update_global_weights_from_diff(
                 averaged_param_diff, self.global_learning_rate
             )
-        elif self.strategy in ["ULDP-SGD", "ULDP-SGD-w"]:
+        elif self.strategy in METHOD_GROUP_GRADIENT.difference(METHOD_GROUP_SAMPLING):
             averaged_grads = noise_utils.torch_aggregation(
                 raw_client_model_or_grad_list, self.n_users * self.n_silo_per_round
             )
             global_weights = self.update_parameters_from_gradients(
                 averaged_grads, self.global_learning_rate
             )
-        elif self.strategy in [
-            "ULDP-AVG-s",
-            "ULDP-AVG-ws",
-            METHOD_PULDP_AVG,
-            METHOD_PULDP_AVG_ONLINE,
-        ]:
+        elif self.strategy in METHOD_GROUP_WEIGHTS.difference(METHOD_GROUP_NO_SAMPLING):
             averaged_param_diff = noise_utils.torch_aggregation(
                 raw_client_model_or_grad_list,
                 int(self.n_users * self.n_silo_per_round * self.sampling_rate_q),
@@ -264,7 +242,7 @@ class Aggregator:
             global_weights = self.update_global_weights_from_diff(
                 averaged_param_diff, self.global_learning_rate
             )
-        elif self.strategy in ["ULDP-SGD-s", "ULDP-SGD-ws"]:
+        elif self.strategy in METHOD_GROUP_GRADIENT.intersection(METHOD_GROUP_SAMPLING):
             averaged_grads = noise_utils.torch_aggregation(
                 raw_client_model_or_grad_list,
                 int(self.n_users * self.n_silo_per_round * self.sampling_rate_q),
@@ -272,7 +250,7 @@ class Aggregator:
             global_weights = self.update_parameters_from_gradients(
                 averaged_grads, self.global_learning_rate
             )
-        elif self.strategy in [METHOD_SILO_LEVEL_DP]:
+        elif self.strategy == METHOD_SILO_LEVEL_DP:
             # https://arxiv.org/abs/1812.06210
             # Usually, this is used in cross-device FL, where the number of participants is large.
             averaged_param_diff = noise_utils.torch_aggregation(
@@ -308,13 +286,13 @@ class Aggregator:
 
         test_loader = DataLoader(test_data, batch_size=512)
 
-        if self.dataset_name in ["heart_disease", "tcga_brca"]:
-            if self.dataset_name == "heart_disease":
+        if self.dataset_name in [HEART_DISEASE, TCGA_BRCA]:
+            if self.dataset_name == HEART_DISEASE:
                 from flamby_utils.heart_disease import (
                     custom_loss,
                     custom_metric,
                 )
-            elif self.dataset_name == "tcga_brca":
+            elif self.dataset_name == TCGA_BRCA:
                 from flamby_utils.tcga_brca import (
                     custom_loss,
                     custom_metric,
@@ -339,7 +317,7 @@ class Aggregator:
             y_pred_final = np.concatenate(y_pred_final)
             metrics["test_metric"] = metric(y_true_final, y_pred_final)
 
-        elif self.dataset_name in ["creditcard"]:
+        elif self.dataset_name == CREDITCARD:
             from sklearn.metrics import roc_auc_score
 
             criterion = nn.CrossEntropyLoss().to(device)
@@ -400,7 +378,7 @@ class Aggregator:
                 )
             )
             logger.info("|----- Global test result of round %d" % (round_idx))
-            if self.dataset_name in ["creditcard"]:
+            if self.dataset_name == CREDITCARD:
                 logger.info(
                     f"\t |----- Test/ROC_AUC: {test_metric} ({n_test_sample}), Test/Loss: {test_loss}"
                 )
@@ -421,7 +399,7 @@ class Aggregator:
                 "|----- Global test result for SILO %d of round %d"
                 % (silo_id, round_idx)
             )
-            if self.dataset_name in ["creditcard"]:
+            if self.dataset_name == CREDITCARD:
                 logger.debug(
                     f"\t |----- Test/ROC_AUC: {test_metric} ({n_test_sample}), Test/Loss: {test_loss}"
                 )

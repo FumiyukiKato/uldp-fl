@@ -6,6 +6,11 @@ from comm_manager import GRPCCommManager
 from local_trainer import ClassificationTrainer
 from message_type import FLMessage, GRPCMessage
 import ip_utils
+from method_group import (
+    METHOD_GROUP_NO_SAMPLING,
+    METHOD_GROUP_SAMPLING,
+    METHOD_GROUP_ULDP_GROUPS,
+)
 from mylogger import logger
 from secure_aggregation import SecureLocalTrainer, PRIMARY_SILO_ID
 
@@ -243,18 +248,9 @@ class SiloManager(GRPCCommManager):
         self.is_initialized = True
 
         user_weights = msg_params.get(FLMessage.MSG_ARG_KEY_USER_WEIGHTS)
-        if self.local_trainer.agg_strategy in [
-            "ULDP-GROUP",
-            "ULDP-GROUP-max",
-            "ULDP-GROUP-median",
-        ]:
+        if self.local_trainer.agg_strategy in METHOD_GROUP_ULDP_GROUPS:
             self.local_trainer.bound_user_contributions(user_weights)
-        elif self.local_trainer.agg_strategy in [
-            "ULDP-SGD",
-            "ULDP-AVG",
-            "ULDP-SGD-w",
-            "ULDP-AVG-w",
-        ]:
+        elif self.local_trainer.agg_strategy in METHOD_GROUP_NO_SAMPLING:
             self.local_trainer.set_user_weights(user_weights)
         self.send_complete_preparation()
 
@@ -263,12 +259,7 @@ class SiloManager(GRPCCommManager):
         model_params = msg_params.get(FLMessage.MSG_ARG_KEY_MODEL_PARAMS)
         global_round_idx = msg_params.get(FLMessage.MSG_ARG_KEY_ROUND_IDX)
 
-        if self.local_trainer.agg_strategy in [
-            "ULDP-SGD-s",
-            "ULDP-AVG-s",
-            "ULDP-SGD-ws",
-            "ULDP-AVG-ws",
-        ]:
+        if self.local_trainer.agg_strategy in METHOD_GROUP_SAMPLING:
             user_weights = msg_params.get(FLMessage.MSG_ARG_KEY_USER_WEIGHTS)
             if self.is_secure:
                 self.local_trainer.receive_encrypted_weights(user_weights)

@@ -5,6 +5,21 @@ import numpy as np
 from torch import nn
 import torch
 from torch.utils.data import DataLoader
+from dataset import CREDITCARD, HEART_DISEASE, TCGA_BRCA
+from method_group import (
+    METHOD_DEFAULT,
+    METHOD_GROUP_AGGREGATOR_PRIVACY_ACCOUNTING,
+    METHOD_GROUP_AVG,
+    METHOD_GROUP_DP,
+    METHOD_GROUP_GRADIENT,
+    METHOD_GROUP_ULDP_GROUPS,
+    METHOD_GROUP_USER_LEVEL_DATA_LOADER,
+    METHOD_PULDP_AVG,
+    METHOD_PULDP_AVG_ONLINE,
+    METHOD_RECORD_LEVEL_DP,
+    METHOD_SILO_LEVEL_DP,
+    METHOD_ULDP_NAIVE,
+)
 
 from mylogger import logger
 import noise_utils
@@ -55,12 +70,9 @@ class ClassificationTrainer:
         self.results = {"local_test": [], "train_time": [], "epsilon": []}
 
         self.agg_strategy = agg_strategy
-        if self.agg_strategy in [
-            "RECORD-LEVEL-DP",
-            "ULDP-GROUP",
-            "ULDP-GROUP-max",
-            "ULDP-GROUP-median",
-        ]:
+        if self.agg_strategy in METHOD_GROUP_DP.difference(
+            METHOD_GROUP_AGGREGATOR_PRIVACY_ACCOUNTING
+        ):
             assert client_optimizer == "sgd"
             from opacus import PrivacyEngine
 
@@ -69,25 +81,12 @@ class ClassificationTrainer:
             self.local_sigma = local_sigma
             self.local_clipping_bound = local_clipping_bound
             self.group_k = group_k
-        elif self.agg_strategy in [
-            "ULDP-NAIVE",
-            "SILO-LEVEL-DP",
-            "ULDP-SGD",
-            "ULDP-SGD-w",
-            "ULDP-SGD-s",
-            "ULDP-SGD-ws",
-            "ULDP-AVG",
-            "ULDP-AVG-w",
-            "ULDP-AVG-s",
-            "ULDP-AVG-ws",
-            "PULDP-AVG",
-            "PULDP-AVG-online",
-        ]:
+        elif self.agg_strategy in METHOD_GROUP_AGGREGATOR_PRIVACY_ACCOUNTING:
             self.local_sigma = local_sigma
             self.local_clipping_bound = local_clipping_bound
             self.C_u = C_u
 
-        if self.dataset_name == "heart_disease":
+        if self.dataset_name == HEART_DISEASE:
             from flamby_utils.heart_disease import (
                 custom_loss,
                 custom_optimizer,
@@ -97,7 +96,7 @@ class ClassificationTrainer:
             self.criterion = custom_loss()
             self.optimizer = custom_optimizer(self.model, self.local_learning_rate)
             self.metric = custom_metric()
-        elif self.dataset_name == "tcga_brca":
+        elif self.dataset_name == TCGA_BRCA:
             from flamby_utils.tcga_brca import (
                 custom_loss,
                 custom_optimizer,
@@ -131,18 +130,7 @@ class ClassificationTrainer:
         self.user_histogram = user_histogram
         self.user_ids_of_local_train_dataset = user_ids_of_local_train_dataset
         self.distinct_users = list(set(user_ids_of_local_train_dataset))
-        if self.agg_strategy in [
-            "ULDP-SGD",
-            "ULDP-SGD-w",
-            "ULDP-AVG",
-            "ULDP-AVG-w",
-            "ULDP-SGD-s",
-            "ULDP-AVG-s",
-            "ULDP-AVG-ws",
-            "ULDP-SGD-ws",
-            "PULDP-AVG",
-            "PULDP-AVG-online",
-        ]:
+        if self.agg_strategy in METHOD_GROUP_USER_LEVEL_DATA_LOADER:
             self.user_level_data_loader = self.make_user_level_data_loader()
 
     def get_results(self):
@@ -237,7 +225,7 @@ class ClassificationTrainer:
                 new_user_ids_of_local_train_dataset.append(user_id)
             else:
                 remove_counter += 1
-                if self.dataset_name not in ["heart_disease", "tcga_brca"]:
+                if self.dataset_name not in [HEART_DISEASE, TCGA_BRCA]:
                     new_local_test_dataset.append(data)
         logger.debug("{} data is removed from training dataset".format(remove_counter))
 
@@ -273,12 +261,9 @@ class ClassificationTrainer:
         criterion = self.criterion
 
         # Optimization step like CALCULATE GRADIENTS
-        if self.agg_strategy in [
-            "RECORD-LEVEL-DP",
-            "ULDP-GROUP",
-            "ULDP-GROUP-max",
-            "ULDP-GROUP-median",
-        ]:
+        if self.agg_strategy in METHOD_GROUP_DP.difference(
+            METHOD_GROUP_AGGREGATOR_PRIVACY_ACCOUNTING
+        ):
             noise_generator = torch.Generator(device=self.device).manual_seed(
                 self.get_torch_manual_seed()
             )
@@ -291,7 +276,7 @@ class ClassificationTrainer:
                 noise_generator=noise_generator,
             )
 
-        if self.agg_strategy in ["ULDP-SGD", "ULDP-SGD-w", "ULDP-SGD-s", "ULDP-SGD-ws"]:
+        if self.agg_strategy in METHOD_GROUP_GRADIENT:
             grads_list = []  # TODO: memory optimization (use online aggregation)
             for user_id, user_train_loader in self.user_level_data_loader:
                 if (
@@ -306,7 +291,7 @@ class ClassificationTrainer:
                     x, labels = x.to(self.device), labels.to(self.device)
                     model.zero_grad()
                     log_probs = model(x)
-                    if self.dataset_name in ["creditcard"]:
+                    if self.dataset_name == CREDITCARD:
                         labels = labels.long()
                     loss = criterion(log_probs, labels)
                     loss_callback(loss)
@@ -343,13 +328,8 @@ class ClassificationTrainer:
                 device=self.device,
             )
 
-        elif self.agg_strategy in [
-            "ULDP-AVG",
-            "ULDP-AVG-w",
-            "ULDP-AVG-s",
-            "ULDP-AVG-ws",
-        ]:
-            # If suddenly becomes unstable, skip the update graident (call step()) for now.
+        elif self.agg_strategy in METHOD_GROUP_AVG:
+            # If suddenly becomes unstable, skip the update gradient (call step()) for now.
             def loss_callback(loss):
                 if torch.isnan(loss):
                     logger.warn("loss is nan: skipping")
@@ -373,7 +353,7 @@ class ClassificationTrainer:
                         x, labels = x.to(self.device), labels.to(self.device)
                         optimizer_u.zero_grad()
                         log_probs = model_u(x)
-                        if self.dataset_name in ["creditcard"]:
+                        if self.dataset_name == CREDITCARD:
                             labels = labels.long()
                         loss = criterion(log_probs, labels)
                         if loss_callback(loss):
@@ -418,8 +398,8 @@ class ClassificationTrainer:
                 device=self.device,
             )
 
-        elif self.agg_strategy in ["PULDP-AVG"]:
-            # If suddenly becomes unstable, skip the update graident (call step()) for now.
+        elif self.agg_strategy == METHOD_PULDP_AVG:
+            # If suddenly becomes unstable, skip the update gradient (call step()) for now.
             def loss_callback(loss):
                 if torch.isnan(loss):
                     logger.warn("loss is nan: skipping")
@@ -443,7 +423,7 @@ class ClassificationTrainer:
                         x, labels = x.to(self.device), labels.to(self.device)
                         optimizer_u.zero_grad()
                         log_probs = model_u(x)
-                        if self.dataset_name in ["creditcard"]:
+                        if self.dataset_name == CREDITCARD:
                             labels = labels.long()
                         loss = criterion(log_probs, labels)
                         if loss_callback(loss):
@@ -485,7 +465,7 @@ class ClassificationTrainer:
                 device=self.device,
             )
 
-        elif self.agg_strategy in ["PULDP-AVG-online"]:
+        elif self.agg_strategy == METHOD_PULDP_AVG_ONLINE:
 
             def loss_callback(loss):
                 if torch.isnan(loss):
@@ -521,7 +501,7 @@ class ClassificationTrainer:
                                 x, labels = x.to(self.device), labels.to(self.device)
                                 optimizer_u.zero_grad()
                                 log_probs = model_u(x)
-                                if self.dataset_name in ["creditcard"]:
+                                if self.dataset_name == CREDITCARD:
                                     labels = labels.long()
                                 loss = criterion(log_probs, labels)
                                 if loss_callback(loss):
@@ -613,7 +593,7 @@ class ClassificationTrainer:
                     x, labels = x.to(self.device), labels.to(self.device)
                     optimizer.zero_grad()
                     log_probs = model(x)
-                    if self.dataset_name in ["creditcard"]:
+                    if self.dataset_name == CREDITCARD:
                         labels = labels.long()
                     loss = criterion(log_probs, labels)
                     loss_callback(loss)
@@ -641,7 +621,7 @@ class ClassificationTrainer:
         self.results["train_time"].append((global_round_index, train_time))
 
         # Post-process step
-        if self.agg_strategy in ["RECORD-LEVEL-DP"]:
+        if self.agg_strategy == METHOD_RECORD_LEVEL_DP:
             model.remove_hooks()
             eps = self.privacy_engine.get_epsilon(delta=self.local_delta)
             logger.debug(
@@ -651,11 +631,7 @@ class ClassificationTrainer:
             )
             self.results["epsilon"].append((global_round_index, eps))
             return weights_diff, len(train_loader)
-        elif self.agg_strategy in [
-            "ULDP-GROUP",
-            "ULDP-GROUP-max",
-            "ULDP-GROUP-median",
-        ]:
+        elif self.agg_strategy in METHOD_GROUP_ULDP_GROUPS:
             model.remove_hooks()
             # group_eps_from_rdp, opt_alpha = noise_utils.get_group_privacy_spent(
             #     group_k=self.group_k,
@@ -686,7 +662,7 @@ class ClassificationTrainer:
             #     )
             # )
             return weights_diff, len(train_loader)
-        elif self.agg_strategy in ["ULDP-NAIVE"]:
+        elif self.agg_strategy == METHOD_ULDP_NAIVE:
             clipped_weights_diff = noise_utils.global_clip(
                 self.model, weights_diff, self.local_clipping_bound
             )
@@ -700,29 +676,20 @@ class ClassificationTrainer:
                 device=self.device,
             )
             return noised_clipped_weights_diff, len(train_loader)
-        elif self.agg_strategy in ["SILO-LEVEL-DP"]:
+        elif self.agg_strategy == METHOD_SILO_LEVEL_DP:
             clipped_weights_diff = noise_utils.global_clip(
                 self.model, weights_diff, self.local_clipping_bound
             )
             return clipped_weights_diff, len(train_loader)
-        elif self.agg_strategy in [
-            "ULDP-SGD",
-            "ULDP-SGD-w",
-            "ULDP-SGD-s",
-            "ULDP-SGD-ws",
-        ]:
+        elif self.agg_strategy in METHOD_GROUP_GRADIENT:
             return noisy_avg_grads, len(self.train_loader)
-        elif self.agg_strategy in [
-            "ULDP-AVG",
-            "ULDP-AVG-w",
-            "ULDP-AVG-s",
-            "ULDP-AVG-ws",
-            "PULDP-AVG",
-        ]:
+        elif self.agg_strategy in METHOD_GROUP_AVG:
             return noisy_avg_weights_diff, len(self.train_loader)
-        elif self.agg_strategy in ["PULDP-AVG-online"]:
+        elif self.agg_strategy == METHOD_PULDP_AVG:
+            return noisy_avg_weights_diff, len(self.train_loader)
+        elif self.agg_strategy == METHOD_PULDP_AVG_ONLINE:
             return noisy_avg_weights_diff_dct
-        elif self.agg_strategy in ["DEFAULT"]:
+        elif self.agg_strategy == METHOD_DEFAULT:
             return weights_diff, len(train_loader)
         else:
             raise NotImplementedError("Unknown aggregation strategy")
@@ -743,16 +710,7 @@ class ClassificationTrainer:
         model.to(self.device)
         model.eval()
 
-        if self.agg_strategy in [
-            "ULDP-SGD",
-            "ULDP-SGD-w",
-            "ULDP-AVG",
-            "ULDP-AVG-w",
-            "ULDP-SGD-s",
-            "ULDP-AVG-s",
-            "ULDP-AVG-ws",
-            "ULDP-SGD-ws",
-        ]:
+        if self.agg_strategy in (METHOD_GROUP_GRADIENT + METHOD_GROUP_AVG):
             logger.debug("Skip local test as model is not trained locally")
             return
 
@@ -760,7 +718,7 @@ class ClassificationTrainer:
             logger.debug("Skip local test as dataset size is too small")
             return
 
-        if self.dataset_name in ["heart_disease", "tcga_brca"]:
+        if self.dataset_name in [HEART_DISEASE, TCGA_BRCA]:
             with torch.no_grad():
                 y_pred_final = []
                 y_true_final = []
@@ -783,7 +741,7 @@ class ClassificationTrainer:
                 f"\t |----- Local Test/Acc: {test_metric} ({n_total_data}), Local Test/Loss: {test_loss}"
             )
 
-        elif self.dataset_name in ["creditcard"]:
+        elif self.dataset_name == CREDITCARD:
             from sklearn.metrics import roc_auc_score
 
             criterion = nn.CrossEntropyLoss().to(self.device)

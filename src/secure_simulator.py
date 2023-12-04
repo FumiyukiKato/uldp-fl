@@ -2,6 +2,11 @@ import time
 from typing import List, Optional, Tuple, Dict
 import torch
 import copy
+from method_group import (
+    METHOD_GROUP_NO_SAMPLING,
+    METHOD_GROUP_SAMPLING,
+    METHOD_GROUP_SECURE_WEIGHTING,
+)
 
 from secure_aggregation import SecureAggregator, SecureLocalTrainer, PRIMARY_SILO_ID
 from mylogger import logger
@@ -46,13 +51,10 @@ class SecureWeightingFLSimulator:
         self.round_idx = 0
         model.to(device)
         self.agg_strategy = agg_strategy
-        if agg_strategy not in [
-            "ULDP-AVG-w",
-            "ULDP-AVG-ws",
-            "ULDP-SGD-w",
-            "ULDP-SGD-ws",
-        ]:
-            raise ValueError(f"agg_strategy {agg_strategy} is not supported.")
+        if agg_strategy not in METHOD_GROUP_SECURE_WEIGHTING:
+            raise ValueError(
+                f"In Secure version, agg_strategy {agg_strategy} is not supported!"
+            )
 
         self.dataset_name = dataset_name
         self.sampling_rate_q = sampling_rate_q
@@ -131,7 +133,7 @@ class SecureWeightingFLSimulator:
         n_silos = self.n_silos
         secure_aggregator = self.secure_aggregator
 
-        # mock up the communicatoin channel
+        # mock up the communication channel
         channel_server_to_silos = {silo_id: {} for silo_id in range(n_silos)}
         channel_silo_to_server = {silo_id: {} for silo_id in range(n_silos)}
 
@@ -203,7 +205,9 @@ class SecureWeightingFLSimulator:
                 silo_id, channel_silo_to_server[silo_id]
             )
 
-        if self.agg_strategy in ["ULDP-SGD-w", "ULDP-AVG-w"]:
+        if self.agg_strategy in METHOD_GROUP_SECURE_WEIGHTING.intersection(
+            METHOD_GROUP_NO_SAMPLING
+        ):
             # server -> silo
             encrypted_inversed_blinded_user_histogram = (
                 secure_aggregator.get_encrypt_inversed_blinded_user_histogram()
@@ -222,7 +226,9 @@ class SecureWeightingFLSimulator:
         while self.round_idx < self.n_total_round:
             silo_id_list_in_this_round = secure_aggregator.silo_selection()
 
-            if self.agg_strategy in ["ULDP-SGD-ws", "ULDP-AVG-ws"]:
+            if self.agg_strategy in METHOD_GROUP_SECURE_WEIGHTING.intersection(
+                METHOD_GROUP_SAMPLING
+            ):
                 # server -> silo
                 encrypted_inversed_blinded_user_histogram = (
                     secure_aggregator.get_encrypt_inversed_blinded_user_histogram_with_userlevel_subsampling()

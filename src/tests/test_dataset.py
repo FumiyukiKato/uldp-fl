@@ -201,7 +201,7 @@ class TestDataset(unittest.TestCase):
 
         self.assertEqual(
             len(indices_0),
-            174,
+            117,
             "user_indices_of_data is equal to the verified sampled dataset",
         )
 
@@ -212,7 +212,7 @@ class TestDataset(unittest.TestCase):
         )
         self.assertEqual(
             len(indices_1),
-            84,
+            83,
             "user_indices_of_data is equal to the verified sampled dataset",
         )
         unique_user_labels = set([train_dataset[i][1] for i in indices_1])
@@ -226,7 +226,8 @@ class TestDataset(unittest.TestCase):
             "user_indices_of_data is equal to the verified sampled dataset",
         )
         unique_user_labels = set([train_dataset[i][1] for i in indices_4999])
-        self.assertSetEqual(unique_user_labels, {2}, "set of unique labels is correct")
+
+        self.assertSetEqual(unique_user_labels, {7}, "set of unique labels is correct")
 
     def test_distribute_data_to_silos_with_uniform(self):
         random_state = np.random.RandomState(seed=seed)

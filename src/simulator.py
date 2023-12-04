@@ -4,7 +4,16 @@ import numpy as np
 import copy
 
 from aggregator import Aggregator
-from constant import METHOD_PULDP_AVG, METHOD_PULDP_AVG_ONLINE
+from dataset import TCGA_BRCA
+from method_group import (
+    METHOD_GROUP_NEED_USER_RECORD,
+    METHOD_GROUP_NO_SAMPLING,
+    METHOD_GROUP_SAMPLING,
+    METHOD_GROUP_ULDP_GROUPS,
+    METHOD_GROUP_WEIGHTS,
+    METHOD_PULDP_AVG,
+    METHOD_PULDP_AVG_ONLINE,
+)
 from coordinator import Coordinator
 from local_trainer import ClassificationTrainer
 from mylogger import logger
@@ -94,7 +103,7 @@ class FLSimulator:
             sampling_rate_q=sampling_rate_q,
         )
 
-        if self.agg_strategy in [METHOD_PULDP_AVG]:
+        if self.agg_strategy == METHOD_PULDP_AVG:
             self.aggregator.sampling_rate_q = np.mean(list(q_u.values()))
         if self.agg_strategy == METHOD_PULDP_AVG_ONLINE:
             self.aggregator.set_epsilon_groups(self.coordinator.epsilon_groups)
@@ -130,21 +139,7 @@ class FLSimulator:
                 C_u=C_u,
             )
             self.local_trainer_per_silos[silo_id] = local_trainer
-            if self.agg_strategy in [
-                "ULDP-GROUP",
-                "ULDP-GROUP-max",
-                "ULDP-GROUP-median",
-                "ULDP-SGD",
-                "ULDP-SGD-w",
-                "ULDP-SGD-s",
-                "ULDP-SGD-ws",
-                "ULDP-AVG",
-                "ULDP-AVG-w",
-                "ULDP-AVG-s",
-                "ULDP-AVG-ws",
-                METHOD_PULDP_AVG,
-                METHOD_PULDP_AVG_ONLINE,
-            ]:
+            if self.agg_strategy in METHOD_GROUP_NEED_USER_RECORD:
                 self.coordinator.set_user_hist_by_silo_id(silo_id, user_hist)
             if self.agg_strategy == METHOD_PULDP_AVG_ONLINE:
                 local_trainer.set_epsilon_groups(self.coordinator.get_epsilon_groups())
@@ -158,8 +153,8 @@ class FLSimulator:
         for local_trainer in self.local_trainer_per_silos.values():
             local_trainer.set_group_k(self.group_k)
 
-        if self.agg_strategy in ["ULDP-GROUP", "ULDP-GROUP-max", "ULDP-GROUP-median"]:
-            if self.dataset_name == "tcga_brca":
+        if self.agg_strategy in METHOD_GROUP_ULDP_GROUPS:
+            if self.dataset_name == TCGA_BRCA:
                 min_count = 2
             else:
                 min_count = 1
@@ -171,13 +166,10 @@ class FLSimulator:
                 self.local_trainer_per_silos[silo_id].bound_user_contributions(
                     bounded_user_hist
                 )
-        elif self.agg_strategy in [
-            "ULDP-SGD",
-            "ULDP-AVG",
-            "ULDP-SGD-w",
-            "ULDP-AVG-w",
-        ]:
-            if self.agg_strategy in ["ULDP-SGD-w", "ULDP-AVG-w"]:
+        elif self.agg_strategy in METHOD_GROUP_NO_SAMPLING:
+            if self.agg_strategy in METHOD_GROUP_NO_SAMPLING.intersection(
+                METHOD_GROUP_WEIGHTS
+            ):
                 user_weights_per_silo = self.coordinator.build_user_weights(
                     weighted=True
                 )
@@ -191,27 +183,25 @@ class FLSimulator:
         while self.round_idx < self.n_total_round:
             silo_id_list_in_this_round = self.aggregator.silo_selection()
 
-            if self.agg_strategy in [
-                "ULDP-SGD-s",
-                "ULDP-AVG-s",
-            ]:
+            if self.agg_strategy in METHOD_GROUP_SAMPLING.difference(
+                METHOD_GROUP_WEIGHTS
+            ):
                 user_weights_per_silo = self.coordinator.build_user_weights(
                     weighted=False, is_sample=True
                 )
                 for silo_id, user_weights in user_weights_per_silo.items():
                     self.local_trainer_per_silos[silo_id].set_user_weights(user_weights)
 
-            elif self.agg_strategy in [
-                "ULDP-SGD-ws",
-                "ULDP-AVG-ws",
-                METHOD_PULDP_AVG,
-            ]:
+            elif self.agg_strategy in METHOD_GROUP_SAMPLING.intersection(
+                METHOD_GROUP_WEIGHTS
+            ):
                 user_weights_per_silo = self.coordinator.build_user_weights(
                     weighted=True, is_sample=True
                 )
                 for silo_id, user_weights in user_weights_per_silo.items():
                     self.local_trainer_per_silos[silo_id].set_user_weights(user_weights)
-            elif self.agg_strategy in [METHOD_PULDP_AVG_ONLINE]:
+
+            elif self.agg_strategy == METHOD_PULDP_AVG_ONLINE:
                 # compute stepped q_u and C_u to calculate finite difference
                 (
                     user_weights_per_silo,
@@ -258,18 +248,6 @@ class FLSimulator:
                         self.round_idx,
                         loss_callback=build_loss_callback(),
                     )
-                    # local_trainer.test_local(self.round_idx)
-                    # if self.agg_strategy in [
-                    #     "DEFAULT",
-                    #     "ULDP-GROUP",
-                    #     "ULDP-GROUP-max",
-                    #     "ULDP-GROUP-median",
-                    #     "ULDP-NAIVE",
-                    # ]:
-                    #     # test local model with global test dataset
-                    #     self.aggregator.test_global(
-                    #         self.round_idx, model=local_trainer.model, silo_id=silo_id
-                    #     )
                     self.aggregator.add_local_trained_result(
                         silo_id,
                         local_updated_weights,
@@ -303,11 +281,7 @@ class FLSimulator:
             )
             self.round_idx += 1
 
-        if self.agg_strategy in [
-            "ULDP-GROUP",
-            "ULDP-GROUP-max",
-            "ULDP-GROUP-median",
-        ]:
+        if self.agg_strategy in METHOD_GROUP_ULDP_GROUPS:
             self.aggregator.results["privacy_info"] = {
                 "group_k": self.group_k,
                 "history": [
@@ -322,11 +296,7 @@ class FLSimulator:
         results = dict()
         results["global"] = self.aggregator.get_results()
 
-        if self.agg_strategy in [
-            "ULDP-GROUP",
-            "ULDP-GROUP-max",
-            "ULDP-GROUP-median",
-        ]:
+        if self.agg_strategy in METHOD_GROUP_ULDP_GROUPS:
             results["privacy_info"] = self.aggregator.results["privacy_info"]
 
         if self.agg_strategy == METHOD_PULDP_AVG:
@@ -334,6 +304,7 @@ class FLSimulator:
                 "q_u": self.coordinator.q_u,
                 "C_u": self.local_trainer_per_silos[0].C_u,
             }
+
         if self.agg_strategy == METHOD_PULDP_AVG_ONLINE:
             results["param_history"] = self.coordinator.param_history
             results["loss_history"] = self.coordinator.loss_history
@@ -343,11 +314,11 @@ class FLSimulator:
 def build_loss_callback() -> Callable:
     def loss_callback(loss):
         if torch.isnan(loss):
-            raise NanError("Stop because Loss is NaN")
+            raise TrainNanError("Stop because Loss is NaN")
 
     return loss_callback
 
 
-class NanError(Exception):
+class TrainNanError(Exception):
     def __init__(self, message):
         super().__init__(message)

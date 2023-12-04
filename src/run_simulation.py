@@ -10,7 +10,7 @@ from results_saver import save_one_shot_results, args_to_hash
 import models
 from secure_simulator import SecureWeightingFLSimulator
 
-from simulator import FLSimulator, NanError
+from simulator import FLSimulator, TrainNanError
 
 from mylogger import logger_set_debug
 
@@ -134,7 +134,7 @@ if __name__ == "__main__":
         try:
             sim_results = run_simulation(args, path_project)
             results_list.append(sim_results)
-        except NanError:
+        except TrainNanError:
             results_list.append("LOSS IS NAN")
         except AssertionError:
             results_list.append("Assertion Error")

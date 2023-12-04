@@ -14,6 +14,12 @@ from mylogger import logger
 DATA_SET_DIR = "dataset"
 LOCAL_TEST_RATIO = 0.1
 
+TCGA_BRCA = "tcga_brca"
+HEART_DISEASE = "heart_disease"
+MNIST = "mnist"
+LIGHT_MNIST = "light_mnist"
+CREDITCARD = "creditcard"
+
 
 def shuffle_test_and_train(
     random_state: np.random.RandomState,
