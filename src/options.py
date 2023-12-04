@@ -67,6 +67,7 @@ def args_parser(path_project: str) -> argparse.Namespace:
     parser.add_argument("--q_u", type=ast.literal_eval, default={}, help="Sample rate dict for personalized uldp.")
     parser.add_argument("--epsilon_u", type=ast.literal_eval, default={}, help="Epsilon list for users.")
     parser.add_argument("--group_thresholds", type=ast.literal_eval, default=[], help="For grouping by epsilon.")
+    parser.add_argument("--q_step_size", type=float, help="Step size for q_u for online optimization.")
 
     parser.add_argument("--verbose", type=int, help="verbose (set logging at DEBUG level)")
     parser.add_argument("--hyper_parameter_tuning", type=int, help="is hyper-parameter tuning")

@@ -26,6 +26,7 @@ class Coordinator:
         delta: Optional[float] = None,
         sigma: Optional[float] = None,
         n_total_round: Optional[int] = None,
+        q_step_size: Optional[float] = None,
     ):
         self.random_state = np.random.RandomState(seed=base_seed + 2000000)
         self.n_users = n_users
@@ -38,6 +39,10 @@ class Coordinator:
         self.q_u = q_u
 
         if self.agg_strategy == "PULDP-AVG-online":
+            assert (
+                q_step_size is not None and delta is not None and sigma is not None
+            ), "q_step_size, delta, sigma must be given for PULDP-AVG-online"
+            self.q_step_size = q_step_size
             self.delta, self.sigma, self.n_total_round = delta, sigma, n_total_round
             self.epsilon_groups = group_by_closest_below(
                 epsilon_u_dct=epsilon_u, group_thresholds=group_thresholds
@@ -202,11 +207,10 @@ class Coordinator:
         self.C_u_list = np.zeros(self.n_users)
         self.stepped_q_u_list = np.zeros(self.n_users)
         self.stepped_C_u_list = np.zeros(self.n_users)
-        STEP_SIZE = 0.9
         for eps_u, user_ids_per_eps in self.epsilon_groups.items():
             q_u, C_u = self.hp_dct_by_eps[eps_u]
             stepped_q_u, stepped_C_u = compute_stepped_qC(
-                step_size=STEP_SIZE,
+                step_size=self.q_step_size,
                 q_u=q_u,
                 delta=self.delta,
                 eps_u=eps_u,
@@ -313,11 +317,10 @@ class Coordinator:
         for eps_u in self.epsilon_groups.keys():
             loss_diff = loss_diff_dct[eps_u]  # diff = stepped_test_loss - test_loss
             q_u, _ = self.hp_dct_by_eps[eps_u]
-            STEP_SIZE = 0.9
             if loss_diff < 0:
-                q_u = q_u * STEP_SIZE
+                q_u = q_u * self.q_step_size
             else:
-                q_u = q_u / STEP_SIZE
+                q_u = q_u / self.q_step_size
                 q_u = min(q_u, 1.0)
             C_u, eps = from_q_u(q_u, self.delta, eps_u, self.sigma, self.n_total_round)
             self.hp_dct_by_eps[eps_u] = (q_u, C_u)

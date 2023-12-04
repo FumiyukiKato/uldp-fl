@@ -102,6 +102,7 @@ def run_simulation(args, path_project, data_seed=None):
             q_u=args.q_u,
             epsilon_u=args.epsilon_u,
             group_thresholds=args.group_thresholds,
+            q_step_size=args.q_step_size,
         )
     simulator.run()
     results = simulator.get_results()

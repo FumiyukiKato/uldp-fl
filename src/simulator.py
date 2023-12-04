@@ -52,6 +52,7 @@ class FLSimulator:
         q_u: Optional[Dict] = None,
         epsilon_u: Optional[Dict] = None,
         group_thresholds: Optional[List] = None,
+        q_step_size: Optional[float] = None,
     ):
         self.n_total_round = n_total_round
         self.round_idx = 0
@@ -72,6 +73,7 @@ class FLSimulator:
             delta=delta,
             sigma=sigma,
             n_total_round=n_total_round,
+            q_step_size=q_step_size,
         )
 
         self.aggregator = Aggregator(
@@ -327,6 +329,11 @@ class FLSimulator:
         ]:
             results["privacy_info"] = self.aggregator.results["privacy_info"]
 
+        if self.agg_strategy == METHOD_PULDP_AVG:
+            results["qC"] = {
+                "q_u": self.coordinator.q_u,
+                "C_u": self.local_trainer_per_silos[0].C_u,
+            }
         if self.agg_strategy == METHOD_PULDP_AVG_ONLINE:
             results["param_history"] = self.coordinator.param_history
             results["loss_history"] = self.coordinator.loss_history
