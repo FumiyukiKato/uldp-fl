@@ -710,7 +710,7 @@ class ClassificationTrainer:
         model.to(self.device)
         model.eval()
 
-        if self.agg_strategy in (METHOD_GROUP_GRADIENT + METHOD_GROUP_AVG):
+        if self.agg_strategy in (METHOD_GROUP_GRADIENT | METHOD_GROUP_AVG):
             logger.debug("Skip local test as model is not trained locally")
             return
 
@@ -788,6 +788,106 @@ class ClassificationTrainer:
                 f"\t |----- Local Test/Acc: {test_metric} ({test_correct} / {n_total_data}), Local Test/Loss: {test_loss}"
             )
         self.results["local_test"].append((round_idx, test_metric, test_loss))
+
+    def train_loss(
+        self,
+        round_idx=None,
+        q_u: Optional[Dict] = None,
+    ) -> Tuple[float, float]:
+        model = self.model
+        model.to(self.device)
+        model.eval()
+
+        user_level_total_loss = []
+        user_level_metrics = []
+        if self.dataset_name == TCGA_BRCA:
+            logger.warning("TCGA_BRCA does not support train_loss")
+            return 0, 0
+
+        for user_id, user_train_loader in self.user_level_data_loader:
+            # user-level sub-sampling
+            if q_u is not None and q_u[user_id] < self.random_state.rand():
+                continue
+            if self.dataset_name in [HEART_DISEASE]:
+                with torch.no_grad():
+                    y_pred_final = []
+                    y_true_final = []
+                    n_total_data = 0
+                    train_loss = 0
+                    for idx, (x, y) in enumerate(user_train_loader):
+                        x, y = x.to(self.device), y.to(self.device)
+                        y_pred = model(x)
+                        loss = self.criterion(y_pred, y)
+                        train_loss += loss.item()
+                        y_pred_final.append(y_pred.numpy())
+                        y_true_final.append(y.numpy())
+                        n_total_data += len(y)
+
+                y_true_final = np.concatenate(y_true_final)
+                y_pred_final = np.concatenate(y_pred_final)
+                train_metric = self.metric(y_true_final, y_pred_final)
+                logger.info(
+                    f"|----- Local test result of round {round_idx}, user {user_id}"
+                )
+                logger.info(
+                    f"\t |----- Local Train/Acc: {train_metric} ({n_total_data}), Local Train/Loss: {train_loss}"
+                )
+
+            elif self.dataset_name == CREDITCARD:
+                from sklearn.metrics import roc_auc_score
+
+                criterion = nn.CrossEntropyLoss().to(self.device)
+
+                with torch.no_grad():
+                    n_total_data = 0
+                    train_loss = 0
+                    y_pred_final = []
+                    y_true_final = []
+                    for x, y in self.test_loader:
+                        x, y = x.to(self.device), y.to(self.device)
+                        y_pred = model(x)
+                        loss = criterion(y_pred, y.long())
+                        train_loss += loss.item()
+                        y_pred = y_pred.argmax(dim=1)
+                        y_pred_final.append(y_pred.numpy())
+                        y_true_final.append(y.numpy())
+                        n_total_data += len(y)
+
+                y_true_final = np.concatenate(y_true_final)
+                y_pred_final = np.concatenate(y_pred_final)
+                train_metric = roc_auc_score(y_true_final, y_pred_final)
+                logger.info(
+                    f"|----- Local test result of round {round_idx}, user {user_id}"
+                )
+                logger.info(
+                    f"\t |----- Local Test/ROC_AUC: {train_metric} ({n_total_data}), Local Test/Loss: {train_loss}"
+                )
+            else:
+                with torch.no_grad():
+                    n_total_data = 0
+                    train_loss = 0
+                    test_correct = 0
+                    for idx, (x, labels) in enumerate(self.test_loader):
+                        x, labels = x.to(self.device), labels.to(self.device)
+                        pred = model(x)
+                        loss = self.criterion(pred, labels)
+                        train_loss += loss.item()
+                        _, predicted = torch.max(pred, 1)
+                        test_correct += torch.sum(torch.eq(predicted, labels)).item()
+                        n_total_data += len(labels)
+
+                train_metric = test_correct / n_total_data
+                logger.info(
+                    f"|----- Local test result of round {round_idx}, user {user_id}"
+                )
+                logger.info(
+                    f"\t |----- Local Test/Acc: {train_metric} ({test_correct} / {n_total_data}), Local Test/Loss: {train_loss}"
+                )
+
+            user_level_total_loss.append(train_loss / n_total_data)
+            user_level_metrics.append(train_metric)
+
+        return sum(user_level_total_loss), sum(user_level_metrics)
 
 
 def check_nan_inf(model):

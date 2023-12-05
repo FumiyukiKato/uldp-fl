@@ -62,6 +62,7 @@ def args_parser(path_project: str) -> argparse.Namespace:
     parser.add_argument("--clipping_bound", type=float, help="clipping bound for differential privacy")
     parser.add_argument("--delta", type=float, help="delta for differential privacy")
     parser.add_argument("--sampling_rate_q", type=float, help="sampling rate q for user-level sub-sampling")
+    parser.add_argument("--validation_ratio", type=float, default=0.0, help="validation dataset ratio")
 
     parser.add_argument("--C_u", type=ast.literal_eval, default={}, help="Clipping bound dict for personalized uldp.")
     parser.add_argument("--q_u", type=ast.literal_eval, default={}, help="Sample rate dict for personalized uldp.")

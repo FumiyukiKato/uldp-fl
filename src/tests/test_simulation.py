@@ -53,6 +53,7 @@ class TestSimulator(unittest.TestCase):
         test_args.clipping_bound = 1.0
         test_args.delta = 1e-05
         test_args.sampling_rate_q = 0.1
+        test_args.validation_ratio = 0.0
 
         test_args.C_u = None
         test_args.q_u = None

@@ -4,7 +4,7 @@ import numpy as np
 import os
 
 from options import args_parser
-from dataset import load_dataset
+from dataset import HEART_DISEASE, TCGA_BRCA, load_dataset
 
 from results_saver import save_one_shot_results, args_to_hash
 import models
@@ -103,6 +103,7 @@ def run_simulation(args, path_project, data_seed=None):
             epsilon_u=args.epsilon_u,
             group_thresholds=args.group_thresholds,
             q_step_size=args.q_step_size,
+            validation_ratio=args.validation_ratio,
         )
     simulator.run()
     results = simulator.get_results()
@@ -116,12 +117,12 @@ if __name__ == "__main__":
     if args.verbose:
         logger_set_debug()
 
-    if args.dataset_name == "heart_disease":
+    if args.dataset_name == HEART_DISEASE:
         from flamby_utils.heart_disease import update_args
 
         args = update_args(args)
 
-    elif args.dataset_name == "tcga_brca":
+    elif args.dataset_name == TCGA_BRCA:
         from flamby_utils.tcga_brca import update_args
 
         args = update_args(args)

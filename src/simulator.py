@@ -62,6 +62,7 @@ class FLSimulator:
         epsilon_u: Optional[Dict] = None,
         group_thresholds: Optional[List] = None,
         q_step_size: Optional[float] = None,
+        validation_ratio: Optional[float] = 0.0,
     ):
         self.n_total_round = n_total_round
         self.round_idx = 0
@@ -69,6 +70,7 @@ class FLSimulator:
         self.agg_strategy = agg_strategy
         self.dataset_name = dataset_name
         self.sampling_rate_q = sampling_rate_q
+        self.validation_ratio = validation_ratio
         self.coordinator = Coordinator(
             base_seed=seed,
             n_silos=n_silos,
@@ -101,12 +103,17 @@ class FLSimulator:
             global_learning_rate=global_learning_rate,
             dataset_name=dataset_name,
             sampling_rate_q=sampling_rate_q,
+            validation_ratio=validation_ratio,
         )
 
         if self.agg_strategy == METHOD_PULDP_AVG:
             self.aggregator.sampling_rate_q = np.mean(list(q_u.values()))
         if self.agg_strategy == METHOD_PULDP_AVG_ONLINE:
             self.aggregator.set_epsilon_groups(self.coordinator.epsilon_groups)
+            if validation_ratio == 0.0:
+                raise ValueError(
+                    "validation ratio must be greater than 0.0 for online optimization with Test Loss"
+                )
 
         self.local_trainer_per_silos: Dict[int, ClassificationTrainer] = {}
         for silo_id, (
@@ -255,11 +262,16 @@ class FLSimulator:
                         local_trainer.get_latest_epsilon(),
                     )
 
+                if self.agg_strategy == METHOD_PULDP_AVG:
+                    local_trainer.test_local(self.round_idx)
+
             logger.debug(
                 "============ AGGREGATION: ROUND %d ============" % (self.round_idx)
             )
             self.aggregator.aggregate(silo_id_list_in_this_round, self.round_idx)
             test_acc, test_loss = self.aggregator.test_global(self.round_idx)
+            if self.validation_ratio > 0.0:
+                self.aggregator.test_global(self.round_idx, is_validation=True)
 
             if self.agg_strategy == METHOD_PULDP_AVG_ONLINE:
                 loss_diff_dct = self.aggregator.compute_loss_diff(
@@ -290,6 +302,18 @@ class FLSimulator:
                 ],
             }
 
+        if self.agg_strategy == METHOD_PULDP_AVG:
+            final_loss = []
+            final_metric = []
+            for silo_id, local_trainer in self.local_trainer_per_silos.items():
+                sum_loss, sum_metric = local_trainer.train_loss(
+                    round_idx=self.round_idx
+                )
+                final_loss.append(sum_loss)
+                final_metric.append(sum_metric)
+            self.aggregator.results["train_loss"] = np.mean(final_loss)
+            self.aggregator.results["train_metric"] = np.mean(final_metric)
+
         logger.info("Finish federated learning simulation")
 
     def get_results(self) -> Dict:
@@ -303,6 +327,10 @@ class FLSimulator:
             results["qC"] = {
                 "q_u": self.coordinator.q_u,
                 "C_u": self.local_trainer_per_silos[0].C_u,
+            }
+            results["train"] = {
+                "train_loss": self.aggregator.results["train_loss"],
+                "train_metric": self.aggregator.results["train_metric"],
             }
 
         if self.agg_strategy == METHOD_PULDP_AVG_ONLINE:

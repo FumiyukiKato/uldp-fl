@@ -25,7 +25,7 @@ def update_args(args):
     return updated_args
 
 
-# Because Cox Loss needs multiple data to calcuate loss, so we need to
+# Because Cox Loss needs multiple data to calculate loss, so we need to
 # build user distribution to make sure each silo and user has 2 data at least.
 def build_user_dist(
     n_users: int,

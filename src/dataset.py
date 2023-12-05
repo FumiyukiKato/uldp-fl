@@ -378,7 +378,7 @@ def build_user_histogram(local_train_indices, data_indices_of_users) -> Dict[int
     return user_histogram, user_ids_of_local_train_dataset
 
 
-def load_pre_seperated_dataset(
+def load_pre_separated_dataset(
     dataset_name: str,
     random_state: np.random.RandomState,
     silo_id: int = None,
@@ -386,7 +386,7 @@ def load_pre_seperated_dataset(
     user_alpha: float = None,
     user_dist: str = None,
 ) -> Tuple:
-    if dataset_name == "heart_disease":
+    if dataset_name == HEART_DISEASE:
         from flamby_utils import heart_disease
 
         dataset = heart_disease.custom_load_dataset(
@@ -397,7 +397,7 @@ def load_pre_seperated_dataset(
             user_dist=user_dist,
         )
 
-    elif dataset_name == "tcga_brca":
+    elif dataset_name == TCGA_BRCA:
         from flamby_utils import tcga_brca
 
         dataset = tcga_brca.custom_load_dataset(
@@ -427,10 +427,10 @@ def load_dataset(
     is_simulation: bool = False,
 ) -> Tuple[List[Tuple[torch.Tensor, int]], List[Tuple[torch.Tensor, int]]]:
     logger.debug("Start prepare dataset...")
-    if dataset_name in ["heart_disease", "tcga_brca"]:
+    if dataset_name in [HEART_DISEASE, TCGA_BRCA]:
         # for simulator
         if is_simulation:
-            return load_pre_seperated_dataset(
+            return load_pre_separated_dataset(
                 dataset_name,
                 random_state,
                 n_users=n_users,
@@ -439,7 +439,7 @@ def load_dataset(
             )
         # for silo
         if silo_id is not None:
-            return load_pre_seperated_dataset(
+            return load_pre_separated_dataset(
                 dataset_name,
                 random_state,
                 silo_id=silo_id,
@@ -448,7 +448,7 @@ def load_dataset(
                 user_dist=user_dist,
             )
         # for server
-        all_training_dataset, all_test_dataset, _ = load_pre_seperated_dataset(
+        all_training_dataset, all_test_dataset, _ = load_pre_separated_dataset(
             dataset_name,
             random_state,
             n_users=n_users,
@@ -489,7 +489,7 @@ def load_dataset(
         )
         labels = np.array([data[1] for data in train_dataset])
 
-    elif dataset_name == "creditcard":
+    elif dataset_name == CREDITCARD:
         data_dir = os.path.join(path_project, DATA_SET_DIR, "creditcard")
         df = pd.read_csv(os.path.join(data_dir, "creditcard.csv"))
         X = df.drop("Class", axis=1)
@@ -510,7 +510,7 @@ def load_dataset(
         y_test = torch.FloatTensor(y_test.values)
 
         percentage = 0.1  # under sampling
-        # sample num =24584
+        # sample num = 24584
         majority_label = 0
         target_X_train = X_train[y_train == majority_label]
         target_y_train = y_train[y_train == majority_label]

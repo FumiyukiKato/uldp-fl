@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
+from dataset import CREDITCARD, HEART_DISEASE, LIGHT_MNIST, MNIST, TCGA_BRCA
 
 from mylogger import logger
 
@@ -20,27 +21,27 @@ def create_model(model_name: str, dataset_name: str, seed: int = None) -> nn.Mod
         seed(int): random seed
 
     Outputs:
-        global_model(nn.Module): modeln
+        global_model(nn.Module): model
     """
     if seed is not None:
         torch.manual_seed(seed)
 
-    if dataset_name == "heart_disease":
+    if dataset_name == HEART_DISEASE:
         import flamby_utils.heart_disease as heart_disease
 
         model = heart_disease.custom_model()
 
-    elif dataset_name == "tcga_brca":
+    elif dataset_name == TCGA_BRCA:
         import flamby_utils.tcga_brca as tcga_brca
 
         model = tcga_brca.custom_model()
 
-    elif dataset_name == "creditcard":
+    elif dataset_name == CREDITCARD:
         model = PrivateFraudNet(30, 30, 4)
 
     elif model_name == "cnn":
         # Convolutional neural network
-        if dataset_name == "mnist" or dataset_name == "light_mnist":
+        if dataset_name == MNIST or dataset_name == LIGHT_MNIST:
             model = CNNMnist()
         else:
             raise NotImplementedError

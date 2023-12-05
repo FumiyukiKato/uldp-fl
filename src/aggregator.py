@@ -1,8 +1,8 @@
 import numpy as np
 import torch
 from torch import nn
-from torch.utils.data import DataLoader
-from typing import Dict, List, Optional, OrderedDict, Union
+from torch.utils.data import DataLoader, random_split
+from typing import Dict, List, Optional, OrderedDict, Union, Tuple
 from dataset import CREDITCARD, HEART_DISEASE, TCGA_BRCA
 from method_group import (
     METHOD_GROUP_AGGREGATOR_PRIVACY_ACCOUNTING,
@@ -33,7 +33,7 @@ class Aggregator:
         self,
         model,
         train_dataset,
-        test_dataset,
+        test_dataset: List[Tuple[torch.Tensor, int]],
         n_users,
         n_silos,
         n_silo_per_round,
@@ -46,6 +46,7 @@ class Aggregator:
         global_learning_rate: Optional[float] = None,
         dataset_name: str = None,
         sampling_rate_q: Optional[float] = None,
+        validation_ratio: float = 0.0,
     ):
         self.random_state = np.random.RandomState(seed=base_seed + 1000000)
         self.model: nn.Module = model
@@ -84,6 +85,19 @@ class Aggregator:
 
         self.latest_eps = 0.0
         self.results = {"privacy_budget": [], "global_test": [], "local_model_test": []}
+
+        if validation_ratio > 0.0:
+            n_test = len(test_dataset)
+            n_validation = int(n_test * validation_ratio)
+            n_test = n_test - n_validation
+            test_dataset, validation_dataset = random_split(
+                test_dataset,
+                [n_test, n_validation],
+                torch.Generator().manual_seed(self.random_state.randint(2**32 - 1)),
+            )
+            self.test_dataset = test_dataset
+            self.validation_dataset = validation_dataset
+            self.results["global_valid"] = []
 
     def get_results(self):
         return self.results
@@ -153,6 +167,7 @@ class Aggregator:
     def add_local_trained_result_with_optimization(
         self, silo_id, model_params_dct: Dict[Union[float, str], OrderedDict], eps
     ):
+        """For Online HP Optimization, we need to store the local trained models for each eps groups."""
         for eps_u, model_params in model_params_dct.items():
             model_params = model_params_to_device(model_params, self.device)
             if eps_u == "default":  # DEFAULT_NAME in local_trainer.py
@@ -357,12 +372,27 @@ class Aggregator:
 
         return metrics
 
-    def test_global(self, round_idx: int, model: nn.Module = None, silo_id: int = None):
+    def test_global(
+        self,
+        round_idx: int,
+        model: nn.Module = None,
+        silo_id: int = None,
+        is_validation: bool = False,
+    ):
         if model is None:
             assert silo_id is None
             model = self.model
 
-        metrics = self._test(self.test_dataset, self.device, model)
+        if is_validation:
+            assert hasattr(
+                self, "validation_dataset"
+            ), "Please set validation=True in the constructor."
+            metrics = self._test(self.validation_dataset, self.device, model)
+            symbol = "valid"
+        else:
+            metrics = self._test(self.test_dataset, self.device, model)
+            symbol = "test"
+
         test_metric, n_test_sample, test_loss = (
             metrics["test_metric"],
             metrics["test_total"],
@@ -370,14 +400,14 @@ class Aggregator:
         )
 
         if silo_id is None:
-            self.results["global_test"].append(
+            self.results[f"global_{symbol}"].append(
                 (
                     round_idx,
                     test_metric,
                     test_loss,
                 )
             )
-            logger.info("|----- Global test result of round %d" % (round_idx))
+            logger.info(f"|----- Global {symbol} result of round {round_idx}")
             if self.dataset_name == CREDITCARD:
                 logger.info(
                     f"\t |----- Test/ROC_AUC: {test_metric} ({n_test_sample}), Test/Loss: {test_loss}"
@@ -387,7 +417,7 @@ class Aggregator:
                     f"\t |----- Test/Acc: {test_metric} ({n_test_sample}), Test/Loss: {test_loss}"
                 )
         else:
-            self.results["local_model_test"].append(
+            self.results[f"local_model_{symbol}"].append(
                 (
                     round_idx,
                     silo_id,
@@ -396,8 +426,7 @@ class Aggregator:
                 )
             )
             logger.debug(
-                "|----- Global test result for SILO %d of round %d"
-                % (silo_id, round_idx)
+                f"|----- Global {symbol} result for SILO {silo_id} of round {round_idx}"
             )
             if self.dataset_name == CREDITCARD:
                 logger.debug(
