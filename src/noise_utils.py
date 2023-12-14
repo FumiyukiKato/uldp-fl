@@ -4,6 +4,8 @@ import numpy as np
 import torch
 import warnings
 from opacus.accountants.analysis import rdp as analysis
+from opacus.accountants import RDPAccountant
+from functools import lru_cache
 
 
 def torch_aggregation(raw_grad_list: List[Dict], N: float = 1.0) -> Dict:
@@ -83,6 +85,12 @@ def _compute_new_grad(
         random_state.normal(0, std_dev, size=grad.shape), device=torch.device(device)
     )
     return noise + grad
+
+
+def single_gaussian_noise(
+    random_state: np.random.RandomState, std_dev: float
+) -> np.float64:
+    return random_state.normal(0, std_dev)
 
 
 def get_group_privacy_spent(
@@ -245,3 +253,46 @@ def convert_to_group_privacy(
         )
     else:
         return epsilon * group_k, group_k * np.exp((group_k - 1) * epsilon + log_delta)
+
+
+@lru_cache(maxsize=128)
+def get_noise_multiplier_from_total_eps(
+    sample_rate, delta, epsilon_u, T, precision=1e-6
+):
+    max_sigma = 100
+    min_sigma = 0
+    while True:
+        sigma = (max_sigma + min_sigma) / 2
+        accountant = RDPAccountant()
+        for i in range(T):
+            accountant.step(noise_multiplier=sigma, sample_rate=sample_rate)
+        eps = accountant.get_epsilon(delta=delta)
+        if eps < epsilon_u:
+            max_sigma = sigma
+        else:
+            min_sigma = sigma
+        if 0 < epsilon_u - eps and epsilon_u - eps < precision:
+            return sigma
+
+
+# binary search given q_u
+@lru_cache(maxsize=128)
+def from_q_u(q_u, delta, epsilon_u, sigma, T, precision=1e-6):
+    max_sensitivity_u = 100
+    min_sensitivity_u = 0
+    while True:
+        sensitivity_u = (max_sensitivity_u + min_sensitivity_u) / 2
+        # func_gaussian = lambda x: RDP_gaussian_with_C(sigma, x, sensitivity_u)
+        # accountant = rdp_acct.anaRDPacct(m=m)
+        accountant = RDPAccountant()
+        for i in range(T):
+            accountant.step(noise_multiplier=sigma / sensitivity_u, sample_rate=q_u)
+            # accountant.compose_subsampled_mechanisms_lowerbound(func=func_gaussian, prob=q_u)
+        # eps = accountant.get_eps(delta)
+        eps = accountant.get_epsilon(delta=delta)
+        if eps < epsilon_u:
+            min_sensitivity_u = sensitivity_u
+        else:
+            max_sensitivity_u = sensitivity_u
+        if 0 < epsilon_u - eps and epsilon_u - eps < precision:
+            return sensitivity_u, eps

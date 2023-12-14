@@ -263,7 +263,9 @@ class TestSecureAggregation(unittest.TestCase):
         # silo -> server
         for silo_id in range(n_silos):
             secure_aggregator.add_local_trained_result(
-                silo_id, channel_silo_to_server[silo_id], 0, 0
+                silo_id,
+                channel_silo_to_server[silo_id],
+                0,
             )
 
         # # server

@@ -1,8 +1,10 @@
+import copy
 import numpy as np
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, random_split
 from typing import Dict, List, Optional, OrderedDict, Union, Tuple
+from opacus.accountants import RDPAccountant
 from dataset import CREDITCARD, HEART_DISEASE, TCGA_BRCA
 from method_group import (
     METHOD_GROUP_AGGREGATOR_PRIVACY_ACCOUNTING,
@@ -15,7 +17,8 @@ from method_group import (
     METHOD_GROUP_WEIGHTS,
     METHOD_NO_DP_ACCOUNTING,
     METHOD_PULDP_AVG,
-    METHOD_PULDP_AVG_ONLINE,
+    METHOD_GROUP_ONLINE_OPTIMIZATION,
+    METHOD_PULDP_AVG_ONLINE_TRAIN,
     METHOD_SILO_LEVEL_DP,
     METHOD_ULDP_NAIVE,
 )
@@ -47,6 +50,9 @@ class Aggregator:
         dataset_name: str = None,
         sampling_rate_q: Optional[float] = None,
         validation_ratio: float = 0.0,
+        sigma_for_online_optimization: Optional[float] = None,
+        total_dp_eps_for_online_optimization: Optional[bool] = None,
+        n_total_round: Optional[int] = None,
     ):
         self.random_state = np.random.RandomState(seed=base_seed + 1000000)
         self.model: nn.Module = model
@@ -60,9 +66,8 @@ class Aggregator:
         self.strategy = strategy
         self.global_learning_rate = global_learning_rate
         self.sampling_rate_q = sampling_rate_q
+        self.n_total_round = n_total_round
         if self.strategy in METHOD_GROUP_AGGREGATOR_PRIVACY_ACCOUNTING:
-            from opacus.accountants import RDPAccountant
-
             assert (
                 clipping_bound is not None and sigma is not None and delta is not None
             ), f"Please specify clipping_bound, sigma, delta for {self.strategy}."
@@ -74,11 +79,6 @@ class Aggregator:
             self.delta = delta
 
         self.model_dict = dict()
-        if self.strategy == METHOD_PULDP_AVG_ONLINE:
-            self.model_dict_for_optimization = {
-                silo_id: {} for silo_id in range(self.n_silos)
-            }
-        self.n_sample_dict = dict()
         self.flag_client_model_uploaded_dict = dict()
         for idx in range(self.n_silos):
             self.flag_client_model_uploaded_dict[idx] = False
@@ -99,6 +99,18 @@ class Aggregator:
             self.validation_dataset = validation_dataset
             self.results["global_valid"] = []
 
+        if self.strategy in METHOD_GROUP_ONLINE_OPTIMIZATION:
+            self.model_dict_for_optimization = {
+                silo_id: {} for silo_id in range(self.n_silos)
+            }
+            self.results["local_loss_diff"] = []
+
+        if self.strategy == METHOD_PULDP_AVG_ONLINE_TRAIN:
+            self.sigma_for_online_optimization = sigma_for_online_optimization
+            self.total_dp_eps_for_online_optimization = (
+                total_dp_eps_for_online_optimization
+            )
+
     def get_results(self):
         return self.results
 
@@ -110,6 +122,7 @@ class Aggregator:
 
     def set_epsilon_groups(self, epsilon_groups: Dict[float, np.ndarray]):
         self.epsilon_groups = epsilon_groups
+        self.accountant_dct = {eps_u: RDPAccountant() for eps_u in epsilon_groups}
 
     def record_epsilon(self, round_idx):
         if self.strategy == METHOD_SILO_LEVEL_DP:  #
@@ -147,33 +160,54 @@ class Aggregator:
         logger.info("Privacy spent: epsilon = {} (round {})".format(eps, round_idx))
         self.results["privacy_budget"].append((round_idx, eps, self.delta))
 
-    def add_local_trained_result(self, silo_id, model_params, n_sample, eps):
+    def add_local_trained_result(self, silo_id, model_params, eps):
         """
         Add the local trained model from a silo to the aggregator.
 
         Params:
             silo_id (int): the id of the silo.
             model_params (dict): the model parameters of the local trained model.
-            n_sample (int): the number of samples used for training the local model.
             eps (float): the privacy budget used for training the local model.
         """
         model_params = model_params_to_device(model_params, self.device)
 
         self.model_dict[silo_id] = model_params
-        self.n_sample_dict[silo_id] = n_sample
         self.flag_client_model_uploaded_dict[silo_id] = True
         self.latest_eps = max(self.latest_eps, eps)
 
-    def add_local_trained_result_with_optimization(
+    def add_local_trained_result_with_online_optimization(
+        self,
+        silo_id,
+        model_params,
+        eps,
+        local_diff_dct: Dict[float, float],
+    ):
+        """
+        For online HP Optimization, we need to store the local loss diff for each eps groups.
+        """
+        self.add_local_trained_result(silo_id, model_params, eps)
+        for eps_u, local_diff in local_diff_dct.items():
+            self.model_dict_for_optimization[silo_id][eps_u] = local_diff
+
+    def add_local_trained_result_with_static_optimization(
         self, silo_id, model_params_dct: Dict[Union[float, str], OrderedDict], eps
     ):
-        """For Online HP Optimization, we need to store the local trained models for each eps groups."""
+        """For static HP Optimization, we need to store the local trained models for each eps groups."""
         for eps_u, model_params in model_params_dct.items():
-            model_params = model_params_to_device(model_params, self.device)
             if eps_u == "default":  # DEFAULT_NAME in local_trainer.py
+                model_params = model_params_to_device(model_params, self.device)
                 self.model_dict[silo_id] = model_params
             else:
-                self.model_dict_for_optimization[silo_id][eps_u] = model_params
+                original_model_params = model_params_to_device(
+                    model_params[0], self.device
+                )
+                stepped_model_params = model_params_to_device(
+                    model_params[1], self.device
+                )
+                self.model_dict_for_optimization[silo_id][eps_u] = (
+                    original_model_params,
+                    stepped_model_params,
+                )
         self.flag_client_model_uploaded_dict[silo_id] = True
         self.latest_eps = max(self.latest_eps, eps)
 
@@ -469,39 +503,111 @@ class Aggregator:
 
     def compute_loss_diff(
         self,
-        test_acc,
-        test_loss,
-        silo_id_list_in_this_round,
-        q_u_list,
-        stepped_q_u_list,
+        silo_id_list_in_this_round=None,
+        q_u_list=None,
+        stepped_q_u_list=None,
     ) -> Dict[float, float]:
+        """Compute the loss difference for each epsilon group to
+        approximately perform Finite Difference Method for HP optimization.
+        """
         diff_dct = {}
+
+        if self.strategy == METHOD_PULDP_AVG_ONLINE_TRAIN:
+            for local_loss_diff_dct in self.model_dict_for_optimization.values():
+                for eps_u, local_loss_diff in local_loss_diff_dct.items():
+                    if eps_u not in diff_dct:
+                        diff_dct[eps_u] = 0.0
+                    diff_dct[eps_u] += local_loss_diff
+            return diff_dct
+
+        original_model = copy.deepcopy(self.model)
         for eps_u, eps_user_ids in self.epsilon_groups.items():
             raw_client_model_or_grad_list = []
             for silo_id in silo_id_list_in_this_round:
                 raw_client_model_or_grad_list.append(
-                    self.model_dict_for_optimization[silo_id][eps_u]
+                    self.model_dict_for_optimization[silo_id][eps_u][0]
                 )
-
-            q_list = np.concatenate(
-                (stepped_q_u_list[eps_user_ids], np.delete(q_u_list, eps_user_ids))
-            )
+            q_list = q_u_list[eps_user_ids]
             sampling_rate_q = np.mean(q_list)
             averaged_param_diff = noise_utils.torch_aggregation(
                 raw_client_model_or_grad_list,
-                int(self.n_users * self.n_silo_per_round * sampling_rate_q),
+                int(len(eps_user_ids) * self.n_silo_per_round * sampling_rate_q),
             )
             self.update_global_weights_from_diff(
                 averaged_param_diff, self.global_learning_rate
             )
+            metrics = self._test(self.test_dataset, self.device, self.model)
+            original_test_loss = metrics["test_loss"]
 
-            model = self.model
-            metrics = self._test(self.test_dataset, self.device, model)
-            eps_test_loss = metrics["test_loss"]
-            diff = eps_test_loss - test_loss
+            self.model = copy.deepcopy(original_model)
+            raw_client_model_or_grad_list = []
+            for silo_id in silo_id_list_in_this_round:
+                raw_client_model_or_grad_list.append(
+                    self.model_dict_for_optimization[silo_id][eps_u][1]
+                )
+            q_list = stepped_q_u_list[eps_user_ids]
+            sampling_rate_q = np.mean(q_list)
+            averaged_param_diff = noise_utils.torch_aggregation(
+                raw_client_model_or_grad_list,
+                int(len(eps_user_ids) * self.n_silo_per_round * sampling_rate_q),
+            )
+            self.update_global_weights_from_diff(
+                averaged_param_diff, self.global_learning_rate
+            )
+            metrics = self._test(self.test_dataset, self.device, self.model)
+            stepped_test_loss = metrics["test_loss"]
+
+            diff = stepped_test_loss - original_test_loss
             diff_dct[eps_u] = diff
             logger.info("eps_u = {}, diff = {}".format(eps_u, diff))
+
+        self.model = original_model
         return diff_dct
+
+    def consume_dp_for_train_loss_metric(self, q_u_list, stepped_q_u_list):
+        # train_loss_metric is approximated metric instead of the real train loss
+        # it needs to be bounded by 1
+        for eps_u, eps_user_ids in self.epsilon_groups.items():
+            q_list = q_u_list[eps_user_ids]
+            sampling_rate_q = np.mean(q_list)
+            stepped_q_list = stepped_q_u_list[eps_user_ids]
+            stepped_sampling_rate_q = np.mean(stepped_q_list)
+
+            if self.total_dp_eps_for_online_optimization:
+                noise_multiplier = noise_utils.get_noise_multiplier_from_total_eps(
+                    sampling_rate_q,
+                    self.delta,
+                    epsilon_u=eps_u,
+                    T=self.n_total_round * 3,
+                )
+                stepped_noise_multiplier = (
+                    noise_utils.get_noise_multiplier_from_total_eps(
+                        stepped_sampling_rate_q,
+                        self.delta,
+                        epsilon_u=eps_u,
+                        T=self.n_total_round * 3,
+                    )
+                )
+            else:
+                noise_multiplier = self.sigma_for_online_optimization
+                stepped_noise_multiplier = self.sigma_for_online_optimization
+            self.accountant_dct[eps_u].step(
+                noise_multiplier=noise_multiplier,
+                sample_rate=sampling_rate_q,
+            )
+            self.accountant_dct[eps_u].step(
+                noise_multiplier=stepped_noise_multiplier,
+                sample_rate=stepped_sampling_rate_q,
+            )
+
+    def consume_dp_for_model_optimization(self, q_u_list, C_u_list):
+        for eps_u, eps_user_ids in self.epsilon_groups.items():
+            q_list = q_u_list[eps_user_ids]
+            C_list = C_u_list[eps_user_ids]
+            self.accountant_dct[eps_u].step(
+                noise_multiplier=self.sigma / C_list[0],
+                sample_rate=q_list[0],
+            )
 
 
 def model_params_to_device(params_obj, device):

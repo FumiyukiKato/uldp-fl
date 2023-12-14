@@ -69,6 +69,11 @@ def args_parser(path_project: str) -> argparse.Namespace:
     parser.add_argument("--epsilon_u", type=ast.literal_eval, default={}, help="Epsilon list for users.")
     parser.add_argument("--group_thresholds", type=ast.literal_eval, default=[], help="For grouping by epsilon.")
     parser.add_argument("--q_step_size", type=float, help="Step size for q_u for online optimization.")
+    parser.add_argument("--with_momentum", action='store_true', help="Using momentum for online HP optimization.")
+    parser.add_argument("--momentum_weight", type=float, help="Momentum weight for online HP optimization.")
+    parser.add_argument("--train_loss_dp", action='store_true', help="Using DP for local train loss in online HP optimization.")
+    parser.add_argument("--sigma_for_online_optimization", type=float, help="Noise multiplier for online HP optimization.")
+    parser.add_argument("--total_dp_eps_for_online_optimization", type=bool, default=None, help="Total DP eps for online HP optimization, i.e., sum of the eps for model optimization and eps for HP optimization. If None, then epsilon_u is used for model optimization, and fixed noise multiplier sigma_for_online_optimization is used for HP optimization.")
 
     parser.add_argument("--verbose", type=int, help="verbose (set logging at DEBUG level)")
     parser.add_argument("--hyper_parameter_tuning", type=int, help="is hyper-parameter tuning")

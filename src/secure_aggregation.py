@@ -249,9 +249,8 @@ class SecureAggregator(Aggregator):
             encrypted[user_id] = self.paillier_public_key.encrypt(value)
         return encrypted
 
-    def add_local_trained_result(self, silo_id, model_params, n_sample, eps):
+    def add_local_trained_result(self, silo_id, model_params, eps):
         self.model_dict[silo_id] = model_params
-        self.n_sample_dict[silo_id] = n_sample
         self.flag_client_model_uploaded_dict[silo_id] = True
         self.latest_eps = max(self.latest_eps, eps)
 

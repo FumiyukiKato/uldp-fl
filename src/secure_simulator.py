@@ -257,7 +257,7 @@ class SecureWeightingFLSimulator:
                 local_updated_weights = local_trainer.train(self.round_idx)
 
                 secure_aggregator.add_local_trained_result(
-                    silo_id, local_updated_weights, 0, 0
+                    silo_id, local_updated_weights, 0
                 )
                 self.record_time(start_time, f"training_silo_{silo_id}")
 

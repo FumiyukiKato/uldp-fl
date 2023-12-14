@@ -104,6 +104,11 @@ def run_simulation(args, path_project, data_seed=None):
             group_thresholds=args.group_thresholds,
             q_step_size=args.q_step_size,
             validation_ratio=args.validation_ratio,
+            with_momentum=args.with_momentum,
+            train_loss_dp=args.train_loss_dp,
+            momentum_weight=args.momentum_weight,
+            sigma_for_online_optimization=args.sigma_for_online_optimization,
+            total_dp_eps_for_online_optimization=args.total_dp_eps_for_online_optimization,
         )
     simulator.run()
     results = simulator.get_results()

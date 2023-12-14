@@ -442,11 +442,11 @@ class ServerManager(GRPCCommManager):
     def handle_message_receive_model_from_client(self, msg_params):
         sender_id = msg_params.get(FLMessage.MSG_ARG_KEY_SENDER)
         model_params = msg_params.get(FLMessage.MSG_ARG_KEY_MODEL_PARAMS)
-        n_local_sample = msg_params.get(FLMessage.MSG_ARG_KEY_NUM_SAMPLES)
+        _ = msg_params.get(FLMessage.MSG_ARG_KEY_NUM_SAMPLES)
         eps = msg_params.get(FLMessage.MSG_ARG_KEY_EPSILON)
 
         self.aggregator.add_local_trained_result(
-            self.client_silo_id_mapping[sender_id], model_params, n_local_sample, eps
+            self.client_silo_id_mapping[sender_id], model_params, eps
         )
         b_all_received = self.aggregator.check_whether_all_receive(
             self.silo_id_list_in_this_round
