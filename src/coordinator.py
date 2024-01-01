@@ -53,8 +53,11 @@ class Coordinator:
             self.q_step_size = q_step_size
             self.delta, self.sigma, self.n_total_round = delta, sigma, n_total_round
 
-            if train_loss_dp and total_dp_eps_for_online_optimization:
+            if total_dp_eps_for_online_optimization:
                 # To total eps (model optimization and HP optimization) is upper bounded
+                self.n_release = self.n_total_round * 3
+            elif self.agg_strategy == METHOD_PULDP_AVG:
+                # Using test dataset is also consume privacy budget
                 self.n_release = self.n_total_round * 3
             else:
                 self.n_release = self.n_total_round
@@ -64,10 +67,11 @@ class Coordinator:
             self.hp_dct_by_eps: Dict[float, Tuple] = {}
             self.param_history: Dict[float, List] = {}
             self.loss_history: Dict[float, List] = {}
+            self.best_alpha_dct: Dict[float, float] = {}
 
             INITIAL_Q_U = 1.0
             for eps_u in self.epsilon_groups.keys():
-                initial_C_u, eps = noise_utils.from_q_u(
+                initial_C_u, _, best_alpha = noise_utils.from_q_u(
                     q_u=INITIAL_Q_U,
                     delta=self.delta,
                     epsilon_u=eps_u,
@@ -77,6 +81,7 @@ class Coordinator:
                 self.hp_dct_by_eps[eps_u] = (INITIAL_Q_U, initial_C_u)
                 self.param_history[eps_u] = [(INITIAL_Q_U, initial_C_u)]
                 self.loss_history[eps_u] = []
+                self.best_alpha_dct[eps_u] = best_alpha
 
     def set_user_hist_by_silo_id(self, silo_id: int, user_hist: Dict):
         self.ready_silos.add(silo_id)
@@ -181,6 +186,7 @@ class Coordinator:
     def build_user_weights_with_online_optimization(
         self,
         weighted: bool = False,
+        round_idx: Optional[int] = None,
     ) -> Tuple[
         Dict[int, Dict[int, float]],
         np.ndarray,
@@ -226,15 +232,19 @@ class Coordinator:
         self.C_u_list = np.zeros(self.n_users)
         self.stepped_q_u_list = np.zeros(self.n_users)
         self.stepped_C_u_list = np.zeros(self.n_users)
+        q_step_size = schedule_step_size(
+            self.q_step_size, round_idx, self.n_total_round
+        )
         for eps_u, user_ids_per_eps in self.epsilon_groups.items():
             q_u, C_u = self.hp_dct_by_eps[eps_u]
             stepped_q_u, stepped_C_u = compute_stepped_qC(
-                step_size=self.q_step_size,
+                step_size=q_step_size,
                 q_u=q_u,
                 delta=self.delta,
                 eps_u=eps_u,
                 sigma=self.sigma,
                 T=self.n_release,
+                alpha=self.best_alpha_dct[eps_u],
             )
             self.q_u_list[user_ids_per_eps] = q_u
             self.C_u_list[user_ids_per_eps] = C_u
@@ -257,7 +267,6 @@ class Coordinator:
         stepped_sampled_user_ids_set_for_optimization = set(
             stepped_sampled_user_ids_for_optimization
         )
-
         for silo_id in range(self.n_silos):
             for user_id in range(self.n_users):
                 if user_id not in sampled_user_ids_set:
@@ -351,29 +360,59 @@ class Coordinator:
         loss_diff_dct: Dict[float, float],
         with_momentum: bool = False,
         beta: float = 0.8,
+        hp_baseline: Optional[str] = None,
+        round_idx: Optional[int] = None,
     ):
+        q_step_size = schedule_step_size(
+            self.q_step_size, round_idx, self.n_total_round
+        )
         for eps_u in self.epsilon_groups.keys():
-            loss_diff = loss_diff_dct[eps_u]  # diff = stepped_test_loss - test_loss
-            org_diff = loss_diff
-            if with_momentum:
-                if not hasattr(self, "momentum"):
-                    self.momentum = {}
-                if len(self.loss_history[eps_u]) == 0:
-                    self.momentum[eps_u] = loss_diff_dct[eps_u]
-                else:
-                    loss_diff = beta * self.momentum[eps_u] + (1 - beta) * loss_diff
-                    self.momentum[eps_u] = loss_diff
-            logger.info(
-                f"eps_u: {eps_u}, original loss_diff: {org_diff}, (self.momentum[eps_u]: {self.momentum[eps_u]})"
-            )
-            q_u, _ = self.hp_dct_by_eps[eps_u]
-            if loss_diff < 0:  # Model is getting better
-                q_u = q_u * self.q_step_size
-            else:  # Model is getting worse
-                q_u = q_u / self.q_step_size
-                q_u = min(q_u, 1.0)
-            C_u, eps = noise_utils.from_q_u(
-                q_u, self.delta, eps_u, self.sigma, self.n_release
+            if hp_baseline is None or hp_baseline == "random-updown":
+                if hp_baseline is None:
+                    loss_diff = loss_diff_dct[
+                        eps_u
+                    ]  # diff = stepped_test_loss - test_loss
+                    org_diff = loss_diff
+                    if with_momentum:
+                        if not hasattr(self, "momentum"):
+                            self.momentum = {}
+                        if len(self.loss_history[eps_u]) == 0:
+                            self.momentum[eps_u] = loss_diff_dct[eps_u]
+                        else:
+                            loss_diff = (
+                                beta * self.momentum[eps_u] + (1 - beta) * loss_diff
+                            )
+                            self.momentum[eps_u] = loss_diff
+                    logger.info(
+                        f"eps_u: {eps_u}, original loss_diff: {org_diff}, (self.momentum[eps_u]: {self.momentum[eps_u]})"
+                    )
+                elif hp_baseline == "random-updown":
+                    loss_diff = self.random_state.uniform(-1, 1)
+                    org_diff = loss_diff
+                q_u, _ = self.hp_dct_by_eps[eps_u]
+                if loss_diff < 0:  # Model is getting better
+                    q_u = q_u * q_step_size
+                else:  # Model is getting worse
+                    q_u = q_u / q_step_size
+                    q_u = min(q_u, 1.0)
+            elif hp_baseline == "random":
+                # q_uを1.0から0.0までの間でランダムに選択する，ログスケールの中で均等に選択されるようにする
+                log_min = np.log10(1.0 / self.n_users)
+                log_max = np.log10(1.0)
+                random_log_value = self.random_state.uniform(log_min, log_max)
+                q_u = 10**random_log_value
+                loss_diff = random_log_value
+                org_diff = random_log_value
+            else:
+                raise ValueError(f"hp_baseline {hp_baseline} is not supported.")
+
+            C_u, _, _ = noise_utils.from_q_u(
+                q_u,
+                self.delta,
+                eps_u,
+                self.sigma,
+                self.n_release,
+                alpha=self.best_alpha_dct[eps_u],
             )
             self.hp_dct_by_eps[eps_u] = (q_u, C_u)
             self.param_history[eps_u].append((q_u, C_u))
@@ -397,10 +436,22 @@ def group_by_closest_below(epsilon_u_dct: Dict, group_thresholds: List):
 
 
 def compute_stepped_qC(
-    step_size: float, q_u: float, delta: float, eps_u: float, sigma: float, T: int
+    step_size: float,
+    q_u: float,
+    delta: float,
+    eps_u: float,
+    sigma: float,
+    T: int,
+    alpha: float,
 ):
     dst_q = q_u * (step_size)
-    dst_C, eps = noise_utils.from_q_u(
-        q_u=dst_q, delta=delta, epsilon_u=eps_u, sigma=sigma, T=T
+    dst_C, _, _ = noise_utils.from_q_u(
+        q_u=dst_q, delta=delta, epsilon_u=eps_u, sigma=sigma, T=T, alpha=alpha
     )
     return dst_q, dst_C
+
+
+def schedule_step_size(step_size: float, round_idx: int, n_total_round: int):
+    # Decrease the rate of change by a certain percentage
+    return 1 - (1 - step_size) * (1 - round_idx / n_total_round)
+    # return step_size

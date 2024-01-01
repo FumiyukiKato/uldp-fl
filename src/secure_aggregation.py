@@ -643,10 +643,15 @@ class SecureLocalTrainer(ClassificationTrainer):
             for user_id, user_train_loader in self.user_level_data_loader:
                 logger.debug("User %d" % user_id)
                 model_u = copy.deepcopy(model)
-                optimizer_u = torch.optim.SGD(
+                # optimizer_u = torch.optim.SGD(
+                #     filter(lambda p: p.requires_grad, model_u.parameters()),
+                #     lr=self.local_learning_rate,
+                # )
+                optimizer_u = torch.optim.Adam(
                     filter(lambda p: p.requires_grad, model_u.parameters()),
                     lr=self.local_learning_rate,
                 )
+
                 for epoch in range(self.local_epochs):
                     batch_loss = []
                     for x, labels in user_train_loader:

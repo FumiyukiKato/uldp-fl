@@ -109,6 +109,7 @@ def run_simulation(args, path_project, data_seed=None):
             momentum_weight=args.momentum_weight,
             sigma_for_online_optimization=args.sigma_for_online_optimization,
             total_dp_eps_for_online_optimization=args.total_dp_eps_for_online_optimization,
+            hp_baseline=args.hp_baseline,
         )
     simulator.run()
     results = simulator.get_results()

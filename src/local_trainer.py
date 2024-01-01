@@ -73,6 +73,8 @@ class ClassificationTrainer:
         self.dataset_name = dataset_name
         self.n_total_round = n_total_round
         self.local_delta = local_delta
+        self.weight_decay = weight_decay
+        self.client_optimizer = client_optimizer
 
         self.results = {"local_test": [], "train_time": [], "epsilon": []}
 
@@ -100,7 +102,12 @@ class ClassificationTrainer:
             )
 
             self.criterion = custom_loss()
-            self.optimizer = custom_optimizer(self.model, self.local_learning_rate)
+            self.optimizer = lambda model: custom_optimizer(
+                self.model,
+                self.local_learning_rate,
+                self.client_optimizer,
+                self.weight_decay,
+            )
             self.metric = custom_metric()
         elif self.dataset_name == TCGA_BRCA:
             from flamby_utils.tcga_brca import (
@@ -110,21 +117,25 @@ class ClassificationTrainer:
             )
 
             self.criterion = custom_loss()
-            self.optimizer = custom_optimizer(self.model, self.local_learning_rate)
+            self.optimizer = lambda model: custom_optimizer(
+                model,
+                self.local_learning_rate,
+                self.client_optimizer,
+                self.weight_decay,
+            )
             self.metric = custom_metric()
         else:
             self.criterion = nn.CrossEntropyLoss().to(self.device)
             if client_optimizer == "sgd":
-                self.optimizer = torch.optim.SGD(
-                    filter(lambda p: p.requires_grad, self.model.parameters()),
+                self.optimizer = lambda model: torch.optim.SGD(
+                    filter(lambda p: p.requires_grad, model.parameters()),
                     lr=local_learning_rate,
                 )
             elif client_optimizer == "adam":
-                self.optimizer = torch.optim.Adam(
-                    filter(lambda p: p.requires_grad, self.model.parameters()),
+                self.optimizer = lambda model: torch.optim.Adam(
+                    filter(lambda p: p.requires_grad, model.parameters()),
                     lr=local_learning_rate,
                     weight_decay=weight_decay,
-                    amsgrad=True,
                 )
             else:
                 raise ValueError("Unknown client optimizer")
@@ -286,7 +297,7 @@ class ClassificationTrainer:
         torch.manual_seed(self.get_torch_manual_seed())
 
         train_loader = self.train_loader
-        optimizer = self.optimizer
+        optimizer = self.optimizer(model)
         criterion = self.criterion
 
         # Optimization step like CALCULATE GRADIENTS
@@ -372,10 +383,19 @@ class ClassificationTrainer:
                 ):  # for efficiency, if w is encrypted for DDP, it can't work
                     continue
                 model_u = copy.deepcopy(model)
-                optimizer_u = torch.optim.SGD(
-                    filter(lambda p: p.requires_grad, model_u.parameters()),
-                    lr=self.local_learning_rate,
-                )
+                if self.client_optimizer == "sgd":
+                    optimizer_u = torch.optim.SGD(
+                        filter(lambda p: p.requires_grad, model_u.parameters()),
+                        lr=self.local_learning_rate,
+                    )
+                elif self.client_optimizer == "adam":
+                    optimizer_u = torch.optim.Adam(
+                        filter(lambda p: p.requires_grad, model_u.parameters()),
+                        lr=self.local_learning_rate,
+                        weight_decay=self.weight_decay,
+                    )
+                else:
+                    raise ValueError("Unknown client optimizer")
                 for epoch in range(self.local_epochs):
                     batch_loss = []
                     for x, labels in user_train_loader:
@@ -442,10 +462,19 @@ class ClassificationTrainer:
                 ):  # for efficiency, if w is encrypted for DDP, it can't work
                     continue
                 model_u = copy.deepcopy(model)
-                optimizer_u = torch.optim.SGD(
-                    filter(lambda p: p.requires_grad, model_u.parameters()),
-                    lr=self.local_learning_rate,
-                )
+                if self.client_optimizer == "sgd":
+                    optimizer_u = torch.optim.SGD(
+                        filter(lambda p: p.requires_grad, model_u.parameters()),
+                        lr=self.local_learning_rate,
+                    )
+                elif self.client_optimizer == "adam":
+                    optimizer_u = torch.optim.Adam(
+                        filter(lambda p: p.requires_grad, model_u.parameters()),
+                        lr=self.local_learning_rate,
+                        weight_decay=self.weight_decay,
+                    )
+                else:
+                    raise ValueError("Unknown client optimizer")
                 for epoch in range(self.local_epochs):
                     batch_loss = []
                     for x, labels in user_train_loader:
@@ -534,10 +563,19 @@ class ClassificationTrainer:
                         ):  # for efficiency, if w is encrypted for DDP, it can't work
                             continue
                         model_u = copy.deepcopy(model)
-                        optimizer_u = torch.optim.SGD(
-                            filter(lambda p: p.requires_grad, model_u.parameters()),
-                            lr=self.local_learning_rate,
-                        )
+                        if self.client_optimizer == "sgd":
+                            optimizer_u = torch.optim.SGD(
+                                filter(lambda p: p.requires_grad, model_u.parameters()),
+                                lr=self.local_learning_rate,
+                            )
+                        elif self.client_optimizer == "adam":
+                            optimizer_u = torch.optim.Adam(
+                                filter(lambda p: p.requires_grad, model_u.parameters()),
+                                lr=self.local_learning_rate,
+                                weight_decay=self.weight_decay,
+                            )
+                        else:
+                            raise ValueError("Unknown client optimizer")
                         for epoch in range(self.local_epochs):
                             batch_loss = []
                             for x, labels in user_train_loader:
@@ -663,11 +701,11 @@ class ClassificationTrainer:
                         )
                     )
                     continue
-                # logger.debug(
-                #     "Silo Id = {}\tEpoch: {}\tLoss: {:.6f}".format(
-                #         self.silo_id, epoch, sum(batch_loss) / len(batch_loss)
-                #     )
-                # )
+                logger.debug(
+                    "Silo Id = {}\tEpoch: {}\tLoss: {:.6f}".format(
+                        self.silo_id, epoch, sum(batch_loss) / len(batch_loss)
+                    )
+                )
 
             weights = self.get_model_params()
             weights_diff = self.diff_weights(global_weights, weights)
@@ -950,6 +988,7 @@ class ClassificationTrainer:
         round_idx=None,
         model: Optional[nn.Module] = None,
         sampling_rate_q: Optional[float] = None,
+        alpha: Optional[float] = None,
     ) -> Tuple[Tuple[float, float], Tuple[float, float]]:
         # metric is approximated metric instead of the real train loss
         # it needs to be bounded by 1
@@ -1028,12 +1067,27 @@ class ClassificationTrainer:
 
                 y_true_final = np.concatenate(y_true_final)
                 y_pred_final = np.concatenate(y_pred_final)
-                train_metric = roc_auc_score(y_true_final, y_pred_final)
+                # ROC AUC is hard to use in case the label is extremely imbalanced
+                # train_metric = roc_auc_score(y_true_final, y_pred_final)
+                # Accuracy
+                # train_metric = np.sum(y_true_final == y_pred_final) / len(y_true_final)
+                if np.any(y_true_final == 1) and np.any(
+                    y_true_final == 0
+                ):  # ポジティブクラスが存在する場合
+                    train_metric = roc_auc_score(
+                        y_true_final, y_pred_final
+                    )  # またはrecall_score, f1_scoreなど
+                else:
+                    train_metric = np.sum(y_true_final == y_pred_final) / len(
+                        y_true_final
+                    )
+                    train_metric = train_metric * 0.1  # lower the importance
+
                 logger.debug(
                     f"|----- Local test result of round {round_idx}, user {user_id}"
                 )
                 logger.debug(
-                    f"\t |----- Local Test/ROC_AUC: {train_metric} ({n_total_data}), Local Test/Loss: {train_loss}"
+                    f"\t |----- Local Test/Accuracy: {train_metric} ({n_total_data}), Local Test/Loss: {train_loss}"
                 )
 
             else:
@@ -1067,11 +1121,12 @@ class ClassificationTrainer:
         mean_loss = np.mean(loss_list)
         logger.debug("metric_list: (", len(metric_list), ")", metric_list)
         if self.total_dp_eps_for_online_optimization:
-            noise_multiplier = noise_utils.get_noise_multiplier_from_total_eps(
+            noise_multiplier, _, _ = noise_utils.get_noise_multiplier_from_total_eps(
                 sampling_rate_q,
                 self.local_delta,
                 epsilon_u=eps_u,
                 T=self.n_total_round * 3,
+                alpha=alpha,
             )
         else:
             noise_multiplier = self.sigma_for_online_optimization
@@ -1093,6 +1148,7 @@ class ClassificationTrainer:
         stepped_q_u_list: List,
         local_updated_weights_dct: Dict,
         uldp: bool = False,
+        alpha_dct: Optional[Dict[float, float]] = None,
     ) -> Dict[float, float]:
         diff_dct = {}
 
@@ -1120,8 +1176,9 @@ class ClassificationTrainer:
                     round_idx=round_idx,
                     model=model,
                     sampling_rate_q=sampling_rate_q,
+                    alpha=alpha_dct[eps_u],
                 )
-                logger.info(
+                logger.debug(
                     "Original sampling_rate_q = {}, metric = {}".format(
                         sampling_rate_q, original_user_level_metric
                     )
@@ -1131,7 +1188,7 @@ class ClassificationTrainer:
                     round_idx=round_idx,
                     model=model,
                 )
-                logger.info(
+                logger.debug(
                     "Original sampling_rate_q = {}, metric = {}".format(
                         sampling_rate_q, original_test_loss
                     )
@@ -1157,8 +1214,9 @@ class ClassificationTrainer:
                     round_idx=round_idx,
                     model=model,
                     sampling_rate_q=sampling_rate_q,
+                    alpha=alpha_dct[eps_u],
                 )
-                logger.info(
+                logger.debug(
                     "Stepped sampling_rate_q = {}, metric = {}".format(
                         sampling_rate_q, stepped_user_level_metric
                     )
@@ -1168,7 +1226,7 @@ class ClassificationTrainer:
                     round_idx=round_idx,
                     model=model,
                 )
-                logger.info(
+                logger.debug(
                     "Stepped sampling_rate_q = {}, metric = {}".format(
                         sampling_rate_q, stepped_test_loss
                     )
@@ -1181,7 +1239,7 @@ class ClassificationTrainer:
                 diff = stepped_test_loss - original_test_loss
 
             diff_dct[eps_u] = diff
-            logger.info("eps_u = {}, diff = {}".format(eps_u, diff))
+            logger.debug("eps_u = {}, diff = {}".format(eps_u, diff))
 
         return diff_dct
 

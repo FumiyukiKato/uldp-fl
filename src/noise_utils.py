@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from typing import Dict, List
+from typing import Dict, List, Tuple
 import numpy as np
 import torch
 import warnings
@@ -257,8 +257,13 @@ def convert_to_group_privacy(
 
 @lru_cache(maxsize=128)
 def get_noise_multiplier_from_total_eps(
-    sample_rate, delta, epsilon_u, T, precision=1e-6
-):
+    sample_rate,
+    delta,
+    epsilon_u,
+    T,
+    alpha=None,
+    precision=1e-6,
+) -> Tuple[float, float, float]:
     max_sigma = 100
     min_sigma = 0
     while True:
@@ -266,33 +271,39 @@ def get_noise_multiplier_from_total_eps(
         accountant = RDPAccountant()
         for i in range(T):
             accountant.step(noise_multiplier=sigma, sample_rate=sample_rate)
-        eps = accountant.get_epsilon(delta=delta)
+        if alpha is None:
+            alpha_list = RDPAccountant.DEFAULT_ALPHAS
+        else:
+            alpha_list = [alpha]
+        eps, best_alpha = accountant.get_privacy_spent(delta=delta, alphas=alpha_list)
         if eps < epsilon_u:
             max_sigma = sigma
         else:
             min_sigma = sigma
         if 0 < epsilon_u - eps and epsilon_u - eps < precision:
-            return sigma
+            return sigma, eps, best_alpha
 
 
 # binary search given q_u
 @lru_cache(maxsize=128)
-def from_q_u(q_u, delta, epsilon_u, sigma, T, precision=1e-6):
+def from_q_u(
+    q_u, delta, epsilon_u, sigma, T, alpha=None, precision=1e-6
+) -> Tuple[float, float, float]:
     max_sensitivity_u = 100
     min_sensitivity_u = 0
     while True:
         sensitivity_u = (max_sensitivity_u + min_sensitivity_u) / 2
-        # func_gaussian = lambda x: RDP_gaussian_with_C(sigma, x, sensitivity_u)
-        # accountant = rdp_acct.anaRDPacct(m=m)
         accountant = RDPAccountant()
         for i in range(T):
             accountant.step(noise_multiplier=sigma / sensitivity_u, sample_rate=q_u)
-            # accountant.compose_subsampled_mechanisms_lowerbound(func=func_gaussian, prob=q_u)
-        # eps = accountant.get_eps(delta)
-        eps = accountant.get_epsilon(delta=delta)
+        if alpha is None:
+            alpha_list = RDPAccountant.DEFAULT_ALPHAS
+        else:
+            alpha_list = [alpha]
+        eps, best_alpha = accountant.get_privacy_spent(delta=delta, alphas=alpha_list)
         if eps < epsilon_u:
             min_sensitivity_u = sensitivity_u
         else:
             max_sensitivity_u = sensitivity_u
         if 0 < epsilon_u - eps and epsilon_u - eps < precision:
-            return sensitivity_u, eps
+            return sensitivity_u, eps, best_alpha

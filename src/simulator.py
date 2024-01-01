@@ -70,6 +70,7 @@ class FLSimulator:
         momentum_weight: Optional[float] = None,
         sigma_for_online_optimization: Optional[float] = None,
         total_dp_eps_for_online_optimization: Optional[bool] = None,
+        hp_baseline: Optional[bool] = False,
     ):
         self.n_total_round = n_total_round
         self.round_idx = 0
@@ -78,6 +79,7 @@ class FLSimulator:
         self.dataset_name = dataset_name
         self.sampling_rate_q = sampling_rate_q
         self.validation_ratio = validation_ratio
+        self.hp_baseline = hp_baseline
         self.coordinator = Coordinator(
             base_seed=seed,
             n_silos=n_silos,
@@ -128,6 +130,7 @@ class FLSimulator:
             else:
                 self.momentum_weight = momentum_weight
             self.aggregator.set_epsilon_groups(self.coordinator.epsilon_groups)
+        if self.agg_strategy == METHOD_PULDP_AVG_ONLINE:
             if validation_ratio <= 0.0:
                 raise ValueError(
                     "validation ratio must be greater than 0.0 for online optimization with Test Loss"
@@ -240,6 +243,7 @@ class FLSimulator:
                     stepped_C_u_list_for_optimization,
                 ) = self.coordinator.build_user_weights_with_online_optimization(
                     weighted=True,
+                    round_idx=self.round_idx,
                 )
                 for silo_id in user_weights_per_silo.keys():
                     self.local_trainer_per_silos[
@@ -286,6 +290,7 @@ class FLSimulator:
                             self.coordinator.stepped_q_u_list,
                             local_updated_weights_dct,
                             uldp=self.train_loss_dp,
+                            alpha_dct=self.coordinator.best_alpha_dct,
                         )
                     )
                     self.aggregator.add_local_trained_result_with_online_optimization(
@@ -323,14 +328,18 @@ class FLSimulator:
                     stepped_q_u_list=self.coordinator.stepped_q_u_list,
                 )
                 self.aggregator.results["local_loss_diff"].append(loss_diff_dct)
-                self.aggregator.consume_dp_for_train_loss_metric(
-                    q_u_list=self.coordinator.q_u_list,
-                    stepped_q_u_list=self.coordinator.stepped_q_u_list,
-                )
+                if self.train_loss_dp:
+                    self.aggregator.consume_dp_for_train_loss_metric(
+                        q_u_list=self.coordinator.q_u_list,
+                        stepped_q_u_list=self.coordinator.stepped_q_u_list,
+                        alpha_dct=self.coordinator.best_alpha_dct,
+                    )
                 self.coordinator.online_optimize(
                     loss_diff_dct,
                     with_momentum=self.with_momentum,
                     beta=self.momentum_weight,
+                    hp_baseline=self.hp_baseline,
+                    round_idx=self.round_idx,
                 )
                 logger.info(f"Next HP: (Q_u, C_u) = {self.coordinator.hp_dct_by_eps}")
 
@@ -395,7 +404,8 @@ class FLSimulator:
         if self.agg_strategy in METHOD_GROUP_ONLINE_OPTIMIZATION:
             results["param_history"] = self.coordinator.param_history
             results["loss_history"] = self.coordinator.loss_history
-            results["final_eps"] = self.aggregator.results["final_eps"]
+            if self.agg_strategy == METHOD_PULDP_AVG_ONLINE_TRAIN:
+                results["final_eps"] = self.aggregator.results["final_eps"]
 
         return results
 

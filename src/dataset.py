@@ -5,7 +5,7 @@ import pandas as pd
 from typing import Tuple, List, Dict
 from torchvision import datasets, transforms
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, LabelEncoder
 from torch.utils.data import ConcatDataset, TensorDataset
 import torch
 
@@ -19,6 +19,7 @@ HEART_DISEASE = "heart_disease"
 MNIST = "mnist"
 LIGHT_MNIST = "light_mnist"
 CREDITCARD = "creditcard"
+BODY = "body"
 
 
 def shuffle_test_and_train(
@@ -86,7 +87,7 @@ def divide_dataset(
         random_state, n_data, user_dist, n_users, user_alpha, labels, n_labels
     )
 
-    # Second, allocate data to silos (indepedent of users distribution)
+    # Second, allocate data to silos (independent of users distribution)
     data_indices_per_silos = distribute_data_to_silos(
         random_state,
         n_data,
@@ -525,6 +526,32 @@ def load_dataset(
         X_train = torch.concatenate([non_target_X_train, target_X_train])
         y_train = torch.concatenate([non_target_y_train, target_y_train])
         train_dataset = TensorDataset(X_train, y_train)
+
+        train_dataset = TensorDataset(X_train, y_train)
+        test_dataset = TensorDataset(X_test, y_test)
+        labels = train_dataset.tensors[1].numpy()
+
+    elif dataset_name == BODY:
+        data_dir = os.path.join(path_project, DATA_SET_DIR, BODY)
+        df = pd.read_csv(os.path.join(data_dir, "bodyPerformance.csv"))
+        df.drop_duplicates(inplace=True)
+        df = df.replace({"M": 0, "F": 1})
+        df = df.replace({"A": 1, "B": 2, "C": 3, "D": 4})
+        X = df.iloc[:, :-1].values  # Independent variable
+        y = df.iloc[:, -1].values  # Dependent variable
+
+        encoder = LabelEncoder()
+        encoder.fit(y)
+        encoded_Y = encoder.transform(y)
+
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, encoded_Y, test_size=0.15, random_state=random_state, stratify=y
+        )
+
+        X_train = torch.tensor(X_train, dtype=torch.float32)
+        X_test = torch.tensor(X_test, dtype=torch.float32)
+        y_train = torch.tensor(y_train, dtype=torch.long)
+        y_test = torch.tensor(y_test, dtype=torch.long)
 
         train_dataset = TensorDataset(X_train, y_train)
         test_dataset = TensorDataset(X_test, y_test)

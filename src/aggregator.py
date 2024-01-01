@@ -18,6 +18,7 @@ from method_group import (
     METHOD_NO_DP_ACCOUNTING,
     METHOD_PULDP_AVG,
     METHOD_GROUP_ONLINE_OPTIMIZATION,
+    METHOD_PULDP_AVG_ONLINE,
     METHOD_PULDP_AVG_ONLINE_TRAIN,
     METHOD_SILO_LEVEL_DP,
     METHOD_ULDP_NAIVE,
@@ -85,6 +86,11 @@ class Aggregator:
 
         self.latest_eps = 0.0
         self.results = {"privacy_budget": [], "global_test": [], "local_model_test": []}
+
+        if self.strategy == METHOD_PULDP_AVG_ONLINE:
+            assert (
+                validation_ratio > 0.0
+            ), "Please set validation_ratio > 0 for Test Loss-based online."
 
         if validation_ratio > 0.0:
             n_test = len(test_dataset)
@@ -564,40 +570,48 @@ class Aggregator:
         self.model = original_model
         return diff_dct
 
-    def consume_dp_for_train_loss_metric(self, q_u_list, stepped_q_u_list):
+    def consume_dp_for_train_loss_metric(
+        self, q_u_list, stepped_q_u_list, alpha_dct: Dict[float, float]
+    ):
         # train_loss_metric is approximated metric instead of the real train loss
         # it needs to be bounded by 1
         for eps_u, eps_user_ids in self.epsilon_groups.items():
             q_list = q_u_list[eps_user_ids]
-            sampling_rate_q = np.mean(q_list)
             stepped_q_list = stepped_q_u_list[eps_user_ids]
-            stepped_sampling_rate_q = np.mean(stepped_q_list)
 
             if self.total_dp_eps_for_online_optimization:
-                noise_multiplier = noise_utils.get_noise_multiplier_from_total_eps(
-                    sampling_rate_q,
+                (
+                    noise_multiplier,
+                    _,
+                    _,
+                ) = noise_utils.get_noise_multiplier_from_total_eps(
+                    q_list[0],
                     self.delta,
                     epsilon_u=eps_u,
                     T=self.n_total_round * 3,
+                    alpha=alpha_dct[eps_u],
                 )
-                stepped_noise_multiplier = (
-                    noise_utils.get_noise_multiplier_from_total_eps(
-                        stepped_sampling_rate_q,
-                        self.delta,
-                        epsilon_u=eps_u,
-                        T=self.n_total_round * 3,
-                    )
+                (
+                    stepped_noise_multiplier,
+                    _,
+                    _,
+                ) = noise_utils.get_noise_multiplier_from_total_eps(
+                    stepped_q_list[0],
+                    self.delta,
+                    epsilon_u=eps_u,
+                    T=self.n_total_round * 3,
+                    alpha=alpha_dct[eps_u],
                 )
             else:
                 noise_multiplier = self.sigma_for_online_optimization
                 stepped_noise_multiplier = self.sigma_for_online_optimization
             self.accountant_dct[eps_u].step(
                 noise_multiplier=noise_multiplier,
-                sample_rate=sampling_rate_q,
+                sample_rate=q_list[0],
             )
             self.accountant_dct[eps_u].step(
                 noise_multiplier=stepped_noise_multiplier,
-                sample_rate=stepped_sampling_rate_q,
+                sample_rate=stepped_q_list[0],
             )
 
     def consume_dp_for_model_optimization(self, q_u_list, C_u_list):
