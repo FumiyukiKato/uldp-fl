@@ -19,3 +19,4 @@ exp/img/*
 *.db
 
 .DS_Store
+exp/pickle/*
