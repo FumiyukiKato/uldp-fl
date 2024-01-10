@@ -1,6 +1,7 @@
 from typing import Dict, Optional, List, Tuple
 import numpy as np
 import copy
+from opacus.accountants import RDPAccountant
 from method_group import (
     METHOD_GROUP_ONLINE_OPTIMIZATION,
     METHOD_PULDP_AVG,
@@ -33,8 +34,8 @@ class Coordinator:
         sigma: Optional[float] = None,
         n_total_round: Optional[int] = None,
         q_step_size: Optional[float] = None,
-        train_loss_dp: Optional[bool] = None,
-        total_dp_eps_for_online_optimization: Optional[bool] = None,
+        hp_baseline: Optional[str] = None,
+        step_decay: Optional[bool] = False,
     ):
         self.random_state = np.random.RandomState(seed=base_seed + 2000000)
         self.n_users = n_users
@@ -49,29 +50,26 @@ class Coordinator:
         if self.agg_strategy in METHOD_GROUP_ONLINE_OPTIMIZATION:
             assert (
                 q_step_size is not None and delta is not None and sigma is not None
-            ), "q_step_size, delta, sigma must be given for PULDP-AVG-online"
+            ), "q_step_size, delta, sigma must be given for PULDP-AVG-xxx"
             self.q_step_size = q_step_size
             self.delta, self.sigma, self.n_total_round = delta, sigma, n_total_round
+            self.step_decay = step_decay
 
-            if total_dp_eps_for_online_optimization:
+            if hp_baseline:
                 # To total eps (model optimization and HP optimization) is upper bounded
-                self.n_release = self.n_total_round * 3
-            elif self.agg_strategy == METHOD_PULDP_AVG:
-                # Using test dataset is also consume privacy budget
-                self.n_release = self.n_total_round * 3
-            else:
                 self.n_release = self.n_total_round
+            else:
+                self.n_release = self.n_total_round * 3
             self.epsilon_groups = group_by_closest_below(
                 epsilon_u_dct=epsilon_u, group_thresholds=group_thresholds
             )
             self.hp_dct_by_eps: Dict[float, Tuple] = {}
             self.param_history: Dict[float, List] = {}
             self.loss_history: Dict[float, List] = {}
-            self.best_alpha_dct: Dict[float, float] = {}
 
             INITIAL_Q_U = 1.0
             for eps_u in self.epsilon_groups.keys():
-                initial_C_u, _, best_alpha = noise_utils.from_q_u(
+                initial_C_u, _, _ = noise_utils.from_q_u(
                     q_u=INITIAL_Q_U,
                     delta=self.delta,
                     epsilon_u=eps_u,
@@ -81,7 +79,6 @@ class Coordinator:
                 self.hp_dct_by_eps[eps_u] = (INITIAL_Q_U, initial_C_u)
                 self.param_history[eps_u] = [(INITIAL_Q_U, initial_C_u)]
                 self.loss_history[eps_u] = []
-                self.best_alpha_dct[eps_u] = best_alpha
 
     def set_user_hist_by_silo_id(self, silo_id: int, user_hist: Dict):
         self.ready_silos.add(silo_id)
@@ -187,6 +184,7 @@ class Coordinator:
         self,
         weighted: bool = False,
         round_idx: Optional[int] = None,
+        accountant_dct: Optional[Dict[float, RDPAccountant]] = None,
     ) -> Tuple[
         Dict[int, Dict[int, float]],
         np.ndarray,
@@ -233,7 +231,7 @@ class Coordinator:
         self.stepped_q_u_list = np.zeros(self.n_users)
         self.stepped_C_u_list = np.zeros(self.n_users)
         q_step_size = schedule_step_size(
-            self.q_step_size, round_idx, self.n_total_round
+            self.q_step_size, round_idx, self.n_total_round, step_decay=self.step_decay
         )
         for eps_u, user_ids_per_eps in self.epsilon_groups.items():
             q_u, C_u = self.hp_dct_by_eps[eps_u]
@@ -243,8 +241,9 @@ class Coordinator:
                 delta=self.delta,
                 eps_u=eps_u,
                 sigma=self.sigma,
-                T=self.n_release,
-                alpha=self.best_alpha_dct[eps_u],
+                total_round=self.n_release,
+                current_round=round_idx,
+                current_accountant=accountant_dct[eps_u],
             )
             self.q_u_list[user_ids_per_eps] = q_u
             self.C_u_list[user_ids_per_eps] = C_u
@@ -362,9 +361,10 @@ class Coordinator:
         beta: float = 0.8,
         hp_baseline: Optional[str] = None,
         round_idx: Optional[int] = None,
+        accountant_dct: Optional[Dict[float, RDPAccountant]] = None,
     ):
         q_step_size = schedule_step_size(
-            self.q_step_size, round_idx, self.n_total_round
+            self.q_step_size, round_idx, self.n_total_round, step_decay=self.step_decay
         )
         for eps_u in self.epsilon_groups.keys():
             if hp_baseline is None or hp_baseline == "random-updown":
@@ -406,13 +406,19 @@ class Coordinator:
             else:
                 raise ValueError(f"hp_baseline {hp_baseline} is not supported.")
 
-            C_u, _, _ = noise_utils.from_q_u(
+            # Next (q_u, C_u)
+            if hp_baseline:
+                current_round = round_idx
+            else:
+                current_round = round_idx * 3
+            C_u, _ = noise_utils.from_q_u_with_history(
                 q_u,
                 self.delta,
                 eps_u,
                 self.sigma,
-                self.n_release,
-                alpha=self.best_alpha_dct[eps_u],
+                total_round=self.n_release,
+                current_round=current_round,
+                current_accountant=accountant_dct[eps_u],
             )
             self.hp_dct_by_eps[eps_u] = (q_u, C_u)
             self.param_history[eps_u].append((q_u, C_u))
@@ -441,17 +447,26 @@ def compute_stepped_qC(
     delta: float,
     eps_u: float,
     sigma: float,
-    T: int,
-    alpha: float,
+    total_round: int,
+    current_round: int,
+    current_accountant: RDPAccountant = None,
 ):
     dst_q = q_u * (step_size)
-    dst_C, _, _ = noise_utils.from_q_u(
-        q_u=dst_q, delta=delta, epsilon_u=eps_u, sigma=sigma, T=T, alpha=alpha
+    dst_C, _ = noise_utils.from_q_u_with_history(
+        q_u=dst_q,
+        delta=delta,
+        epsilon_u=eps_u,
+        sigma=sigma,
+        total_round=total_round,
+        current_round=current_round,
+        current_accountant=current_accountant,
     )
     return dst_q, dst_C
 
 
-def schedule_step_size(step_size: float, round_idx: int, n_total_round: int):
-    # Decrease the rate of change by a certain percentage
-    return 1 - (1 - step_size) * (1 - round_idx / n_total_round)
-    # return step_size
+def schedule_step_size(
+    step_size: float, round_idx: int, n_total_round: int, step_decay=False
+):
+    if step_decay:
+        return 1 - (1 - step_size) * (1 - round_idx / n_total_round)
+    return step_size

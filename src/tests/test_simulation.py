@@ -245,7 +245,7 @@ class TestSimulator(unittest.TestCase):
 
     # def test_puldp_online(self):
     #     args = self.create_args()
-    #     args.agg_strategy = "PULDP-AVG-online"
+    #     args.agg_strategy = "PULDP-AVG-QCTest"
 
 
 if __name__ == "__main__":

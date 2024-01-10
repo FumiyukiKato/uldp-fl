@@ -307,3 +307,104 @@ def from_q_u(
             max_sensitivity_u = sensitivity_u
         if 0 < epsilon_u - eps and epsilon_u - eps < precision:
             return sensitivity_u, eps, best_alpha
+
+
+def get_noise_multiplier_with_history(
+    sample_rate,
+    delta,
+    epsilon_u,
+    total_round,
+    current_round,
+    current_accountant: RDPAccountant,
+    precision=1e-6,
+):
+    max_sigma = 1000
+    min_sigma = 0
+    rdp_cache = compute_rdp_from_history(current_accountant.history, cache=True)
+    while True:
+        sigma = (max_sigma + min_sigma) / 2
+        noise_multiplier = sigma
+        sample_rate = sample_rate
+        history = [(noise_multiplier, sample_rate, total_round - current_round)]
+        updated_rdp = compute_rdp_from_history(history)
+        eps, _ = analysis.get_privacy_spent(
+            orders=RDPAccountant.DEFAULT_ALPHAS,
+            rdp=rdp_cache + updated_rdp,
+            delta=delta,
+        )
+        if eps < epsilon_u:
+            max_sigma = sigma
+        else:
+            min_sigma = sigma
+        if 0 < epsilon_u - eps and epsilon_u - eps < precision:
+            return sigma, eps
+
+
+def from_q_u_with_history(
+    q_u,
+    delta,
+    epsilon_u,
+    sigma,
+    total_round,
+    current_round,
+    current_accountant: RDPAccountant,
+    precision=1e-6,
+):
+    max_sensitivity_u = 100
+    min_sensitivity_u = 0
+    rdp_cache = compute_rdp_from_history(current_accountant.history, cache=True)
+    while True:
+        sensitivity_u = (max_sensitivity_u + min_sensitivity_u) / 2
+        noise_multiplier = sigma / sensitivity_u
+        sample_rate = q_u
+        history = [(noise_multiplier, sample_rate, total_round - current_round)]
+        updated_rdp = compute_rdp_from_history(history)
+        eps, _ = analysis.get_privacy_spent(
+            orders=RDPAccountant.DEFAULT_ALPHAS,
+            rdp=rdp_cache + updated_rdp,
+            delta=delta,
+        )
+        if eps < epsilon_u:
+            min_sensitivity_u = sensitivity_u
+        else:
+            max_sensitivity_u = sensitivity_u
+        if 0 < epsilon_u - eps and epsilon_u - eps < precision:
+            return sensitivity_u, eps
+
+
+def compute_rdp_from_history(history, cache=False):
+    if cache:
+        history_key = tuple(tuple(x) for x in history)
+
+        if not hasattr(compute_rdp_from_history, "cache"):
+            compute_rdp_from_history.cache = {}
+
+        if history_key in compute_rdp_from_history.cache:
+            return compute_rdp_from_history.cache[history_key]
+
+    rdp = sum(
+        [
+            _compute_rdp_with_cache(sample_rate, noise_multiplier, num_steps)
+            for (noise_multiplier, sample_rate, num_steps) in history
+        ]
+    )
+
+    if cache:
+        compute_rdp_from_history.cache[history_key] = rdp
+    return rdp
+
+
+@lru_cache(maxsize=1024)
+def _compute_rdp_with_cache(q, noise_multiplier, steps):
+    rdp = np.array(
+        [
+            _compute_single_rdp_with_cache(q, noise_multiplier, order)
+            for order in RDPAccountant.DEFAULT_ALPHAS
+        ]
+    )
+    return rdp * steps
+
+
+@lru_cache(maxsize=1024)
+def _compute_single_rdp_with_cache(q, noise_multiplier, order):
+    return analysis._compute_rdp(q, noise_multiplier, order)

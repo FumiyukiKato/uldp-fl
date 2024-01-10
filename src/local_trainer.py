@@ -5,6 +5,7 @@ import numpy as np
 from torch import nn
 import torch
 from torch.utils.data import DataLoader
+from opacus.accountants import RDPAccountant
 from dataset import CREDITCARD, HEART_DISEASE, TCGA_BRCA
 from method_group import (
     METHOD_DEFAULT,
@@ -57,8 +58,6 @@ class ClassificationTrainer:
         n_silo_per_round: Optional[int] = None,
         dataset_name: Optional[str] = None,
         C_u: Optional[Dict] = None,
-        sigma_for_online_optimization: Optional[float] = None,
-        total_dp_eps_for_online_optimization: Optional[bool] = None,
         n_total_round: Optional[int] = None,
     ):
         self.random_state = np.random.RandomState(seed=base_seed + silo_id + 1)
@@ -150,12 +149,6 @@ class ClassificationTrainer:
         if self.agg_strategy in METHOD_GROUP_USER_LEVEL_DATA_LOADER:
             self.user_level_data_loader = self.make_user_level_data_loader()
 
-        if self.agg_strategy == METHOD_PULDP_AVG_ONLINE_TRAIN:
-            self.sigma_for_online_optimization = sigma_for_online_optimization
-            self.total_dp_eps_for_online_optimization = (
-                total_dp_eps_for_online_optimization
-            )
-
     def get_results(self):
         return self.results
 
@@ -181,6 +174,10 @@ class ClassificationTrainer:
 
     def set_epsilon_groups(self, epsilon_groups: Dict[int, float]):
         self.epsilon_groups = epsilon_groups
+        if self.agg_strategy == METHOD_PULDP_AVG_ONLINE_TRAIN:
+            self.accountant_dct: Dict[RDPAccountant] = {}
+            for eps_u, _ in self.epsilon_groups.items():
+                self.accountant_dct[eps_u] = RDPAccountant()
 
     def set_user_weights_with_optimization(
         self,
@@ -988,8 +985,8 @@ class ClassificationTrainer:
         round_idx=None,
         model: Optional[nn.Module] = None,
         sampling_rate_q: Optional[float] = None,
-        alpha: Optional[float] = None,
-    ) -> Tuple[Tuple[float, float], Tuple[float, float]]:
+        current_round: Optional[int] = None,
+    ) -> Tuple[Tuple[float, float], Tuple[float, float], float]:
         # metric is approximated metric instead of the real train loss
         # it needs to be bounded by 1
         # privacy accounting is done in aggregator.py consume_dp_for_train_loss_metric()
@@ -1120,16 +1117,14 @@ class ClassificationTrainer:
 
         mean_loss = np.mean(loss_list)
         logger.debug("metric_list: (", len(metric_list), ")", metric_list)
-        if self.total_dp_eps_for_online_optimization:
-            noise_multiplier, _, _ = noise_utils.get_noise_multiplier_from_total_eps(
-                sampling_rate_q,
-                self.local_delta,
-                epsilon_u=eps_u,
-                T=self.n_total_round * 3,
-                alpha=alpha,
-            )
-        else:
-            noise_multiplier = self.sigma_for_online_optimization
+        noise_multiplier, _ = noise_utils.get_noise_multiplier_with_history(
+            sampling_rate_q,
+            self.local_delta,
+            epsilon_u=eps_u,
+            total_round=self.n_total_round * 3,
+            current_round=current_round,
+            current_accountant=self.accountant_dct[eps_u],
+        )
         noise = noise_utils.single_gaussian_noise(
             random_state=self.random_state,
             std_dev=noise_multiplier / np.sqrt(self.n_silo_per_round),
@@ -1139,7 +1134,7 @@ class ClassificationTrainer:
         final_shrunk_noisy_metric = np.sum(metric_list) + noise
         final_shrunk_noisy_metric /= sampling_rate_q
 
-        return mean_loss, final_shrunk_noisy_metric
+        return mean_loss, final_shrunk_noisy_metric, noise_multiplier
 
     def train_loss_for_online_optimization(
         self,
@@ -1147,96 +1142,119 @@ class ClassificationTrainer:
         q_u_list: List,
         stepped_q_u_list: List,
         local_updated_weights_dct: Dict,
-        uldp: bool = False,
-        alpha_dct: Optional[Dict[float, float]] = None,
+        off_train_loss_noise: bool = False,
     ) -> Dict[float, float]:
         diff_dct = {}
 
         for eps_u, eps_user_ids in self.epsilon_groups.items():
+            # (Consume privacy) Update local accountants for model aggregation for each user groups
+            q_u = q_u_list[eps_user_ids[0]]
+            C_u = self.C_u_list[eps_user_ids[0]]
+            self.accountant_dct[eps_u].step(
+                noise_multiplier=self.local_sigma / C_u,
+                sample_rate=q_u,
+            )
+
             original_weights_diff, stepped_weights_diff = local_updated_weights_dct[
                 eps_u
             ]
 
+            # Calculate train loss with original sampling rate for approximated HP gradients
             model = copy.deepcopy(self.model)
-            q_list = q_u_list[eps_user_ids]
-            sampling_rate_q = np.mean(q_list)
             averaged_param_diff = noise_utils.torch_aggregation(
                 [original_weights_diff],
-                np.ceil(len(eps_user_ids) * self.n_silo_per_round * sampling_rate_q),
+                np.ceil(len(eps_user_ids) * self.n_silo_per_round * q_u),
             )
             self.update_global_weights_from_diff(
                 averaged_param_diff,
                 model,
                 learning_rate=1.0,
             )
-            if uldp:
-                _, original_user_level_metric = self.dp_train_loss(
-                    eps_u=eps_u,
-                    user_weights=self.user_weights_for_optimization,
-                    round_idx=round_idx,
-                    model=model,
-                    sampling_rate_q=sampling_rate_q,
-                    alpha=alpha_dct[eps_u],
-                )
-                logger.debug(
-                    "Original sampling_rate_q = {}, metric = {}".format(
-                        sampling_rate_q, original_user_level_metric
-                    )
-                )
-            else:
+            if off_train_loss_noise:
                 original_test_loss, _ = self.train_loss(
                     round_idx=round_idx,
                     model=model,
                 )
                 logger.debug(
                     "Original sampling_rate_q = {}, metric = {}".format(
-                        sampling_rate_q, original_test_loss
+                        q_u, original_test_loss
+                    )
+                )
+            else:
+                (
+                    _,
+                    original_user_level_metric,
+                    local_noise_multiplier,
+                ) = self.dp_train_loss(
+                    eps_u=eps_u,
+                    user_weights=self.user_weights_for_optimization,
+                    round_idx=round_idx,
+                    model=model,
+                    sampling_rate_q=q_u,
+                    current_round=round_idx * 3 + 1,
+                )
+                # (Consume privacy)
+                self.accountant_dct[eps_u].step(
+                    noise_multiplier=local_noise_multiplier,
+                    sample_rate=q_u,
+                )
+                logger.debug(
+                    "Original sampling_rate_q = {}, metric = {}".format(
+                        q_u, original_user_level_metric
                     )
                 )
 
+            # Calculate train loss with updated (stepped) sampling rate
             model = copy.deepcopy(self.model)
-            q_list = stepped_q_u_list[eps_user_ids]
-            sampling_rate_q = np.mean(q_list)
+            stepped_q_u = stepped_q_u_list[eps_user_ids[0]]
             averaged_param_diff = noise_utils.torch_aggregation(
                 [stepped_weights_diff],
-                np.ceil(len(eps_user_ids) * self.n_silo_per_round * sampling_rate_q),
+                np.ceil(len(eps_user_ids) * self.n_silo_per_round * stepped_q_u),
             )
             self.update_global_weights_from_diff(
                 averaged_param_diff,
                 model,
                 learning_rate=1.0,
             )
-
-            if uldp:
-                _, stepped_user_level_metric = self.dp_train_loss(
-                    eps_u=eps_u,
-                    user_weights=self.stepped_user_weights_for_optimization,
-                    round_idx=round_idx,
-                    model=model,
-                    sampling_rate_q=sampling_rate_q,
-                    alpha=alpha_dct[eps_u],
-                )
-                logger.debug(
-                    "Stepped sampling_rate_q = {}, metric = {}".format(
-                        sampling_rate_q, stepped_user_level_metric
-                    )
-                )
-            else:
+            if off_train_loss_noise:
                 stepped_test_loss, _ = self.train_loss(
                     round_idx=round_idx,
                     model=model,
                 )
                 logger.debug(
                     "Stepped sampling_rate_q = {}, metric = {}".format(
-                        sampling_rate_q, stepped_test_loss
+                        stepped_q_u, stepped_test_loss
+                    )
+                )
+            else:
+                (
+                    _,
+                    stepped_user_level_metric,
+                    stepped_local_noise_multiplier,
+                ) = self.dp_train_loss(
+                    eps_u=eps_u,
+                    user_weights=self.stepped_user_weights_for_optimization,
+                    round_idx=round_idx,
+                    model=model,
+                    sampling_rate_q=stepped_q_u,
+                    current_round=round_idx * 3 + 2,
+                )
+                # (Consume privacy)
+                self.accountant_dct[eps_u].step(
+                    noise_multiplier=stepped_local_noise_multiplier,
+                    sample_rate=stepped_q_u,
+                )
+                logger.debug(
+                    "Stepped sampling_rate_q = {}, metric = {}".format(
+                        stepped_q_u, stepped_user_level_metric
                     )
                 )
 
             # diff < 0 means that the model is improved
-            if uldp:
-                diff = original_user_level_metric - stepped_user_level_metric
-            else:
+            if off_train_loss_noise:
                 diff = stepped_test_loss - original_test_loss
+            else:
+                diff = original_user_level_metric - stepped_user_level_metric
 
             diff_dct[eps_u] = diff
             logger.debug("eps_u = {}, diff = {}".format(eps_u, diff))

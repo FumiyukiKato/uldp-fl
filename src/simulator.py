@@ -66,11 +66,10 @@ class FLSimulator:
         q_step_size: Optional[float] = None,
         validation_ratio: Optional[float] = 0.0,
         with_momentum: Optional[bool] = False,
-        train_loss_dp: Optional[bool] = False,
+        off_train_loss_noise: Optional[bool] = False,
         momentum_weight: Optional[float] = None,
-        sigma_for_online_optimization: Optional[float] = None,
-        total_dp_eps_for_online_optimization: Optional[bool] = None,
         hp_baseline: Optional[bool] = False,
+        step_decay: Optional[bool] = False,
     ):
         self.n_total_round = n_total_round
         self.round_idx = 0
@@ -94,8 +93,7 @@ class FLSimulator:
             sigma=sigma,
             n_total_round=n_total_round,
             q_step_size=q_step_size,
-            train_loss_dp=train_loss_dp,
-            total_dp_eps_for_online_optimization=total_dp_eps_for_online_optimization,
+            step_decay=step_decay,
         )
 
         self.aggregator = Aggregator(
@@ -115,8 +113,6 @@ class FLSimulator:
             dataset_name=dataset_name,
             sampling_rate_q=sampling_rate_q,
             validation_ratio=validation_ratio,
-            sigma_for_online_optimization=sigma_for_online_optimization,
-            total_dp_eps_for_online_optimization=total_dp_eps_for_online_optimization,
             n_total_round=n_total_round,
         )
 
@@ -124,7 +120,7 @@ class FLSimulator:
             self.aggregator.sampling_rate_q = np.mean(list(q_u.values()))
         if self.agg_strategy in METHOD_GROUP_ONLINE_OPTIMIZATION:
             self.with_momentum = with_momentum
-            self.train_loss_dp = train_loss_dp
+            self.off_train_loss_noise = off_train_loss_noise
             if momentum_weight is None:
                 self.momentum_weight = q_step_size
             else:
@@ -165,8 +161,6 @@ class FLSimulator:
                 n_silo_per_round=n_silo_per_round,
                 dataset_name=dataset_name,
                 C_u=C_u,
-                sigma_for_online_optimization=sigma_for_online_optimization,
-                total_dp_eps_for_online_optimization=total_dp_eps_for_online_optimization,
                 n_total_round=n_total_round,
             )
             self.local_trainer_per_silos[silo_id] = local_trainer
@@ -244,6 +238,7 @@ class FLSimulator:
                 ) = self.coordinator.build_user_weights_with_online_optimization(
                     weighted=True,
                     round_idx=self.round_idx,
+                    accountant_dct=self.aggregator.accountant_dct,
                 )
                 for silo_id in user_weights_per_silo.keys():
                     self.local_trainer_per_silos[
@@ -289,8 +284,7 @@ class FLSimulator:
                             self.coordinator.q_u_list,
                             self.coordinator.stepped_q_u_list,
                             local_updated_weights_dct,
-                            uldp=self.train_loss_dp,
-                            alpha_dct=self.coordinator.best_alpha_dct,
+                            off_train_loss_noise=self.off_train_loss_noise,
                         )
                     )
                     self.aggregator.add_local_trained_result_with_online_optimization(
@@ -328,18 +322,18 @@ class FLSimulator:
                     stepped_q_u_list=self.coordinator.stepped_q_u_list,
                 )
                 self.aggregator.results["local_loss_diff"].append(loss_diff_dct)
-                if self.train_loss_dp:
-                    self.aggregator.consume_dp_for_train_loss_metric(
-                        q_u_list=self.coordinator.q_u_list,
-                        stepped_q_u_list=self.coordinator.stepped_q_u_list,
-                        alpha_dct=self.coordinator.best_alpha_dct,
-                    )
+                self.aggregator.consume_dp_for_train_loss_metric(
+                    q_u_list=self.coordinator.q_u_list,
+                    stepped_q_u_list=self.coordinator.stepped_q_u_list,
+                    round_idx=self.round_idx,
+                )
                 self.coordinator.online_optimize(
                     loss_diff_dct,
                     with_momentum=self.with_momentum,
                     beta=self.momentum_weight,
                     hp_baseline=self.hp_baseline,
                     round_idx=self.round_idx,
+                    accountant_dct=self.aggregator.accountant_dct,
                 )
                 logger.info(f"Next HP: (Q_u, C_u) = {self.coordinator.hp_dct_by_eps}")
 

@@ -51,8 +51,6 @@ class Aggregator:
         dataset_name: str = None,
         sampling_rate_q: Optional[float] = None,
         validation_ratio: float = 0.0,
-        sigma_for_online_optimization: Optional[float] = None,
-        total_dp_eps_for_online_optimization: Optional[bool] = None,
         n_total_round: Optional[int] = None,
     ):
         self.random_state = np.random.RandomState(seed=base_seed + 1000000)
@@ -110,12 +108,6 @@ class Aggregator:
                 silo_id: {} for silo_id in range(self.n_silos)
             }
             self.results["local_loss_diff"] = []
-
-        if self.strategy == METHOD_PULDP_AVG_ONLINE_TRAIN:
-            self.sigma_for_online_optimization = sigma_for_online_optimization
-            self.total_dp_eps_for_online_optimization = (
-                total_dp_eps_for_online_optimization
-            )
 
     def get_results(self):
         return self.results
@@ -571,56 +563,54 @@ class Aggregator:
         return diff_dct
 
     def consume_dp_for_train_loss_metric(
-        self, q_u_list, stepped_q_u_list, alpha_dct: Dict[float, float]
+        self,
+        q_u_list,
+        stepped_q_u_list,
+        round_idx: int,
     ):
         # train_loss_metric is approximated metric instead of the real train loss
         # it needs to be bounded by 1
         for eps_u, eps_user_ids in self.epsilon_groups.items():
-            q_list = q_u_list[eps_user_ids]
-            stepped_q_list = stepped_q_u_list[eps_user_ids]
-
-            if self.total_dp_eps_for_online_optimization:
-                (
-                    noise_multiplier,
-                    _,
-                    _,
-                ) = noise_utils.get_noise_multiplier_from_total_eps(
-                    q_list[0],
-                    self.delta,
-                    epsilon_u=eps_u,
-                    T=self.n_total_round * 3,
-                    alpha=alpha_dct[eps_u],
-                )
-                (
-                    stepped_noise_multiplier,
-                    _,
-                    _,
-                ) = noise_utils.get_noise_multiplier_from_total_eps(
-                    stepped_q_list[0],
-                    self.delta,
-                    epsilon_u=eps_u,
-                    T=self.n_total_round * 3,
-                    alpha=alpha_dct[eps_u],
-                )
-            else:
-                noise_multiplier = self.sigma_for_online_optimization
-                stepped_noise_multiplier = self.sigma_for_online_optimization
+            q_u = q_u_list[eps_user_ids[0]]
+            stepped_q_u = stepped_q_u_list[eps_user_ids[0]]
+            (
+                noise_multiplier,
+                _,
+            ) = noise_utils.get_noise_multiplier_with_history(
+                q_u,
+                self.delta,
+                epsilon_u=eps_u,
+                total_round=self.n_total_round * 3,
+                current_round=round_idx * 3 + 1,
+                current_accountant=self.accountant_dct[eps_u],
+            )
+            (
+                stepped_noise_multiplier,
+                _,
+            ) = noise_utils.get_noise_multiplier_with_history(
+                stepped_q_u,
+                self.delta,
+                epsilon_u=eps_u,
+                total_round=self.n_total_round * 3,
+                current_round=round_idx * 3 + 2,
+                current_accountant=self.accountant_dct[eps_u],
+            )
             self.accountant_dct[eps_u].step(
                 noise_multiplier=noise_multiplier,
-                sample_rate=q_list[0],
+                sample_rate=q_u,
             )
             self.accountant_dct[eps_u].step(
                 noise_multiplier=stepped_noise_multiplier,
-                sample_rate=stepped_q_list[0],
+                sample_rate=stepped_q_u,
             )
 
     def consume_dp_for_model_optimization(self, q_u_list, C_u_list):
         for eps_u, eps_user_ids in self.epsilon_groups.items():
-            q_list = q_u_list[eps_user_ids]
-            C_list = C_u_list[eps_user_ids]
+            q_u = q_u_list[eps_user_ids[0]]
+            C_u = C_u_list[eps_user_ids[0]]
             self.accountant_dct[eps_u].step(
-                noise_multiplier=self.sigma / C_list[0],
-                sample_rate=q_list[0],
+                noise_multiplier=self.sigma / C_u,
+                sample_rate=q_u,
             )
 
 
