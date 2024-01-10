@@ -584,6 +584,10 @@ class Aggregator:
                 current_round=round_idx * 3 + 1,
                 current_accountant=self.accountant_dct[eps_u],
             )
+            self.accountant_dct[eps_u].step(
+                noise_multiplier=noise_multiplier,
+                sample_rate=q_u,
+            )
             (
                 stepped_noise_multiplier,
                 _,
@@ -594,10 +598,6 @@ class Aggregator:
                 total_round=self.n_total_round * 3,
                 current_round=round_idx * 3 + 2,
                 current_accountant=self.accountant_dct[eps_u],
-            )
-            self.accountant_dct[eps_u].step(
-                noise_multiplier=noise_multiplier,
-                sample_rate=q_u,
             )
             self.accountant_dct[eps_u].step(
                 noise_multiplier=stepped_noise_multiplier,
