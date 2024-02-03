@@ -986,7 +986,7 @@ class ClassificationTrainer:
         model: Optional[nn.Module] = None,
         sampling_rate_q: Optional[float] = None,
         current_round: Optional[int] = None,
-    ) -> Tuple[Tuple[float, float], Tuple[float, float], float]:
+    ) -> Tuple[Tuple[float, float], float]:
         # metric is approximated metric instead of the real train loss
         # it needs to be bounded by 1
         # privacy accounting is done in aggregator.py consume_dp_for_train_loss_metric()
@@ -1115,7 +1115,6 @@ class ClassificationTrainer:
             metric_list.append(user_level_shrunk_metric)
             raw_metric_list.append(train_metric)
 
-        mean_loss = np.mean(loss_list)
         logger.debug("metric_list: (", len(metric_list), ")", metric_list)
         noise_multiplier, _ = noise_utils.get_noise_multiplier_with_history(
             sampling_rate_q,
@@ -1134,7 +1133,7 @@ class ClassificationTrainer:
         final_shrunk_noisy_metric = np.sum(metric_list) + noise
         final_shrunk_noisy_metric /= sampling_rate_q
 
-        return mean_loss, final_shrunk_noisy_metric, noise_multiplier
+        return final_shrunk_noisy_metric, noise_multiplier
 
     def train_loss_for_online_optimization(
         self,
@@ -1182,7 +1181,6 @@ class ClassificationTrainer:
                 )
             else:
                 (
-                    _,
                     original_user_level_metric,
                     local_noise_multiplier,
                 ) = self.dp_train_loss(
@@ -1228,7 +1226,6 @@ class ClassificationTrainer:
                 )
             else:
                 (
-                    _,
                     stepped_user_level_metric,
                     stepped_local_noise_multiplier,
                 ) = self.dp_train_loss(

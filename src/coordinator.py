@@ -36,6 +36,7 @@ class Coordinator:
         q_step_size: Optional[float] = None,
         hp_baseline: Optional[str] = None,
         step_decay: Optional[bool] = False,
+        initial_q_u: Optional[float] = None,
     ):
         self.random_state = np.random.RandomState(seed=base_seed + 2000000)
         self.n_users = n_users
@@ -68,6 +69,8 @@ class Coordinator:
             self.loss_history: Dict[float, List] = {}
 
             INITIAL_Q_U = 1.0
+            if initial_q_u is not None:
+                INITIAL_Q_U = initial_q_u
             for eps_u in self.epsilon_groups.keys():
                 initial_C_u, _, _ = noise_utils.from_q_u(
                     q_u=INITIAL_Q_U,
@@ -366,7 +369,7 @@ class Coordinator:
         q_step_size = schedule_step_size(
             self.q_step_size, round_idx, self.n_total_round, step_decay=self.step_decay
         )
-        for eps_u in self.epsilon_groups.keys():
+        for eps_u, eps_user_ids in self.epsilon_groups.items():
             if hp_baseline is None or hp_baseline == "random-updown":
                 if hp_baseline is None:
                     loss_diff = loss_diff_dct[
@@ -383,21 +386,24 @@ class Coordinator:
                                 beta * self.momentum[eps_u] + (1 - beta) * loss_diff
                             )
                             self.momentum[eps_u] = loss_diff
-                    logger.info(
-                        f"eps_u: {eps_u}, original loss_diff: {org_diff}, (self.momentum[eps_u]: {self.momentum[eps_u]})"
-                    )
+                        logger.info(
+                            f"eps_u: {eps_u}, original loss_diff: {org_diff}, (self.momentum[eps_u]: {self.momentum[eps_u]})"
+                        )
                 elif hp_baseline == "random-updown":
                     loss_diff = self.random_state.uniform(-1, 1)
                     org_diff = loss_diff
+
                 q_u, _ = self.hp_dct_by_eps[eps_u]
                 if loss_diff < 0:  # Model is getting better
                     q_u = q_u * q_step_size
+                    q_u = max(q_u, 1.0 / len(eps_user_ids))
                 else:  # Model is getting worse
                     q_u = q_u / q_step_size
                     q_u = min(q_u, 1.0)
+
             elif hp_baseline == "random":
-                # q_uを1.0から0.0までの間でランダムに選択する，ログスケールの中で均等に選択されるようにする
-                log_min = np.log10(1.0 / self.n_users)
+                # Randomly select q_u between 1.0 and 1/n, so that it is evenly selected in the log scale
+                log_min = np.log10(1.0 / len(eps_user_ids))
                 log_max = np.log10(1.0)
                 random_log_value = self.random_state.uniform(log_min, log_max)
                 q_u = 10**random_log_value

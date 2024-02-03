@@ -109,6 +109,7 @@ def run_simulation(args, path_project, data_seed=None):
             momentum_weight=args.momentum_weight,
             hp_baseline=args.hp_baseline,
             step_decay=args.step_decay,
+            initial_q_u=args.initial_q_u,
         )
     simulator.run()
     results = simulator.get_results()

@@ -32,5 +32,6 @@ hyper_parameter_tuning: null
 times: 1
 exp_dist: null
 validation_ratio: 0.0
+initial_q_u: null
 version: 0
 momentum_weight: null

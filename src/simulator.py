@@ -70,6 +70,7 @@ class FLSimulator:
         momentum_weight: Optional[float] = None,
         hp_baseline: Optional[bool] = False,
         step_decay: Optional[bool] = False,
+        initial_q_u: Optional[float] = None,
     ):
         self.n_total_round = n_total_round
         self.round_idx = 0
@@ -94,6 +95,7 @@ class FLSimulator:
             n_total_round=n_total_round,
             q_step_size=q_step_size,
             step_decay=step_decay,
+            initial_q_u=initial_q_u,
         )
 
         self.aggregator = Aggregator(
