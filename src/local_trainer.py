@@ -60,6 +60,7 @@ class ClassificationTrainer:
         C_u: Optional[Dict] = None,
         n_total_round: Optional[int] = None,
     ):
+        self.base_seed = base_seed + silo_id + 1
         self.random_state = np.random.RandomState(seed=base_seed + silo_id + 1)
         self.model: nn.Module = model
         self.silo_id = silo_id
@@ -199,17 +200,6 @@ class ClassificationTrainer:
 
     def set_group_k(self, group_k: int):
         self.group_k = group_k
-
-    def update_global_weights_from_diff(
-        self, local_weights_diff, model: nn.Module, learning_rate: float = 1.0
-    ) -> Dict:
-        """
-        Update the parameters of the global model with the difference from the local models.
-        """
-        global_weights = model.state_dict()
-        for name, param in self.model.named_parameters():
-            if param.requires_grad:
-                global_weights[name] += learning_rate * local_weights_diff[name]
 
     def make_user_level_data_loader(self) -> List[Tuple[int, DataLoader]]:
         shuffled_train_data_indices = np.arange(len(self.train_loader.dataset))
@@ -414,11 +404,11 @@ class ClassificationTrainer:
                     #     )
                     # )
                 weights = model_u.state_dict()
-                if check_nan_inf(model_u):
+                if noise_utils.check_nan_inf(model_u):
                     # If it includes Nan or Inf, then
                     pass
                 else:
-                    weights_diff = self.diff_weights(global_weights, weights)
+                    weights_diff = noise_utils.diff_weights(global_weights, weights)
                     clipped_weights_diff = noise_utils.global_clip(
                         model_u, weights_diff, self.local_clipping_bound
                     )
@@ -493,7 +483,7 @@ class ClassificationTrainer:
                             )
                         )
                 weights = model_u.state_dict()
-                weights_diff = self.diff_weights(global_weights, weights)
+                weights_diff = noise_utils.diff_weights(global_weights, weights)
                 clipped_weights_diff = noise_utils.global_clip(
                     model_u, weights_diff, self.C_u[user_id]
                 )
@@ -596,7 +586,7 @@ class ClassificationTrainer:
                                     )
                                 )
                         weights = model_u.state_dict()
-                        weights_diff = self.diff_weights(global_weights, weights)
+                        weights_diff = noise_utils.diff_weights(global_weights, weights)
                         clipped_weights_diff = noise_utils.global_clip(
                             model_u, weights_diff, sensitivities[user_id]
                         )
@@ -705,7 +695,7 @@ class ClassificationTrainer:
                 )
 
             weights = self.get_model_params()
-            weights_diff = self.diff_weights(global_weights, weights)
+            weights_diff = noise_utils.diff_weights(global_weights, weights)
 
         train_time = time.time() - tick
         logger.debug("Train/Time : %s", train_time)
@@ -784,13 +774,6 @@ class ClassificationTrainer:
             return weights_diff, len(train_loader)
         else:
             raise NotImplementedError("Unknown aggregation strategy")
-
-    def diff_weights(self, original_weights, udpated_weights):
-        """Diff = Local - Global"""
-        diff_weights = copy.deepcopy(udpated_weights)
-        for key in diff_weights.keys():
-            diff_weights[key] = udpated_weights[key] - original_weights[key]
-        return diff_weights
 
     def test_local(self, round_idx=None):
         """
@@ -1164,7 +1147,7 @@ class ClassificationTrainer:
                 [original_weights_diff],
                 np.ceil(len(eps_user_ids) * self.n_silo_per_round * q_u),
             )
-            self.update_global_weights_from_diff(
+            noise_utils.update_global_weights_from_diff(
                 averaged_param_diff,
                 model,
                 learning_rate=1.0,
@@ -1209,7 +1192,7 @@ class ClassificationTrainer:
                 [stepped_weights_diff],
                 np.ceil(len(eps_user_ids) * self.n_silo_per_round * stepped_q_u),
             )
-            self.update_global_weights_from_diff(
+            noise_utils.update_global_weights_from_diff(
                 averaged_param_diff,
                 model,
                 learning_rate=1.0,
@@ -1257,9 +1240,3 @@ class ClassificationTrainer:
             logger.debug("eps_u = {}, diff = {}".format(eps_u, diff))
 
         return diff_dct
-
-
-def check_nan_inf(model):
-    # モデルの全パラメータを一つのテンソルに結合してチェック
-    all_params = torch.cat([p.view(-1) for p in model.parameters()])
-    return torch.isnan(all_params).any() or torch.isinf(all_params).any()

@@ -3,9 +3,36 @@ from typing import Dict, List, Tuple
 import numpy as np
 import torch
 import warnings
+import copy
+from torch import nn
 from opacus.accountants.analysis import rdp as analysis
 from opacus.accountants import RDPAccountant
 from functools import lru_cache
+
+
+def diff_weights(original_weights, updated_weights):
+    """Diff = Local - Global"""
+    diff_weights = copy.deepcopy(updated_weights)
+    for key in diff_weights.keys():
+        diff_weights[key] = updated_weights[key] - original_weights[key]
+    return diff_weights
+
+
+def update_global_weights_from_diff(
+    local_weights_diff, model: nn.Module, learning_rate: float = 1.0
+) -> Dict:
+    """
+    Update the parameters of the global model with the difference from the local models.
+    """
+    global_weights = model.state_dict()
+    for name, param in model.named_parameters():
+        if param.requires_grad:
+            global_weights[name] += learning_rate * local_weights_diff[name]
+
+
+def check_nan_inf(model):
+    all_params = torch.cat([p.view(-1) for p in model.parameters()])
+    return torch.isnan(all_params).any() or torch.isinf(all_params).any()
 
 
 def torch_aggregation(raw_grad_list: List[Dict], N: float = 1.0) -> Dict:

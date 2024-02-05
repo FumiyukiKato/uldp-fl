@@ -163,7 +163,6 @@ class Coordinator:
                 user_weights_per_silo[silo_id] = {
                     user_id: 1.0 / self.n_silos for user_id in range(self.n_users)
                 }
-
         if is_sample:
             user_ids = np.array(range(self.n_users))
             if self.agg_strategy == METHOD_PULDP_AVG:

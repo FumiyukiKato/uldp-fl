@@ -110,6 +110,7 @@ def run_simulation(args, path_project, data_seed=None):
             hp_baseline=args.hp_baseline,
             step_decay=args.step_decay,
             initial_q_u=args.initial_q_u,
+            parallelized=args.parallelized,
         )
     simulator.run()
     results = simulator.get_results()

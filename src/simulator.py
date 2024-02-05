@@ -1,3 +1,4 @@
+from multiprocessing import Process, cpu_count, Queue
 from typing import Callable, List, Optional, Tuple, Dict
 import torch
 import numpy as np
@@ -18,6 +19,7 @@ from method_group import (
 )
 from coordinator import Coordinator
 from local_trainer import ClassificationTrainer
+import parallelized_local_trainer
 from mylogger import logger
 
 
@@ -71,6 +73,7 @@ class FLSimulator:
         hp_baseline: Optional[bool] = False,
         step_decay: Optional[bool] = False,
         initial_q_u: Optional[float] = None,
+        parallelized: Optional[bool] = False,
     ):
         self.n_total_round = n_total_round
         self.round_idx = 0
@@ -80,6 +83,7 @@ class FLSimulator:
         self.sampling_rate_q = sampling_rate_q
         self.validation_ratio = validation_ratio
         self.hp_baseline = hp_baseline
+        self.parallelized = parallelized
         self.coordinator = Coordinator(
             base_seed=seed,
             n_silos=n_silos,
@@ -177,6 +181,24 @@ class FLSimulator:
     def run(self):
         logger.info("Start federated learning simulation")
 
+        if self.parallelized:
+            input_queue = Queue()
+            output_queue = Queue()
+
+            logger.info("Start federated learning simulation")
+
+            # Wakeup worker processes
+            num_workers = cpu_count() - 1
+            processes = [
+                Process(
+                    target=parallelized_local_trainer.parallelized_train_worker,
+                    args=(input_queue, output_queue),
+                )
+                for _ in range(num_workers)
+            ]
+            for p in processes:
+                p.start()
+
         for local_trainer in self.local_trainer_per_silos.values():
             local_trainer.set_group_k(self.group_k)
 
@@ -260,51 +282,130 @@ class FLSimulator:
                     "============ TRAINING: SILO_ID = %d (ROUND %d) ============"
                     % (silo_id, self.round_idx)
                 )
+
                 local_trainer = self.local_trainer_per_silos[silo_id]
                 local_trainer.set_model_params(
                     self.aggregator.get_global_model_params()
                 )
 
-                if self.agg_strategy == METHOD_PULDP_AVG_ONLINE:
-                    local_updated_weights_dct = local_trainer.train(
-                        self.round_idx,
-                        loss_callback=build_loss_callback(),
-                    )
-                    self.aggregator.add_local_trained_result_with_static_optimization(
-                        silo_id,
-                        local_updated_weights_dct,
-                        local_trainer.get_latest_epsilon(),
-                    )
-                elif self.agg_strategy == METHOD_PULDP_AVG_ONLINE_TRAIN:
-                    local_updated_weights_dct = local_trainer.train(
-                        self.round_idx,
-                        loss_callback=build_loss_callback(),
-                    )
-                    local_loss_diff_dct = (
-                        local_trainer.train_loss_for_online_optimization(
+                if self.parallelized:  # Parallelized training
+                    input_queue.put(
+                        (
+                            local_trainer.silo_id,
+                            local_trainer.random_state,
+                            local_trainer.model,
+                            local_trainer.device,
+                            local_trainer.agg_strategy,
+                            local_trainer.train_loader,
+                            local_trainer.criterion,
                             self.round_idx,
-                            self.coordinator.q_u_list,
-                            self.coordinator.stepped_q_u_list,
-                            local_updated_weights_dct,
-                            off_train_loss_noise=self.off_train_loss_noise,
+                            local_trainer.n_silo_per_round,
+                            getattr(local_trainer, "privacy_engine", None),
+                            getattr(local_trainer, "clipping_bound", None),
+                            getattr(local_trainer, "local_sigma", None),
+                            getattr(local_trainer, "user_level_data_loader", None),
+                            getattr(local_trainer, "user_weights", None),
+                            local_trainer.dataset_name,
+                            local_trainer.client_optimizer,
+                            local_trainer.local_learning_rate,
+                            local_trainer.weight_decay,
+                            local_trainer.local_epochs,
+                            getattr(local_trainer, "C_u", None),
+                            getattr(local_trainer, "epsilon_groups", None),
+                            getattr(local_trainer, "C_u_list", None),
+                            getattr(
+                                local_trainer, "stepped_C_u_list_for_optimization", None
+                            ),
+                            getattr(
+                                local_trainer, "user_weights_for_optimization", None
+                            ),
+                            getattr(
+                                local_trainer,
+                                "stepped_user_weights_for_optimization",
+                                None,
+                            ),
+                            getattr(local_trainer, "C_u_list_for_optimization", None),
+                            getattr(local_trainer, "q_u_list", None),
+                            getattr(local_trainer, "stepped_q_u_list", None),
+                            getattr(local_trainer, "off_train_loss_noise", None),
+                            getattr(local_trainer, "accountant_dct", None),
                         )
                     )
-                    self.aggregator.add_local_trained_result_with_online_optimization(
-                        silo_id,
-                        local_updated_weights_dct["default"],
-                        local_trainer.get_latest_epsilon(),
-                        local_loss_diff_dct,
-                    )
                 else:
-                    local_updated_weights, _ = local_trainer.train(
-                        self.round_idx,
-                        loss_callback=build_loss_callback(),
-                    )
-                    self.aggregator.add_local_trained_result(
-                        silo_id,
-                        local_updated_weights,
-                        local_trainer.get_latest_epsilon(),
-                    )
+                    if self.agg_strategy == METHOD_PULDP_AVG_ONLINE:
+                        local_updated_weights_dct = local_trainer.train(
+                            self.round_idx,
+                            loss_callback=build_loss_callback(),
+                        )
+                        self.aggregator.add_local_trained_result_with_static_optimization(
+                            silo_id,
+                            local_updated_weights_dct,
+                            local_trainer.get_latest_epsilon(),
+                        )
+                    elif self.agg_strategy == METHOD_PULDP_AVG_ONLINE_TRAIN:
+                        local_updated_weights_dct = local_trainer.train(
+                            self.round_idx,
+                            loss_callback=build_loss_callback(),
+                        )
+                        local_loss_diff_dct = (
+                            local_trainer.train_loss_for_online_optimization(
+                                self.round_idx,
+                                self.coordinator.q_u_list,
+                                self.coordinator.stepped_q_u_list,
+                                local_updated_weights_dct,
+                                off_train_loss_noise=self.off_train_loss_noise,
+                            )
+                        )
+                        self.aggregator.add_local_trained_result_with_online_optimization(
+                            silo_id,
+                            local_updated_weights_dct["default"],
+                            local_trainer.get_latest_epsilon(),
+                            local_loss_diff_dct,
+                        )
+                    else:
+                        local_updated_weights, _ = local_trainer.train(
+                            self.round_idx,
+                            loss_callback=build_loss_callback(),
+                        )
+                        self.aggregator.add_local_trained_result(
+                            silo_id,
+                            local_updated_weights,
+                            local_trainer.get_latest_epsilon(),
+                        )
+
+            if self.parallelized:
+                expected_results = len(silo_id_list_in_this_round)
+                received_results = 0
+
+                while received_results < expected_results:
+                    silo_id, random_state, accountant_dct, result = output_queue.get()
+                    if self.agg_strategy == METHOD_PULDP_AVG_ONLINE:
+                        local_updated_weights_dct = result
+                        self.aggregator.add_local_trained_result_with_static_optimization(
+                            silo_id,
+                            local_updated_weights_dct,
+                            0.0,
+                        )
+                    elif self.agg_strategy == METHOD_PULDP_AVG_ONLINE_TRAIN:
+                        local_updated_weights_dct, local_loss_diff_dct = result
+                        self.aggregator.add_local_trained_result_with_online_optimization(
+                            silo_id,
+                            local_updated_weights_dct["default"],
+                            0.0,
+                            local_loss_diff_dct,
+                        )
+                    else:
+                        local_updated_weights, _ = result
+                        self.aggregator.add_local_trained_result(
+                            silo_id,
+                            local_updated_weights,
+                            0.0,
+                        )
+                    local_trainer = self.local_trainer_per_silos[silo_id]
+                    local_trainer.random_state = random_state
+                    local_trainer.accountant_dct = accountant_dct
+
+                    received_results += 1
 
             logger.debug(
                 "============ AGGREGATION: ROUND %d ============" % (self.round_idx)
@@ -345,6 +446,15 @@ class FLSimulator:
                 )
             )
             self.round_idx += 1
+
+        if self.parallelized:
+            # ワーカープロセスに終了を伝える
+            for _ in range(num_workers):
+                input_queue.put(None)
+
+            # プロセスの終了待機
+            for p in processes:
+                p.join()
 
         if self.agg_strategy in METHOD_GROUP_ULDP_GROUPS:
             self.aggregator.results["privacy_info"] = {

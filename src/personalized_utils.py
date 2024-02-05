@@ -8,6 +8,7 @@ import noise_utils
 from run_simulation import run_simulation
 import pickle
 import ast
+import time
 
 # import pprint
 
@@ -37,6 +38,43 @@ def save_figure(file_name, fig=None):
             bbox_inches="tight",
         )
     print("Result image saved to:", file_path)
+
+
+# for updating or creating result file
+def dump_results(file_name, results_dict):
+    file_path = os.path.join(pickle_path, file_name)
+    lock_file_path = f"{file_path}.lock"
+
+    try:
+        # wait lock
+        while os.path.exists(lock_file_path):
+            time.sleep(1)
+            print("wait lock")
+
+        # get lock
+        with open(lock_file_path, "w") as lock_file:
+            lock_file.write("locked")
+
+        try:
+            with open(file_path, "rb") as file:
+                prev_results_dict = pickle.load(file)
+            results_dict = results_dict | prev_results_dict
+        except FileNotFoundError:
+            pass
+
+        with open(file_path, "wb") as file:
+            pickle.dump(results_dict, file)
+
+    finally:
+        os.remove(lock_file_path)
+
+    print("Result objects saved to: ", file_name)
+
+
+def check_results_file_already_exist(file_name):
+    file_path = os.path.join(pickle_path, file_name)
+    if os.path.exists(file_path):
+        raise FileExistsError(f"File '{file_path}' already exists.")
 
 
 # for depicting qC curve
@@ -125,11 +163,11 @@ def fed_simulation(
     user_dist="uniform-iid",
     silo_dist="uniform",
     dataset_name="light_mnist",
-    global_learning_rate=10.0,
     clipping_bound=1.0,
     n_round=10,
-    local_epochs=50,
+    global_learning_rate=10.0,
     local_learning_rate=0.01,
+    local_epochs=50,
     agg_strategy="PULDP-AVG",
     epsilon_u=None,
     group_thresholds=None,
@@ -139,6 +177,9 @@ def fed_simulation(
     step_decay=True,
     hp_baseline=None,
     initial_q_u=None,
+    gpu_id=None,
+    parallelized=False,
+    seed=0,
 ):
     args = options.build_default_args(path_project)
 
@@ -183,6 +224,10 @@ def fed_simulation(
 
     args.validation_ratio = validation_ratio
     args.client_optimizer = "adam"
+    args.gpu_id = gpu_id
+    args.parallelized = parallelized
+
+    args.seed = seed
 
     results_list = []
     for i in range(args.times):
@@ -216,7 +261,7 @@ def make_epsilon_u(
     epsilon_list=[],
     ratio_list=[],
     random_state: np.random.RandomState = None,
-) -> dict[int, float]:
+):
     if dist == "homo":
         epsilon_u = {user_id: epsilon for user_id in range(n_users)}
     elif dist == "hetero":
@@ -305,6 +350,28 @@ def prepare_independent_search(epsilon_u, start_idx: int, end_idx: int):
     return {"name": "independent", "params": {"idx_per_group_list": idx_per_group_list}}
 
 
+def static_optimization_result_file_name(
+    sigma,
+    delta,
+    n_users,
+    n_round,
+    dataset_name,
+    q_step_size,
+    opt_strategy,
+    validation_ratio,
+    prefix_epsilon_u,
+    static_q_u_list,
+    user_dist,
+    global_learning_rate=None,
+    local_learning_rate=None,
+    local_epochs=None,
+):
+    if global_learning_rate is not None:
+        return f'static_optimization_{sigma}_{delta}_{n_users}_{n_round}_{dataset_name}_{q_step_size}_{opt_strategy["name"]}_{validation_ratio}_{prefix_epsilon_u}_{static_q_u_list}_{user_dist}_{global_learning_rate}_{local_learning_rate}_{local_epochs}.pkl'
+    else:
+        return f'static_optimization_{sigma}_{delta}_{n_users}_{n_round}_{dataset_name}_{q_step_size}_{opt_strategy["name"]}_{validation_ratio}_{prefix_epsilon_u}_{static_q_u_list}_{user_dist}.pkl'
+
+
 # Do Static Optimization which could be the Best Utility Baseline
 # Basically, we use grid search with prepare_grid_search() method above
 def static_optimization(
@@ -319,24 +386,37 @@ def static_optimization(
     opt_strategy: dict,
     global_learning_rate=10.0,
     local_learning_rate=0.01,
-    local_epochs=30,
+    local_epochs=50,
     validation_ratio=0.0,
     user_dist="uniform-iid",
     silo_dist="uniform",
     static_q_u_list=None,
+    gpu_id=None,
+    force_update=False,
+    parallelized=False,
 ):
-    try:
-        prefix_epsilon_u = list(epsilon_u.items())[:4]
-        with open(
-            os.path.join(
-                pickle_path,
-                f'static_optimization_{sigma}_{delta}_{n_users}_{n_round}_{dataset_name}_{q_step_size}_{opt_strategy["name"]}_{validation_ratio}_{prefix_epsilon_u}_{static_q_u_list}_{user_dist}.pkl',
-            ),
-            "rb",
-        ) as file:
-            results_dict = pickle.load(file)
-    except FileNotFoundError:
-        results_dict = {}
+    results_dict = {}
+
+    prefix_epsilon_u = list(epsilon_u.items())[:4]
+    results_file_name = static_optimization_result_file_name(
+        sigma,
+        delta,
+        n_users,
+        n_round,
+        dataset_name,
+        q_step_size,
+        opt_strategy,
+        validation_ratio,
+        prefix_epsilon_u,
+        static_q_u_list,
+        user_dist,
+        global_learning_rate,
+        local_learning_rate,
+        local_epochs,
+    )
+
+    if not force_update:
+        check_results_file_already_exist(results_file_name)
 
     if opt_strategy["name"] in ["grid", "random", "independent"]:
         # grid search
@@ -368,19 +448,14 @@ def static_optimization(
                 local_epochs=local_epochs,
                 epsilon_u=epsilon_u,
                 validation_ratio=validation_ratio,
+                gpu_id=gpu_id,
+                parallelized=parallelized,
             )
             results_dict[str(idx_per_group)] = (q_u, C_u, result)
     else:
         raise ValueError(f"invalid opt_strategy {opt_strategy}")
 
-    with open(
-        os.path.join(
-            pickle_path,
-            f'static_optimization_{sigma}_{delta}_{n_users}_{n_round}_{dataset_name}_{q_step_size}_{opt_strategy["name"]}_{validation_ratio}_{prefix_epsilon_u}_{static_q_u_list}_{user_dist}.pkl',
-        ),
-        "wb",
-    ) as file:
-        pickle.dump(results_dict, file)
+    dump_results(results_file_name, results_dict)
 
 
 def show_static_optimization_result(
@@ -400,15 +475,28 @@ def show_static_optimization_result(
     is_3d=False,
     static_q_u_list=None,
     user_dist=None,
+    global_learning_rate=None,
+    local_learning_rate=None,
+    local_epochs=None,
 ):
     prefix_epsilon_u = list(epsilon_u.items())[:4]
-    with open(
-        os.path.join(
-            pickle_path,
-            f'static_optimization_{sigma}_{delta}_{n_users}_{n_round}_{dataset_name}_{q_step_size}_{opt_strategy["name"]}_{validation_ratio}_{prefix_epsilon_u}_{static_q_u_list}_{user_dist}.pkl',
-        ),
-        "rb",
-    ) as file:
+    results_file_name = static_optimization_result_file_name(
+        sigma,
+        delta,
+        n_users,
+        n_round,
+        dataset_name,
+        q_step_size,
+        opt_strategy,
+        validation_ratio,
+        prefix_epsilon_u,
+        static_q_u_list,
+        user_dist,
+        global_learning_rate,
+        local_learning_rate,
+        local_epochs,
+    )
+    with open(os.path.join(pickle_path, results_file_name), "rb") as file:
         results_dict = pickle.load(file)
 
     x = list(results_dict.keys())
@@ -466,6 +554,58 @@ def show_static_optimization_result(
         plt.xticks([])
 
         save_figure("static_optimization_result-1d-" + img_name)
+        plt.show()
+
+    if len(x) == 1:
+        _, ax_loss = plt.subplots()
+        result = results_dict[x[0]][2]
+        loss_means = []
+        loss_stds = []
+        acc_means = []
+        acc_stds = []
+
+        symbol = "test" if validation_ratio <= 0.0 else "valid"
+        label = ""
+
+        for i in range(len(result[0]["global"][f"global_{symbol}"])):
+            losses_at_position = [
+                result[round_id]["global"][f"global_{symbol}"][i][2]
+                for round_id in range(len(result))
+            ]
+            accs_at_position = [
+                result[round_id]["global"][f"global_{symbol}"][i][1]
+                for round_id in range(len(result))
+            ]
+
+            loss_means.append(np.mean(losses_at_position))
+            loss_stds.append(np.std(losses_at_position))
+
+            acc_means.append(np.mean(accs_at_position))
+            acc_stds.append(np.std(accs_at_position))
+
+        _x = range(len(loss_means))
+        if errorbar:
+            ax_loss.errorbar(
+                _x, loss_means, yerr=loss_stds, label="Loss", alpha=0.8, color="blue"
+            )
+        else:
+            ax_loss.plot(_x, loss_means, label="Loss", alpha=0.8, color="blue")
+
+        ax_loss.set_ylabel("Test Loss", fontsize=20)
+        ax_loss.set_xlabel("Round", fontsize=20)
+        ax_loss.set_yscale("log")
+        ax_loss.legend(loc="upper right", fontsize=20)
+
+        ax2 = plt.twinx()
+        if errorbar:
+            ax2.errorbar(
+                _x, acc_means, yerr=acc_stds, label="Accuracy", alpha=0.8, color="red"
+            )
+        else:
+            ax2.plot(_x, acc_means, label="Accuracy", alpha=0.8, color="red")
+        ax2.legend(loc="upper right", fontsize=20)
+
+        save_figure("static_optimization_result-1d-loss-analysis-" + img_name)
         plt.show()
 
     if is_3d:
@@ -698,6 +838,31 @@ def show_static_optimization_result(
     return min_idx, min_test_loss
 
 
+def specified_idx_result_file_name(
+    n_users,
+    sigma,
+    delta,
+    dataset_name,
+    n_round,
+    idx_per_group,
+    q_step_size,
+    validation_ratio,
+    prefix_epsilon_u,
+    static_q_u_list,
+    global_learning_rate=None,
+    local_learning_rate=None,
+    local_epochs=None,
+):
+    if global_learning_rate is not None:
+        return f"specified_idx_{n_users}_{sigma}_{delta}_{dataset_name}_{n_round}_{idx_per_group}_{q_step_size}_{validation_ratio}_{prefix_epsilon_u}_{static_q_u_list}_{global_learning_rate}_{local_learning_rate}_{local_epochs}.pkl".replace(
+            ":", "_"
+        )
+    else:
+        return f"specified_idx_{n_users}_{sigma}_{delta}_{dataset_name}_{n_round}_{idx_per_group}_{q_step_size}_{validation_ratio}_{prefix_epsilon_u}_{static_q_u_list}.pkl".replace(
+            ":", "_"
+        )
+
+
 def run_with_specified_idx(
     epsilon_u,
     sigma,
@@ -708,14 +873,38 @@ def run_with_specified_idx(
     q_step_size,
     times,
     idx_per_group,
-    global_learning_rate=10.0,
-    local_learning_rate=0.01,
-    local_epochs=30,
+    global_learning_rate,
+    local_learning_rate,
+    local_epochs,
     validation_ratio=0.0,
     user_dist="uniform-iid",
     silo_dist="uniform",
     static_q_u_list=None,
+    gpu_id=None,
+    force_update=False,
+    parallelized=False,
+    seed=0,
 ):
+    prefix_epsilon_u = list(epsilon_u.items())[:4]
+    results_file_name = specified_idx_result_file_name(
+        n_users,
+        sigma,
+        delta,
+        dataset_name,
+        n_round,
+        idx_per_group,
+        q_step_size,
+        validation_ratio,
+        prefix_epsilon_u,
+        static_q_u_list,
+        global_learning_rate,
+        local_learning_rate,
+        local_epochs,
+    )
+
+    if not force_update:
+        check_results_file_already_exist(results_file_name)
+
     C_u, q_u = make_static_params(
         epsilon_u,
         delta,
@@ -742,6 +931,9 @@ def run_with_specified_idx(
         local_epochs=local_epochs,
         epsilon_u=epsilon_u,
         validation_ratio=validation_ratio,
+        gpu_id=gpu_id,
+        parallelized=parallelized,
+        seed=seed,
     )
 
     acc_mean, acc_std, loss_mean, loss_std = calc_metric(result, "test")
@@ -757,17 +949,7 @@ def run_with_specified_idx(
             f", VALID LOSS: {loss_mean:.4f} ± {loss_std:.4f}",
         )
 
-    prefix_epsilon_u = list(epsilon_u.items())[:4]
-    idx_per_group
-    with open(
-        os.path.join(
-            pickle_path,
-            f"specified_idx_{n_users}_{sigma}_{delta}_{dataset_name}_{n_round}_{idx_per_group}_{q_step_size}_{validation_ratio}_{prefix_epsilon_u}_{static_q_u_list}.pkl".replace(
-                ":", "_"
-            ),
-        ),
-        "wb",
-    ) as file:
+    with open(os.path.join(pickle_path, results_file_name), "wb") as file:
         pickle.dump(result, file)
 
 
@@ -785,6 +967,9 @@ def show_specified_idx_result(
     errorbar=True,
     img_name="",
     static_q_u_list=None,
+    global_learning_rate=None,
+    local_learning_rate=None,
+    local_epochs=None,
 ):
     # optimal q_u
     _, ax_loss = plt.subplots()
@@ -795,15 +980,22 @@ def show_specified_idx_result(
     for idx_per_group, prefix_epsilon_u, label in zip(
         idx_per_group_list, prefix_epsilon_u_list, label_list
     ):
-        with open(
-            os.path.join(
-                pickle_path,
-                f"specified_idx_{n_users}_{sigma}_{delta}_{dataset_name}_{n_round}_{idx_per_group}_{q_step_size}_{validation_ratio}_{prefix_epsilon_u}_{static_q_u_list}.pkl".replace(
-                    ":", "_"
-                ),
-            ),
-            "rb",
-        ) as file:
+        results_file_name = specified_idx_result_file_name(
+            n_users,
+            sigma,
+            delta,
+            dataset_name,
+            n_round,
+            idx_per_group,
+            q_step_size,
+            validation_ratio,
+            prefix_epsilon_u,
+            static_q_u_list,
+            global_learning_rate,
+            local_learning_rate,
+            local_epochs,
+        )
+        with open(os.path.join(pickle_path, results_file_name), "rb") as file:
             result = pickle.load(file)
 
         loss_means = []
@@ -845,6 +1037,32 @@ def show_specified_idx_result(
     return x, acc_means, acc_stds
 
 
+def online_optimization_result_file_name(
+    agg_strategy,
+    n_users,
+    sigma,
+    delta,
+    dataset_name,
+    n_round,
+    q_step_size,
+    validation_ratio,
+    prefix_epsilon_u,
+    with_momentum,
+    off_train_loss_noise,
+    step_decay,
+    hp_baseline,
+    initial_q_u,
+    momentum_weight,
+    global_learning_rate=None,
+    local_learning_rate=None,
+    local_epochs=None,
+):
+    if global_learning_rate is not None:
+        return f"online_optimization_{agg_strategy}_{n_users}_{sigma}_{delta}_{dataset_name}_{n_round}_{q_step_size}_{validation_ratio}_{prefix_epsilon_u}_{with_momentum}_{off_train_loss_noise}_{step_decay}_{hp_baseline}_{initial_q_u}_{momentum_weight}_{global_learning_rate}_{local_learning_rate}_{local_epochs}.pkl"
+    else:
+        return f"online_optimization_{agg_strategy}_{n_users}_{sigma}_{delta}_{dataset_name}_{n_round}_{q_step_size}_{validation_ratio}_{prefix_epsilon_u}_{with_momentum}_{off_train_loss_noise}_{step_decay}_{hp_baseline}_{initial_q_u}_{momentum_weight}.pkl"
+
+
 # ONLINE OPTIMIZATION
 def run_online_optimization(
     epsilon_u,
@@ -859,7 +1077,7 @@ def run_online_optimization(
     agg_strategy,
     global_learning_rate=10.0,
     local_learning_rate=0.01,
-    local_epochs=30,
+    local_epochs=50,
     validation_ratio=0.0,
     momentum_weight=0.9,
     initial_q_u=None,
@@ -869,7 +1087,35 @@ def run_online_optimization(
     off_train_loss_noise=None,
     user_dist="uniform-iid",
     silo_dist="uniform",
+    gpu_id=None,
+    force_update=False,
+    parallelized=False,
 ):
+    prefix_epsilon_u = list(epsilon_u.items())[:4]
+    results_file_name = online_optimization_result_file_name(
+        agg_strategy,
+        n_users,
+        sigma,
+        delta,
+        dataset_name,
+        n_round,
+        q_step_size,
+        validation_ratio,
+        prefix_epsilon_u,
+        with_momentum,
+        off_train_loss_noise,
+        step_decay,
+        hp_baseline,
+        initial_q_u,
+        momentum_weight,
+        global_learning_rate,
+        local_learning_rate,
+        local_epochs,
+    )
+
+    if not force_update:
+        check_results_file_already_exist(results_file_name)
+
     result = fed_simulation(
         delta,
         sigma,
@@ -895,6 +1141,8 @@ def run_online_optimization(
         step_decay=step_decay,
         off_train_loss_noise=off_train_loss_noise,
         hp_baseline=hp_baseline,
+        gpu_id=gpu_id,
+        parallelized=parallelized,
     )
 
     acc_mean, acc_std, loss_mean, loss_std = calc_metric(result)
@@ -910,14 +1158,7 @@ def run_online_optimization(
             f", VALID LOSS: {loss_mean:.4f} ± {loss_std:.4f}",
         )
 
-    prefix_epsilon_u = list(epsilon_u.items())[:4]
-    with open(
-        os.path.join(
-            pickle_path,
-            f"online_optimization_{agg_strategy}_{n_users}_{sigma}_{delta}_{dataset_name}_{n_round}_{q_step_size}_{validation_ratio}_{prefix_epsilon_u}_{with_momentum}_{off_train_loss_noise}_{step_decay}_{hp_baseline}_{initial_q_u}_{momentum_weight}.pkl",
-        ),
-        "wb",
-    ) as file:
+    with open(os.path.join(pickle_path, results_file_name), "wb") as file:
         pickle.dump(result, file)
 
 
@@ -949,15 +1190,32 @@ def show_online_optimization_result(
     initial_q_u=None,
     momentum_weight=0.9,
     is_show_accuracy=False,
+    global_learning_rate=None,
+    local_learning_rate=None,
+    local_epochs=None,
 ):
     prefix_epsilon_u = list(epsilon_u.items())[:4]
-    with open(
-        os.path.join(
-            pickle_path,
-            f"online_optimization_{agg_strategy}_{n_users}_{sigma}_{delta}_{dataset_name}_{n_round}_{q_step_size}_{validation_ratio}_{prefix_epsilon_u}_{with_momentum}_{off_train_loss_noise}_{step_decay}_{hp_baseline}_{initial_q_u}_{momentum_weight}.pkl",
-        ),
-        "rb",
-    ) as file:
+    results_file_name = online_optimization_result_file_name(
+        agg_strategy,
+        n_users,
+        sigma,
+        delta,
+        dataset_name,
+        n_round,
+        q_step_size,
+        validation_ratio,
+        prefix_epsilon_u,
+        with_momentum,
+        off_train_loss_noise,
+        step_decay,
+        hp_baseline,
+        initial_q_u,
+        momentum_weight,
+        global_learning_rate,
+        local_learning_rate,
+        local_epochs,
+    )
+    with open(os.path.join(pickle_path, results_file_name), "rb") as file:
         result = pickle.load(file)
 
     # eps_uの値のリストを取得（すべての辞書から共通のキーを抽出）

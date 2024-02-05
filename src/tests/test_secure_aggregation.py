@@ -183,9 +183,9 @@ class TestSecureAggregation(unittest.TestCase):
         # server -> silo
         for silo_id in range(n_silos):
             if silo_id != PRIMARY_SILO_ID:
-                channel_server_to_silos[
-                    silo_id
-                ] = secure_aggregator.get_shared_random_seed()[silo_id]
+                channel_server_to_silos[silo_id] = (
+                    secure_aggregator.get_shared_random_seed()[silo_id]
+                )
                 local_trainer_per_silos[
                     silo_id
                 ].receive_across_silos_shared_random_seed(
@@ -237,9 +237,9 @@ class TestSecureAggregation(unittest.TestCase):
 
             model_delta_list = []
             for user_id in range(n_users):
-                udpated_weight = model.state_dict()  # Mock of local trained model
+                updated_weight = model.state_dict()  # Mock of local trained model
                 encrypted_model_delta = local_trainer.secure_weighting(
-                    udpated_weight, user_id
+                    updated_weight, user_id
                 )
                 model_delta_list.append(encrypted_model_delta)
 

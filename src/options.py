@@ -86,6 +86,7 @@ def args_parser(path_project: str) -> argparse.Namespace:
     parser.add_argument("--version", type=int, help="used for experimental management")
     parser.add_argument("--dry_run", action='store_true', help="used for checking the hash value")
     parser.add_argument("--secure_w", action='store_true', help="secure weighting method only for ULDP-SGD-w/ws and ULDP-AVG-w/ws")
+    parser.add_argument("--parallelized", action='store_true', help="parallelize the simulation")
 
     # fmt: on
 
