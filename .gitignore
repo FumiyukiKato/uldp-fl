@@ -20,4 +20,3 @@ exp/img/*
 
 .DS_Store
 *.pkl
-exp/pickle/*
