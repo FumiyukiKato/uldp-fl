@@ -1,4 +1,3 @@
-from multiprocessing import Process, cpu_count, Queue
 from typing import Callable, List, Optional, Tuple, Dict
 import torch
 import numpy as np
@@ -84,6 +83,7 @@ class FLSimulator:
         self.validation_ratio = validation_ratio
         self.hp_baseline = hp_baseline
         self.parallelized = parallelized
+        self.device = device
         self.coordinator = Coordinator(
             base_seed=seed,
             n_silos=n_silos,
@@ -182,10 +182,16 @@ class FLSimulator:
         logger.info("Start federated learning simulation")
 
         if self.parallelized:
+            from multiprocessing import Process, cpu_count, Queue, set_start_method
+            import os
+
+            if os.name != "posix" or "linux" in os.uname().sysname.lower():
+                # Linux
+                # num_workers = 8 # you may need to adjust GPU memory size when getting memory allocation error
+                set_start_method("forkserver", force=True)
+
             input_queue = Queue()
             output_queue = Queue()
-
-            logger.info("Start federated learning simulation")
 
             # Wakeup worker processes
             num_workers = cpu_count() - 1
