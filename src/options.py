@@ -1,6 +1,7 @@
 import os
 import argparse
 import yaml
+import ast
 
 from mylogger import logger
 
@@ -44,7 +45,7 @@ def args_parser(path_project: str) -> argparse.Namespace:
     parser.add_argument("--user_alpha", type=float, help="zipf's parameter for users distribution")
     parser.add_argument("--silo_alpha", type=float, help="zipf's parameter for silos distribution")
     parser.add_argument("--n_labels", type=int, help="number of distinct labels for each user")
-    parser.add_argument("--typical_scenaio", type=int, help="typical scenario")
+    parser.add_argument("--typical_scenario", type=int, help="typical scenario")
 
     parser.add_argument("--n_silo_per_round", type=int, help="the silos per round")
     parser.add_argument("--n_total_round", type=int, help="The number of total rounds")
@@ -61,15 +62,31 @@ def args_parser(path_project: str) -> argparse.Namespace:
     parser.add_argument("--clipping_bound", type=float, help="clipping bound for differential privacy")
     parser.add_argument("--delta", type=float, help="delta for differential privacy")
     parser.add_argument("--sampling_rate_q", type=float, help="sampling rate q for user-level sub-sampling")
+    parser.add_argument("--validation_ratio", type=float, default=0.0, help="validation dataset ratio")
+
+    # For personalized ULDP
+    parser.add_argument("--C_u", type=ast.literal_eval, default={}, help="Clipping bound dict for personalized uldp.")
+    parser.add_argument("--q_u", type=ast.literal_eval, default={}, help="Sample rate dict for personalized uldp.")
+    parser.add_argument("--epsilon_u", type=ast.literal_eval, default={}, help="Epsilon list for users.")
+    parser.add_argument("--epsilon_list", type=ast.literal_eval, default=[], help="Epsilon list for user groups.")
+    parser.add_argument("--group_thresholds", type=ast.literal_eval, default=[], help="Thresholds for grouping by epsilon.")
+    parser.add_argument("--ratio_list", type=ast.literal_eval, default=[], help="Ratio list for user groups")
+    parser.add_argument("--q_step_size", type=float, help="Step size for q_u for online optimization.")
+    parser.add_argument("--with_momentum", action='store_true', help="Using momentum for online HP optimization.")
+    parser.add_argument("--momentum_weight", type=float, help="Momentum weight for online HP optimization.")
+    parser.add_argument("--off_train_loss_noise", action='store_true', help="Without DP noise on train loss, but privacy will be consumed as same as in with DP noise.")
+    parser.add_argument("--step_decay", action='store_true', help="Using step decay for q_step_size.")
+    parser.add_argument("--hp_baseline", type=str, default=None, help="Baseline for online HP optimization. random, random-updown")
+    parser.add_argument("--initial_q_u", type=float, default=None, help="Step size for q_u for online optimization.")
 
     parser.add_argument("--verbose", type=int, help="verbose (set logging at DEBUG level)")
-    parser.add_argument("--hyper_parameter_tuning", type=int, help="is hyper-parameter tuning")
     parser.add_argument("--times", type=int, help="times of experiments in different random seeds")
     parser.add_argument("--exp_dist", type=int, help="0 (iid), 1 (non-iid based on zipf)")
 
     parser.add_argument("--version", type=int, help="used for experimental management")
     parser.add_argument("--dry_run", action='store_true', help="used for checking the hash value")
     parser.add_argument("--secure_w", action='store_true', help="secure weighting method only for ULDP-SGD-w/ws and ULDP-AVG-w/ws")
+    parser.add_argument("--parallelized", action='store_true', help="parallelize the simulation")
 
     # fmt: on
 

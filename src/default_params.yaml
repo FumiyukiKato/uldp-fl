@@ -12,12 +12,12 @@ silo_dist: "uniform"
 user_alpha: 0.3
 silo_alpha: 1.5
 n_labels: 1
-typical_scenaio: null
+typical_scenario: null
 n_silo_per_round: 5
 n_total_round: 10
 local_epochs: 10
 local_learning_rate: 0.01
-global_learning_rate: 1.0
+global_learning_rate: 10.0
 local_batch_size: 64
 weight_decay: 0.001
 client_optimizer: "sgd"
@@ -28,7 +28,9 @@ clipping_bound: 1.0
 delta: 0.00001
 sampling_rate_q: 0.1
 verbose: 0
-hyper_parameter_tuning: null
 times: 1
 exp_dist: null
+validation_ratio: 0.0
+initial_q_u: null
 version: 0
+momentum_weight: null

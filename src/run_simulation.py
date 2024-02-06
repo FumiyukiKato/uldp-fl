@@ -4,13 +4,13 @@ import numpy as np
 import os
 
 from options import args_parser
-from dataset import load_dataset
+from dataset import HEART_DISEASE, TCGA_BRCA, load_dataset
 
 from results_saver import save_one_shot_results, args_to_hash
 import models
 from secure_simulator import SecureWeightingFLSimulator
 
-from simulator import FLSimulator, NanError
+from simulator import FLSimulator, TrainNanError
 
 from mylogger import logger_set_debug
 
@@ -98,6 +98,19 @@ def run_simulation(args, path_project, data_seed=None):
             group_k=args.group_k,
             dataset_name=args.dataset_name,
             sampling_rate_q=args.sampling_rate_q,
+            C_u=args.C_u,
+            q_u=args.q_u,
+            epsilon_u=args.epsilon_u,
+            group_thresholds=args.group_thresholds,
+            q_step_size=args.q_step_size,
+            validation_ratio=args.validation_ratio,
+            with_momentum=args.with_momentum,
+            off_train_loss_noise=args.off_train_loss_noise,
+            momentum_weight=args.momentum_weight,
+            hp_baseline=args.hp_baseline,
+            step_decay=args.step_decay,
+            initial_q_u=args.initial_q_u,
+            parallelized=args.parallelized,
         )
     simulator.run()
     results = simulator.get_results()
@@ -111,12 +124,12 @@ if __name__ == "__main__":
     if args.verbose:
         logger_set_debug()
 
-    if args.dataset_name == "heart_disease":
+    if args.dataset_name == HEART_DISEASE:
         from flamby_utils.heart_disease import update_args
 
         args = update_args(args)
 
-    elif args.dataset_name == "tcga_brca":
+    elif args.dataset_name == TCGA_BRCA:
         from flamby_utils.tcga_brca import update_args
 
         args = update_args(args)
@@ -129,7 +142,7 @@ if __name__ == "__main__":
         try:
             sim_results = run_simulation(args, path_project)
             results_list.append(sim_results)
-        except NanError:
+        except TrainNanError:
             results_list.append("LOSS IS NAN")
         except AssertionError:
             results_list.append("Assertion Error")

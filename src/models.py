@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
+from dataset import CREDITCARD, HEART_DISEASE, LIGHT_MNIST, MNIST, TCGA_BRCA, BODY
 
 from mylogger import logger
 
@@ -20,27 +21,32 @@ def create_model(model_name: str, dataset_name: str, seed: int = None) -> nn.Mod
         seed(int): random seed
 
     Outputs:
-        global_model(nn.Module): modeln
+        global_model(nn.Module): model
     """
     if seed is not None:
         torch.manual_seed(seed)
 
-    if dataset_name == "heart_disease":
+    if dataset_name == HEART_DISEASE:
         import flamby_utils.heart_disease as heart_disease
 
         model = heart_disease.custom_model()
 
-    elif dataset_name == "tcga_brca":
+    elif dataset_name == TCGA_BRCA:
         import flamby_utils.tcga_brca as tcga_brca
 
         model = tcga_brca.custom_model()
 
-    elif dataset_name == "creditcard":
+    elif dataset_name == CREDITCARD:
         model = PrivateFraudNet(30, 30, 4)
+
+    elif dataset_name == BODY:
+        input_dim = 11
+        output_dim = 4
+        model = BodyModel(input_dim, output_dim)
 
     elif model_name == "cnn":
         # Convolutional neural network
-        if dataset_name == "mnist":
+        if dataset_name == MNIST or dataset_name == LIGHT_MNIST:
             model = CNNMnist()
         else:
             raise NotImplementedError
@@ -90,3 +96,29 @@ class CNNMnist(nn.Module):
         x = F.dropout(x, training=self.training)
         x = self.fc2(x)
         return F.log_softmax(x, dim=1)
+
+
+class BodyModel(nn.Module):
+    def __init__(self, input_dim, output_dim):
+        super(BodyModel, self).__init__()
+        self.fc1 = nn.Linear(input_dim, 20)
+        self.fc2 = nn.Linear(20, 35)
+        self.fc3 = nn.Linear(35, 50)
+        self.fc4 = nn.Linear(50, 65)
+        self.dropout1 = nn.Dropout(0.2)
+        self.fc5 = nn.Linear(65, 80)
+        self.dropout2 = nn.Dropout(0.2)
+        self.fc6 = nn.Linear(80, 55)
+        self.fc7 = nn.Linear(55, 35)
+        self.fc8 = nn.Linear(35, output_dim)
+
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        x = torch.relu(self.fc3(x))
+        x = self.dropout1(torch.relu(self.fc4(x)))
+        x = self.dropout2(torch.relu(self.fc5(x)))
+        x = torch.relu(self.fc6(x))
+        x = torch.relu(self.fc7(x))
+        x = self.fc8(x)
+        return x

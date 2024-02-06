@@ -19,4 +19,5 @@ exp/img/*
 *.db
 
 .DS_Store
+*.pkl
 exp/pickle/*

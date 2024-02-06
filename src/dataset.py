@@ -5,7 +5,7 @@ import pandas as pd
 from typing import Tuple, List, Dict
 from torchvision import datasets, transforms
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, LabelEncoder
 from torch.utils.data import ConcatDataset, TensorDataset
 import torch
 
@@ -13,6 +13,13 @@ from mylogger import logger
 
 DATA_SET_DIR = "dataset"
 LOCAL_TEST_RATIO = 0.1
+
+TCGA_BRCA = "tcga_brca"
+HEART_DISEASE = "heart_disease"
+MNIST = "mnist"
+LIGHT_MNIST = "light_mnist"
+CREDITCARD = "creditcard"
+BODY = "body"
 
 
 def shuffle_test_and_train(
@@ -80,7 +87,7 @@ def divide_dataset(
         random_state, n_data, user_dist, n_users, user_alpha, labels, n_labels
     )
 
-    # Second, allocate data to silos (indepedent of users distribution)
+    # Second, allocate data to silos (independent of users distribution)
     data_indices_per_silos = distribute_data_to_silos(
         random_state,
         n_data,
@@ -372,7 +379,7 @@ def build_user_histogram(local_train_indices, data_indices_of_users) -> Dict[int
     return user_histogram, user_ids_of_local_train_dataset
 
 
-def load_pre_seperated_dataset(
+def load_pre_separated_dataset(
     dataset_name: str,
     random_state: np.random.RandomState,
     silo_id: int = None,
@@ -380,7 +387,7 @@ def load_pre_seperated_dataset(
     user_alpha: float = None,
     user_dist: str = None,
 ) -> Tuple:
-    if dataset_name == "heart_disease":
+    if dataset_name == HEART_DISEASE:
         from flamby_utils import heart_disease
 
         dataset = heart_disease.custom_load_dataset(
@@ -391,7 +398,7 @@ def load_pre_seperated_dataset(
             user_dist=user_dist,
         )
 
-    elif dataset_name == "tcga_brca":
+    elif dataset_name == TCGA_BRCA:
         from flamby_utils import tcga_brca
 
         dataset = tcga_brca.custom_load_dataset(
@@ -421,10 +428,10 @@ def load_dataset(
     is_simulation: bool = False,
 ) -> Tuple[List[Tuple[torch.Tensor, int]], List[Tuple[torch.Tensor, int]]]:
     logger.debug("Start prepare dataset...")
-    if dataset_name in ["heart_disease", "tcga_brca"]:
+    if dataset_name in [HEART_DISEASE, TCGA_BRCA]:
         # for simulator
         if is_simulation:
-            return load_pre_seperated_dataset(
+            return load_pre_separated_dataset(
                 dataset_name,
                 random_state,
                 n_users=n_users,
@@ -433,7 +440,7 @@ def load_dataset(
             )
         # for silo
         if silo_id is not None:
-            return load_pre_seperated_dataset(
+            return load_pre_separated_dataset(
                 dataset_name,
                 random_state,
                 silo_id=silo_id,
@@ -442,7 +449,7 @@ def load_dataset(
                 user_dist=user_dist,
             )
         # for server
-        all_training_dataset, all_test_dataset, _ = load_pre_seperated_dataset(
+        all_training_dataset, all_test_dataset, _ = load_pre_separated_dataset(
             dataset_name,
             random_state,
             n_users=n_users,
@@ -451,31 +458,39 @@ def load_dataset(
         )
         return all_training_dataset, all_test_dataset
 
-    if dataset_name in ["mnist"]:
-        if dataset_name == "mnist":
-            data_dir = os.path.join(path_project, DATA_SET_DIR, "mnist")
-            apply_transform = transforms.Compose(
-                [
-                    transforms.ToTensor(),
-                    # https://discuss.pytorch.org/t/normalization-in-the-mnist-example/457
-                    transforms.Normalize((0.1307,), (0.3081,)),
-                ]
-            )
-            train_dataset = datasets.MNIST(
-                data_dir, train=True, download=True, transform=apply_transform
-            )
-            test_dataset = datasets.MNIST(
-                data_dir, train=False, download=True, transform=apply_transform
-            )
-        else:
-            raise ValueError("Dataset not supported")
+    if dataset_name in ["mnist", "light_mnist"]:
+        data_dir = os.path.join(path_project, DATA_SET_DIR, "mnist")
+        apply_transform = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                # https://discuss.pytorch.org/t/normalization-in-the-mnist-example/457
+                transforms.Normalize((0.1307,), (0.3081,)),
+            ]
+        )
+        train_dataset = datasets.MNIST(
+            data_dir, train=True, download=True, transform=apply_transform
+        )
+        test_dataset = datasets.MNIST(
+            data_dir, train=False, download=True, transform=apply_transform
+        )
+
+        if dataset_name == "light_mnist":
+            num_samples = len(train_dataset)
+            num_train = int(0.1 * num_samples)
+
+            # ランダムにインデックスを取得
+            indices = torch.randperm(num_samples)[:num_train]
+
+            # train_dataset.dataとtrain_dataset.targetsを直接編集
+            train_dataset.data = train_dataset.data[indices]
+            train_dataset.targets = train_dataset.targets[indices]
 
         train_dataset, test_dataset = shuffle_test_and_train(
             random_state, train_dataset, test_dataset
         )
         labels = np.array([data[1] for data in train_dataset])
 
-    elif dataset_name == "creditcard":
+    elif dataset_name == CREDITCARD:
         data_dir = os.path.join(path_project, DATA_SET_DIR, "creditcard")
         df = pd.read_csv(os.path.join(data_dir, "creditcard.csv"))
         X = df.drop("Class", axis=1)
@@ -496,7 +511,7 @@ def load_dataset(
         y_test = torch.FloatTensor(y_test.values)
 
         percentage = 0.1  # under sampling
-        # sample num =24584
+        # sample num = 24584
         majority_label = 0
         target_X_train = X_train[y_train == majority_label]
         target_y_train = y_train[y_train == majority_label]
@@ -511,6 +526,32 @@ def load_dataset(
         X_train = torch.concatenate([non_target_X_train, target_X_train])
         y_train = torch.concatenate([non_target_y_train, target_y_train])
         train_dataset = TensorDataset(X_train, y_train)
+
+        train_dataset = TensorDataset(X_train, y_train)
+        test_dataset = TensorDataset(X_test, y_test)
+        labels = train_dataset.tensors[1].numpy()
+
+    elif dataset_name == BODY:
+        data_dir = os.path.join(path_project, DATA_SET_DIR, BODY)
+        df = pd.read_csv(os.path.join(data_dir, "bodyPerformance.csv"))
+        df.drop_duplicates(inplace=True)
+        df = df.replace({"M": 0, "F": 1})
+        df = df.replace({"A": 1, "B": 2, "C": 3, "D": 4})
+        X = df.iloc[:, :-1].values  # Independent variable
+        y = df.iloc[:, -1].values  # Dependent variable
+
+        encoder = LabelEncoder()
+        encoder.fit(y)
+        encoded_Y = encoder.transform(y)
+
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, encoded_Y, test_size=0.15, random_state=random_state, stratify=y
+        )
+
+        X_train = torch.tensor(X_train, dtype=torch.float32)
+        X_test = torch.tensor(X_test, dtype=torch.float32)
+        y_train = torch.tensor(y_train, dtype=torch.long)
+        y_test = torch.tensor(y_test, dtype=torch.long)
 
         train_dataset = TensorDataset(X_train, y_train)
         test_dataset = TensorDataset(X_test, y_test)

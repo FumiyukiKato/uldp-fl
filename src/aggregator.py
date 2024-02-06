@@ -1,8 +1,28 @@
+import copy
 import numpy as np
 import torch
 from torch import nn
-from torch.utils.data import DataLoader
-from typing import Dict, List, Optional
+from torch.utils.data import DataLoader, random_split
+from typing import Dict, List, Optional, OrderedDict, Union, Tuple
+from opacus.accountants import RDPAccountant
+from dataset import CREDITCARD, HEART_DISEASE, TCGA_BRCA
+from method_group import (
+    METHOD_GROUP_AGGREGATOR_PRIVACY_ACCOUNTING,
+    METHOD_GROUP_AVG,
+    METHOD_GROUP_DP,
+    METHOD_GROUP_GRADIENT,
+    METHOD_GROUP_NO_SAMPLING,
+    METHOD_GROUP_PARAMETER_DIFF,
+    METHOD_GROUP_SAMPLING,
+    METHOD_GROUP_WEIGHTS,
+    METHOD_NO_DP_ACCOUNTING,
+    METHOD_PULDP_AVG,
+    METHOD_GROUP_ONLINE_OPTIMIZATION,
+    METHOD_PULDP_AVG_ONLINE,
+    METHOD_PULDP_AVG_ONLINE_TRAIN,
+    METHOD_SILO_LEVEL_DP,
+    METHOD_ULDP_NAIVE,
+)
 
 from mylogger import logger
 import noise_utils
@@ -17,7 +37,7 @@ class Aggregator:
         self,
         model,
         train_dataset,
-        test_dataset,
+        test_dataset: List[Tuple[torch.Tensor, int]],
         n_users,
         n_silos,
         n_silo_per_round,
@@ -30,6 +50,8 @@ class Aggregator:
         global_learning_rate: Optional[float] = None,
         dataset_name: str = None,
         sampling_rate_q: Optional[float] = None,
+        validation_ratio: float = 0.0,
+        n_total_round: Optional[int] = None,
     ):
         self.random_state = np.random.RandomState(seed=base_seed + 1000000)
         self.model: nn.Module = model
@@ -43,21 +65,8 @@ class Aggregator:
         self.strategy = strategy
         self.global_learning_rate = global_learning_rate
         self.sampling_rate_q = sampling_rate_q
-        if self.strategy in [
-            "SILO-LEVEL-DP",
-            "ULDP-NAIVE",
-            "RECORD-LEVEL-DP",
-            "ULDP-SGD",
-            "ULDP-SGD-w",
-            "ULDP-SGD-s",
-            "ULDP-SGD-ws",
-            "ULDP-AVG",
-            "ULDP-AVG-w",
-            "ULDP-AVG-s",
-            "ULDP-AVG-ws",
-        ]:
-            from opacus.accountants import RDPAccountant
-
+        self.n_total_round = n_total_round
+        if self.strategy in METHOD_GROUP_AGGREGATOR_PRIVACY_ACCOUNTING:
             assert (
                 clipping_bound is not None and sigma is not None and delta is not None
             ), f"Please specify clipping_bound, sigma, delta for {self.strategy}."
@@ -65,22 +74,40 @@ class Aggregator:
             self.sigma = sigma
             self.delta = delta
             self.accountant = RDPAccountant()
-        elif self.strategy in [
-            "RECORD-LEVEL-DP",
-            "ULDP-GROUP",
-            "ULDP-GROUP-max",
-            "ULDP-GROUP-median",
-        ]:
+        elif self.strategy in METHOD_GROUP_DP:
             self.delta = delta
 
         self.model_dict = dict()
-        self.n_sample_dict = dict()
         self.flag_client_model_uploaded_dict = dict()
         for idx in range(self.n_silos):
             self.flag_client_model_uploaded_dict[idx] = False
 
         self.latest_eps = 0.0
         self.results = {"privacy_budget": [], "global_test": [], "local_model_test": []}
+
+        if self.strategy == METHOD_PULDP_AVG_ONLINE:
+            assert (
+                validation_ratio > 0.0
+            ), "Please set validation_ratio > 0 for Test Loss-based online."
+
+        if validation_ratio > 0.0:
+            n_test = len(test_dataset)
+            n_validation = int(n_test * validation_ratio)
+            n_test = n_test - n_validation
+            test_dataset, validation_dataset = random_split(
+                test_dataset,
+                [n_test, n_validation],
+                torch.Generator().manual_seed(self.random_state.randint(2**32 - 1)),
+            )
+            self.test_dataset = test_dataset
+            self.validation_dataset = validation_dataset
+            self.results["global_valid"] = []
+
+        if self.strategy in METHOD_GROUP_ONLINE_OPTIMIZATION:
+            self.model_dict_for_optimization = {
+                silo_id: {} for silo_id in range(self.n_silos)
+            }
+            self.results["local_loss_diff"] = []
 
     def get_results(self):
         return self.results
@@ -91,41 +118,37 @@ class Aggregator:
     def get_global_model_params(self):
         return self.model.state_dict()
 
+    def set_epsilon_groups(self, epsilon_groups: Dict[float, np.ndarray]):
+        self.epsilon_groups = epsilon_groups
+        self.accountant_dct = {eps_u: RDPAccountant() for eps_u in epsilon_groups}
+
     def record_epsilon(self, round_idx):
-        if self.strategy in ["SILO-LEVEL-DP"]:
+        if self.strategy == METHOD_SILO_LEVEL_DP:  #
             self.accountant.step(
                 noise_multiplier=self.sigma,
                 sample_rate=self.n_silo_per_round / self.n_silos,
             )
             eps = self.accountant.get_epsilon(self.delta)
-        elif self.strategy in [
-            "RECORD-LEVEL-DP",
-            "ULDP-GROUP",
-            "ULDP-GROUP-median",
-            "ULDP-GROUP-max",
-        ]:
+        elif self.strategy in METHOD_GROUP_DP.difference(
+            METHOD_GROUP_AGGREGATOR_PRIVACY_ACCOUNTING
+        ):
             eps = self.latest_eps
             self.latest_eps = 0.0
-        elif self.strategy in ["ULDP-NAIVE"]:
+        elif self.strategy == METHOD_ULDP_NAIVE:
             self.accountant.step(noise_multiplier=self.sigma, sample_rate=1.0)
             eps = self.accountant.get_epsilon(self.delta)
-        elif self.strategy in ["ULDP-SGD", "ULDP-AVG", "ULDP-SGD-w", "ULDP-AVG-w"]:
+        elif self.strategy in METHOD_GROUP_NO_SAMPLING:
             self.accountant.step(
                 noise_multiplier=self.sigma,
                 sample_rate=1.0,
             )
             eps = self.accountant.get_epsilon(self.delta)
-        elif self.strategy in [
-            "ULDP-SGD-s",
-            "ULDP-AVG-s",
-            "ULDP-SGD-ws",
-            "ULDP-AVG-ws",
-        ]:
+        elif self.strategy in METHOD_GROUP_SAMPLING.difference({METHOD_PULDP_AVG}):
             self.accountant.step(
                 noise_multiplier=self.sigma, sample_rate=self.sampling_rate_q
             )
             eps = self.accountant.get_epsilon(self.delta)
-        elif self.strategy in ["DEFAULT"]:
+        elif self.strategy in METHOD_NO_DP_ACCOUNTING:
             return
         else:
             raise NotImplementedError(
@@ -135,20 +158,54 @@ class Aggregator:
         logger.info("Privacy spent: epsilon = {} (round {})".format(eps, round_idx))
         self.results["privacy_budget"].append((round_idx, eps, self.delta))
 
-    def add_local_trained_result(self, silo_id, model_params, n_sample, eps):
+    def add_local_trained_result(self, silo_id, model_params, eps):
         """
         Add the local trained model from a silo to the aggregator.
 
         Params:
             silo_id (int): the id of the silo.
             model_params (dict): the model parameters of the local trained model.
-            n_sample (int): the number of samples used for training the local model.
             eps (float): the privacy budget used for training the local model.
         """
         model_params = model_params_to_device(model_params, self.device)
 
         self.model_dict[silo_id] = model_params
-        self.n_sample_dict[silo_id] = n_sample
+        self.flag_client_model_uploaded_dict[silo_id] = True
+        self.latest_eps = max(self.latest_eps, eps)
+
+    def add_local_trained_result_with_online_optimization(
+        self,
+        silo_id,
+        model_params,
+        eps,
+        local_diff_dct: Dict[float, float],
+    ):
+        """
+        For online HP Optimization, we need to store the local loss diff for each eps groups.
+        """
+        self.add_local_trained_result(silo_id, model_params, eps)
+        for eps_u, local_diff in local_diff_dct.items():
+            self.model_dict_for_optimization[silo_id][eps_u] = local_diff
+
+    def add_local_trained_result_with_static_optimization(
+        self, silo_id, model_params_dct: Dict[Union[float, str], OrderedDict], eps
+    ):
+        """For static HP Optimization, we need to store the local trained models for each eps groups."""
+        for eps_u, model_params in model_params_dct.items():
+            if eps_u == "default":  # DEFAULT_NAME in local_trainer.py
+                model_params = model_params_to_device(model_params, self.device)
+                self.model_dict[silo_id] = model_params
+            else:
+                original_model_params = model_params_to_device(
+                    model_params[0], self.device
+                )
+                stepped_model_params = model_params_to_device(
+                    model_params[1], self.device
+                )
+                self.model_dict_for_optimization[silo_id][eps_u] = (
+                    original_model_params,
+                    stepped_model_params,
+                )
         self.flag_client_model_uploaded_dict[silo_id] = True
         self.latest_eps = max(self.latest_eps, eps)
 
@@ -167,7 +224,7 @@ class Aggregator:
             self.n_silo_per_round,
             replace=False,
         )
-        logger.debug("Silo selection reuslt: {}".format(silo_id_list_in_this_round))
+        logger.debug("Silo selection result: {}".format(silo_id_list_in_this_round))
         return list(silo_id_list_in_this_round)
 
     def check_whether_all_receive(self, silo_id_list_in_this_round: List[int]):
@@ -201,35 +258,30 @@ class Aggregator:
         for silo_id in silo_id_list_in_this_round:
             raw_client_model_or_grad_list.append(self.model_dict[silo_id])
 
-        if self.strategy in [
-            "DEFAULT",
-            "RECORD-LEVEL-DP",
-            "ULDP-GROUP",
-            "ULDP-GROUP-max",
-            "ULDP-GROUP-median",
-            "ULDP-NAIVE",
-        ]:
+        if self.strategy in METHOD_GROUP_PARAMETER_DIFF.difference(
+            METHOD_GROUP_NO_SAMPLING
+        ):
             averaged_param_diff = noise_utils.torch_aggregation(
                 raw_client_model_or_grad_list, self.n_silo_per_round
             )
             global_weights = self.update_global_weights_from_diff(
                 averaged_param_diff, self.global_learning_rate
             )
-        elif self.strategy in ["ULDP-AVG", "ULDP-AVG-w"]:
+        elif self.strategy in METHOD_GROUP_AVG.difference(METHOD_GROUP_SAMPLING):
             averaged_param_diff = noise_utils.torch_aggregation(
                 raw_client_model_or_grad_list, self.n_users * self.n_silo_per_round
             )
             global_weights = self.update_global_weights_from_diff(
                 averaged_param_diff, self.global_learning_rate
             )
-        elif self.strategy in ["ULDP-SGD", "ULDP-SGD-w"]:
+        elif self.strategy in METHOD_GROUP_GRADIENT.difference(METHOD_GROUP_SAMPLING):
             averaged_grads = noise_utils.torch_aggregation(
                 raw_client_model_or_grad_list, self.n_users * self.n_silo_per_round
             )
             global_weights = self.update_parameters_from_gradients(
                 averaged_grads, self.global_learning_rate
             )
-        elif self.strategy in ["ULDP-AVG-s", "ULDP-AVG-ws"]:
+        elif self.strategy in METHOD_GROUP_WEIGHTS.difference(METHOD_GROUP_NO_SAMPLING):
             averaged_param_diff = noise_utils.torch_aggregation(
                 raw_client_model_or_grad_list,
                 int(self.n_users * self.n_silo_per_round * self.sampling_rate_q),
@@ -237,7 +289,7 @@ class Aggregator:
             global_weights = self.update_global_weights_from_diff(
                 averaged_param_diff, self.global_learning_rate
             )
-        elif self.strategy in ["ULDP-SGD-s", "ULDP-SGD-ws"]:
+        elif self.strategy in METHOD_GROUP_GRADIENT.intersection(METHOD_GROUP_SAMPLING):
             averaged_grads = noise_utils.torch_aggregation(
                 raw_client_model_or_grad_list,
                 int(self.n_users * self.n_silo_per_round * self.sampling_rate_q),
@@ -245,7 +297,7 @@ class Aggregator:
             global_weights = self.update_parameters_from_gradients(
                 averaged_grads, self.global_learning_rate
             )
-        elif self.strategy in ["SILO-LEVEL-DP"]:
+        elif self.strategy == METHOD_SILO_LEVEL_DP:
             # https://arxiv.org/abs/1812.06210
             # Usually, this is used in cross-device FL, where the number of participants is large.
             averaged_param_diff = noise_utils.torch_aggregation(
@@ -281,13 +333,13 @@ class Aggregator:
 
         test_loader = DataLoader(test_data, batch_size=512)
 
-        if self.dataset_name in ["heart_disease", "tcga_brca"]:
-            if self.dataset_name == "heart_disease":
+        if self.dataset_name in [HEART_DISEASE, TCGA_BRCA]:
+            if self.dataset_name == HEART_DISEASE:
                 from flamby_utils.heart_disease import (
                     custom_loss,
                     custom_metric,
                 )
-            elif self.dataset_name == "tcga_brca":
+            elif self.dataset_name == TCGA_BRCA:
                 from flamby_utils.tcga_brca import (
                     custom_loss,
                     custom_metric,
@@ -312,7 +364,7 @@ class Aggregator:
             y_pred_final = np.concatenate(y_pred_final)
             metrics["test_metric"] = metric(y_true_final, y_pred_final)
 
-        elif self.dataset_name in ["creditcard"]:
+        elif self.dataset_name == CREDITCARD:
             from sklearn.metrics import roc_auc_score
 
             criterion = nn.CrossEntropyLoss().to(device)
@@ -352,12 +404,27 @@ class Aggregator:
 
         return metrics
 
-    def test_global(self, round_idx: int, model: nn.Module = None, silo_id: int = None):
+    def test_global(
+        self,
+        round_idx: int,
+        model: nn.Module = None,
+        silo_id: int = None,
+        is_validation: bool = False,
+    ):
         if model is None:
             assert silo_id is None
             model = self.model
 
-        metrics = self._test(self.test_dataset, self.device, model)
+        if is_validation:
+            assert hasattr(
+                self, "validation_dataset"
+            ), "Please set validation=True in the constructor."
+            metrics = self._test(self.validation_dataset, self.device, model)
+            symbol = "valid"
+        else:
+            metrics = self._test(self.test_dataset, self.device, model)
+            symbol = "test"
+
         test_metric, n_test_sample, test_loss = (
             metrics["test_metric"],
             metrics["test_total"],
@@ -365,15 +432,15 @@ class Aggregator:
         )
 
         if silo_id is None:
-            self.results["global_test"].append(
+            self.results[f"global_{symbol}"].append(
                 (
                     round_idx,
                     test_metric,
                     test_loss,
                 )
             )
-            logger.info("|----- Global test result of round %d" % (round_idx))
-            if self.dataset_name in ["creditcard"]:
+            logger.info(f"|----- Global {symbol} result of round {round_idx}")
+            if self.dataset_name == CREDITCARD:
                 logger.info(
                     f"\t |----- Test/ROC_AUC: {test_metric} ({n_test_sample}), Test/Loss: {test_loss}"
                 )
@@ -382,7 +449,7 @@ class Aggregator:
                     f"\t |----- Test/Acc: {test_metric} ({n_test_sample}), Test/Loss: {test_loss}"
                 )
         else:
-            self.results["local_model_test"].append(
+            self.results[f"local_model_{symbol}"].append(
                 (
                     round_idx,
                     silo_id,
@@ -391,10 +458,9 @@ class Aggregator:
                 )
             )
             logger.debug(
-                "|----- Global test result for SILO %d of round %d"
-                % (silo_id, round_idx)
+                f"|----- Global {symbol} result for SILO {silo_id} of round {round_idx}"
             )
-            if self.dataset_name in ["creditcard"]:
+            if self.dataset_name == CREDITCARD:
                 logger.debug(
                     f"\t |----- Test/ROC_AUC: {test_metric} ({n_test_sample}), Test/Loss: {test_loss}"
                 )
@@ -433,12 +499,126 @@ class Aggregator:
                     param.data -= learning_rate * grads[name]
         return self.model.state_dict()
 
+    def compute_loss_diff(
+        self,
+        silo_id_list_in_this_round=None,
+        q_u_list=None,
+        stepped_q_u_list=None,
+    ) -> Dict[float, float]:
+        """Compute the loss difference for each epsilon group to
+        approximately perform Finite Difference Method for HP optimization.
+        """
+        diff_dct = {}
+
+        if self.strategy == METHOD_PULDP_AVG_ONLINE_TRAIN:
+            for local_loss_diff_dct in self.model_dict_for_optimization.values():
+                for eps_u, local_loss_diff in local_loss_diff_dct.items():
+                    if eps_u not in diff_dct:
+                        diff_dct[eps_u] = 0.0
+                    diff_dct[eps_u] += local_loss_diff
+            return diff_dct
+
+        original_model = copy.deepcopy(self.model)
+        for eps_u, eps_user_ids in self.epsilon_groups.items():
+            raw_client_model_or_grad_list = []
+            for silo_id in silo_id_list_in_this_round:
+                raw_client_model_or_grad_list.append(
+                    self.model_dict_for_optimization[silo_id][eps_u][0]
+                )
+            q_list = q_u_list[eps_user_ids]
+            sampling_rate_q = np.mean(q_list)
+            averaged_param_diff = noise_utils.torch_aggregation(
+                raw_client_model_or_grad_list,
+                int(len(eps_user_ids) * self.n_silo_per_round * sampling_rate_q),
+            )
+            self.update_global_weights_from_diff(
+                averaged_param_diff, self.global_learning_rate
+            )
+            metrics = self._test(self.test_dataset, self.device, self.model)
+            original_test_loss = metrics["test_loss"]
+
+            self.model = copy.deepcopy(original_model)
+            raw_client_model_or_grad_list = []
+            for silo_id in silo_id_list_in_this_round:
+                raw_client_model_or_grad_list.append(
+                    self.model_dict_for_optimization[silo_id][eps_u][1]
+                )
+            q_list = stepped_q_u_list[eps_user_ids]
+            sampling_rate_q = np.mean(q_list)
+            averaged_param_diff = noise_utils.torch_aggregation(
+                raw_client_model_or_grad_list,
+                int(len(eps_user_ids) * self.n_silo_per_round * sampling_rate_q),
+            )
+            self.update_global_weights_from_diff(
+                averaged_param_diff, self.global_learning_rate
+            )
+            metrics = self._test(self.test_dataset, self.device, self.model)
+            stepped_test_loss = metrics["test_loss"]
+
+            diff = stepped_test_loss - original_test_loss
+            diff_dct[eps_u] = diff
+            logger.info("eps_u = {}, diff = {}".format(eps_u, diff))
+
+        self.model = original_model
+        return diff_dct
+
+    def consume_dp_for_train_loss_metric(
+        self,
+        q_u_list,
+        stepped_q_u_list,
+        round_idx: int,
+    ):
+        # train_loss_metric is approximated metric instead of the real train loss
+        # it needs to be bounded by 1
+        for eps_u, eps_user_ids in self.epsilon_groups.items():
+            q_u = q_u_list[eps_user_ids[0]]
+            stepped_q_u = stepped_q_u_list[eps_user_ids[0]]
+            (
+                noise_multiplier,
+                _,
+            ) = noise_utils.get_noise_multiplier_with_history(
+                q_u,
+                self.delta,
+                epsilon_u=eps_u,
+                total_round=self.n_total_round * 3,
+                current_round=round_idx * 3 + 1,
+                current_accountant=self.accountant_dct[eps_u],
+            )
+            self.accountant_dct[eps_u].step(
+                noise_multiplier=noise_multiplier,
+                sample_rate=q_u,
+            )
+            (
+                stepped_noise_multiplier,
+                _,
+            ) = noise_utils.get_noise_multiplier_with_history(
+                stepped_q_u,
+                self.delta,
+                epsilon_u=eps_u,
+                total_round=self.n_total_round * 3,
+                current_round=round_idx * 3 + 2,
+                current_accountant=self.accountant_dct[eps_u],
+            )
+            self.accountant_dct[eps_u].step(
+                noise_multiplier=stepped_noise_multiplier,
+                sample_rate=stepped_q_u,
+            )
+
+    def consume_dp_for_model_optimization(self, q_u_list, C_u_list):
+        for eps_u, eps_user_ids in self.epsilon_groups.items():
+            q_u = q_u_list[eps_user_ids[0]]
+            C_u = C_u_list[eps_user_ids[0]]
+            self.accountant_dct[eps_u].step(
+                noise_multiplier=self.sigma / C_u,
+                sample_rate=q_u,
+            )
+
 
 def model_params_to_device(params_obj, device):
     """
     Change the torch model parameters to the device.
     """
-    if type(params_obj) == list:
+    if type(params_obj) is list:
         for i in range(len(params_obj)):
             params_obj[i] = params_obj[i].to(device)
         return params_obj

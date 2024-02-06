@@ -17,7 +17,7 @@ src_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 path_project = os.path.dirname(src_path)
 
 
-class TestSimulater(unittest.TestCase):
+class TestSimulator(unittest.TestCase):
     def setUp(self) -> None:
         warnings.simplefilter(action="ignore", category=UserWarning)
 
@@ -37,7 +37,7 @@ class TestSimulater(unittest.TestCase):
         test_args.user_alpha = 0.5
         test_args.silo_alpha = 0.5
         test_args.n_labels = 10
-        test_args.typical_scenaio = None
+        test_args.typical_scenario = None
 
         test_args.n_total_round = 2
         test_args.local_epochs = 2
@@ -53,6 +53,21 @@ class TestSimulater(unittest.TestCase):
         test_args.clipping_bound = 1.0
         test_args.delta = 1e-05
         test_args.sampling_rate_q = 0.1
+        test_args.validation_ratio = 0.0
+
+        test_args.C_u = None
+        test_args.q_u = None
+        test_args.epsilon_u = None
+        test_args.group_thresholds = None
+        test_args.q_step_size = None
+
+        test_args.with_momentum = False
+        test_args.off_train_loss_noise = False
+        test_args.momentum_weight = 0.9
+        test_args.hp_baseline = None
+        test_args.step_decay = False
+        test_args.initial_q_u = None
+        test_args.parallelized = False
 
         test_args.verbose = 0
         test_args.dry_run = False

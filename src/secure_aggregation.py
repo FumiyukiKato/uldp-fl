@@ -11,6 +11,15 @@ import hashlib
 
 from aggregator import Aggregator
 from local_trainer import ClassificationTrainer
+from method_group import (
+    METHOD_GROUP_AVG,
+    METHOD_ULDP_AVG_W,
+    METHOD_ULDP_AVG_WS,
+    METHOD_ULDP_SGD_W,
+    METHOD_ULDP_SGD_WS,
+    METHOD_GROUP_GRADIENT,
+    METHOD_GROUP_WEIGHTS,
+)
 import noise_utils
 from mylogger import logger
 
@@ -240,9 +249,8 @@ class SecureAggregator(Aggregator):
             encrypted[user_id] = self.paillier_public_key.encrypt(value)
         return encrypted
 
-    def add_local_trained_result(self, silo_id, model_params, n_sample, eps):
+    def add_local_trained_result(self, silo_id, model_params, eps):
         self.model_dict[silo_id] = model_params
-        self.n_sample_dict[silo_id] = n_sample
         self.flag_client_model_uploaded_dict[silo_id] = True
         self.latest_eps = max(self.latest_eps, eps)
 
@@ -278,21 +286,21 @@ class SecureAggregator(Aggregator):
         for silo_id in silo_id_list_in_this_round:
             raw_client_model_or_grad_list.append(self.model_dict[silo_id])
 
-        if self.strategy in ["ULDP-AVG-w"]:
+        if self.strategy == METHOD_ULDP_AVG_W:
             averaged_param_diff = self._aggregate_with_decrypt(
                 raw_client_model_or_grad_list, self.n_users * self.n_silo_per_round
             )
             global_weights = self.update_global_weights_from_diff(
                 averaged_param_diff, self.global_learning_rate
             )
-        elif self.strategy in ["ULDP-SGD-w"]:
+        elif self.strategy == METHOD_ULDP_SGD_W:
             averaged_grads = self._aggregate_with_decrypt(
                 raw_client_model_or_grad_list, self.n_users * self.n_silo_per_round
             )
             global_weights = self.update_parameters_from_gradients(
                 averaged_grads, self.global_learning_rate
             )
-        elif self.strategy in ["ULDP-AVG-ws"]:
+        elif self.strategy == METHOD_ULDP_AVG_WS:
             averaged_param_diff = self._aggregate_with_decrypt(
                 raw_client_model_or_grad_list,
                 self.n_users * self.n_silo_per_round * self.sampling_rate_q,
@@ -300,7 +308,7 @@ class SecureAggregator(Aggregator):
             global_weights = self.update_global_weights_from_diff(
                 averaged_param_diff, self.global_learning_rate
             )
-        elif self.strategy in ["ULDP-SGD-ws"]:
+        elif self.strategy == METHOD_ULDP_SGD_WS:
             averaged_grads = self._aggregate_with_decrypt(
                 raw_client_model_or_grad_list,
                 self.n_users * self.n_silo_per_round * self.sampling_rate_q,
@@ -576,7 +584,9 @@ class SecureLocalTrainer(ClassificationTrainer):
 
         criterion = self.criterion
 
-        if self.agg_strategy in ["ULDP-SGD-w", "ULDP-SGD-ws"]:
+        if self.agg_strategy in METHOD_GROUP_GRADIENT.intersection(
+            METHOD_GROUP_WEIGHTS
+        ):
             grads_list = []  # TODO: memory optimization (use online aggregation)
             for user_id, user_train_loader in self.user_level_data_loader:
                 logger.debug("User %d" % user_id)
@@ -621,7 +631,7 @@ class SecureLocalTrainer(ClassificationTrainer):
                 modulus=self.modulus,
             )
 
-        elif self.agg_strategy in ["ULDP-AVG-w", "ULDP-AVG-ws"]:
+        elif self.agg_strategy in METHOD_GROUP_AVG.intersection(METHOD_GROUP_WEIGHTS):
 
             def loss_callback(loss):
                 if torch.isnan(loss):
@@ -633,10 +643,15 @@ class SecureLocalTrainer(ClassificationTrainer):
             for user_id, user_train_loader in self.user_level_data_loader:
                 logger.debug("User %d" % user_id)
                 model_u = copy.deepcopy(model)
-                optimizer_u = torch.optim.SGD(
+                # optimizer_u = torch.optim.SGD(
+                #     filter(lambda p: p.requires_grad, model_u.parameters()),
+                #     lr=self.local_learning_rate,
+                # )
+                optimizer_u = torch.optim.Adam(
                     filter(lambda p: p.requires_grad, model_u.parameters()),
                     lr=self.local_learning_rate,
                 )
+
                 for epoch in range(self.local_epochs):
                     batch_loss = []
                     for x, labels in user_train_loader:
@@ -653,7 +668,7 @@ class SecureLocalTrainer(ClassificationTrainer):
                         batch_loss.append(loss.item())
 
                 weights = model_u.state_dict()
-                weights_diff = self.diff_weights(global_weights, weights)
+                weights_diff = noise_utils.diff_weights(global_weights, weights)
                 clipped_weights_diff = noise_utils.global_clip(
                     model_u, weights_diff, self.local_clipping_bound
                 )
@@ -686,9 +701,11 @@ class SecureLocalTrainer(ClassificationTrainer):
         logger.debug("Train/Time : %s", train_time)
         self.results["train_time"].append((global_round_index, train_time))
 
-        if self.agg_strategy in ["ULDP-SGD-w", "ULDP-SGD-ws"]:
+        if self.agg_strategy in METHOD_GROUP_GRADIENT.intersection(
+            METHOD_GROUP_WEIGHTS
+        ):
             return masked_grad
-        elif self.agg_strategy in ["ULDP-AVG-w", "ULDP-AVG-ws"]:
+        elif self.agg_strategy in METHOD_GROUP_AVG.intersection(METHOD_GROUP_WEIGHTS):
             return masked_diff
         else:
             raise NotImplementedError("Unknown aggregation strategy")

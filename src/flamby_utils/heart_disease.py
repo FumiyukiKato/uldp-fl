@@ -151,9 +151,25 @@ def custom_loss():
     return BaselineLoss()
 
 
-def custom_optimizer(model, learning_rate: float = LR):
-    return optim.SGD(model.parameters(), lr=learning_rate)
-    # return optim.Adam(model.parameters(), lr=LR)
+def custom_optimizer(
+    model,
+    learning_rate: float = LR,
+    client_optimizer: str = "sgd",
+    weight_decay: float = 0.0,
+):
+    if client_optimizer == "sgd":
+        return optim.SGD(
+            filter(lambda p: p.requires_grad, model.parameters()),
+            lr=learning_rate,
+        )
+    elif client_optimizer == "adam":
+        return optim.Adam(
+            filter(lambda p: p.requires_grad, model.parameters()),
+            lr=learning_rate,
+            weight_decay=weight_decay,
+        )
+    else:
+        raise ValueError("Unknown client optimizer")
 
 
 def custom_metric():

@@ -105,7 +105,6 @@ def args_to_hash(args) -> str:
     args_dct.pop("gpu_id")
     args_dct.pop("silo_id")
     args_dct.pop("verbose")
-    args_dct.pop("hyper_parameter_tuning")
     args_dct.pop("times")
     args_dct.pop("dry_run")
     args_dct.pop("secure_w")

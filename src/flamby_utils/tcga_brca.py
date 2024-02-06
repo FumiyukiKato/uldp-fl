@@ -25,7 +25,7 @@ def update_args(args):
     return updated_args
 
 
-# Because Cox Loss needs multiple data to calcuate loss, so we need to
+# Because Cox Loss needs multiple data to calculate loss, so we need to
 # build user distribution to make sure each silo and user has 2 data at least.
 def build_user_dist(
     n_users: int,
@@ -180,8 +180,25 @@ def custom_loss():
     return BaselineLoss()
 
 
-def custom_optimizer(model, learning_rate: float = LR):
-    return torch.optim.SGD(model.parameters(), lr=learning_rate)
+def custom_optimizer(
+    model,
+    learning_rate: float = LR,
+    client_optimizer: str = "sgd",
+    weight_decay: float = 0.0,
+):
+    if client_optimizer == "sgd":
+        return torch.optim.SGD(
+            filter(lambda p: p.requires_grad, model.parameters()),
+            lr=learning_rate,
+        )
+    elif client_optimizer == "adam":
+        return torch.optim.Adam(
+            filter(lambda p: p.requires_grad, model.parameters()),
+            lr=learning_rate,
+            weight_decay=weight_decay,
+        )
+    else:
+        raise ValueError("Unknown client optimizer")
 
 
 def custom_metric():

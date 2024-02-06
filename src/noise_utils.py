@@ -1,12 +1,41 @@
 from collections import OrderedDict
-from typing import Dict, List
+from typing import Dict, List, Tuple
 import numpy as np
 import torch
 import warnings
+import copy
+from torch import nn
 from opacus.accountants.analysis import rdp as analysis
+from opacus.accountants import RDPAccountant
+from functools import lru_cache
 
 
-def torch_aggregation(raw_grad_list: List[Dict], N: int) -> Dict:
+def diff_weights(original_weights, updated_weights):
+    """Diff = Local - Global"""
+    diff_weights = copy.deepcopy(updated_weights)
+    for key in diff_weights.keys():
+        diff_weights[key] = updated_weights[key] - original_weights[key]
+    return diff_weights
+
+
+def update_global_weights_from_diff(
+    local_weights_diff, model: nn.Module, learning_rate: float = 1.0
+) -> Dict:
+    """
+    Update the parameters of the global model with the difference from the local models.
+    """
+    global_weights = model.state_dict()
+    for name, param in model.named_parameters():
+        if param.requires_grad:
+            global_weights[name] += learning_rate * local_weights_diff[name]
+
+
+def check_nan_inf(model):
+    all_params = torch.cat([p.view(-1) for p in model.parameters()])
+    return torch.isnan(all_params).any() or torch.isinf(all_params).any()
+
+
+def torch_aggregation(raw_grad_list: List[Dict], N: float = 1.0) -> Dict:
     """
     Aggregate the local trained models from the selected silos for Pytorch model.
 
@@ -83,6 +112,12 @@ def _compute_new_grad(
         random_state.normal(0, std_dev, size=grad.shape), device=torch.device(device)
     )
     return noise + grad
+
+
+def single_gaussian_noise(
+    random_state: np.random.RandomState, std_dev: float
+) -> np.float64:
+    return random_state.normal(0, std_dev)
 
 
 def get_group_privacy_spent(
@@ -245,3 +280,158 @@ def convert_to_group_privacy(
         )
     else:
         return epsilon * group_k, group_k * np.exp((group_k - 1) * epsilon + log_delta)
+
+
+@lru_cache(maxsize=128)
+def get_noise_multiplier_from_total_eps(
+    sample_rate,
+    delta,
+    epsilon_u,
+    T,
+    alpha=None,
+    precision=1e-6,
+) -> Tuple[float, float, float]:
+    max_sigma = 100
+    min_sigma = 0
+    while True:
+        sigma = (max_sigma + min_sigma) / 2
+        accountant = RDPAccountant()
+        for i in range(T):
+            accountant.step(noise_multiplier=sigma, sample_rate=sample_rate)
+        if alpha is None:
+            alpha_list = RDPAccountant.DEFAULT_ALPHAS
+        else:
+            alpha_list = [alpha]
+        eps, best_alpha = accountant.get_privacy_spent(delta=delta, alphas=alpha_list)
+        if eps < epsilon_u:
+            max_sigma = sigma
+        else:
+            min_sigma = sigma
+        if 0 < epsilon_u - eps and epsilon_u - eps < precision:
+            return sigma, eps, best_alpha
+
+
+# binary search given q_u
+@lru_cache(maxsize=128)
+def from_q_u(
+    q_u, delta, epsilon_u, sigma, T, alpha=None, precision=1e-6
+) -> Tuple[float, float, float]:
+    max_sensitivity_u = 100
+    min_sensitivity_u = 0
+    while True:
+        sensitivity_u = (max_sensitivity_u + min_sensitivity_u) / 2
+        accountant = RDPAccountant()
+        for i in range(T):
+            accountant.step(noise_multiplier=sigma / sensitivity_u, sample_rate=q_u)
+        if alpha is None:
+            alpha_list = RDPAccountant.DEFAULT_ALPHAS
+        else:
+            alpha_list = [alpha]
+        eps, best_alpha = accountant.get_privacy_spent(delta=delta, alphas=alpha_list)
+        if eps < epsilon_u:
+            min_sensitivity_u = sensitivity_u
+        else:
+            max_sensitivity_u = sensitivity_u
+        if 0 < epsilon_u - eps and epsilon_u - eps < precision:
+            return sensitivity_u, eps, best_alpha
+
+
+def get_noise_multiplier_with_history(
+    sample_rate,
+    delta,
+    epsilon_u,
+    total_round,
+    current_round,
+    current_accountant: RDPAccountant,
+    precision=1e-6,
+):
+    max_sigma = 1000
+    min_sigma = 0
+    rdp_cache = compute_rdp_from_history(current_accountant.history, cache=True)
+    while True:
+        sigma = (max_sigma + min_sigma) / 2
+        noise_multiplier = sigma
+        sample_rate = sample_rate
+        history = [(noise_multiplier, sample_rate, total_round - current_round)]
+        updated_rdp = compute_rdp_from_history(history)
+        eps, _ = analysis.get_privacy_spent(
+            orders=RDPAccountant.DEFAULT_ALPHAS,
+            rdp=rdp_cache + updated_rdp,
+            delta=delta,
+        )
+        if eps < epsilon_u:
+            max_sigma = sigma
+        else:
+            min_sigma = sigma
+        if 0 < epsilon_u - eps and epsilon_u - eps < precision:
+            return sigma, eps
+
+
+def from_q_u_with_history(
+    q_u,
+    delta,
+    epsilon_u,
+    sigma,
+    total_round,
+    current_round,
+    current_accountant: RDPAccountant,
+    precision=1e-6,
+):
+    max_sensitivity_u = 100
+    min_sensitivity_u = 0
+    rdp_cache = compute_rdp_from_history(current_accountant.history, cache=True)
+    while True:
+        sensitivity_u = (max_sensitivity_u + min_sensitivity_u) / 2
+        noise_multiplier = sigma / sensitivity_u
+        sample_rate = q_u
+        history = [(noise_multiplier, sample_rate, total_round - current_round)]
+        updated_rdp = compute_rdp_from_history(history)
+        eps, _ = analysis.get_privacy_spent(
+            orders=RDPAccountant.DEFAULT_ALPHAS,
+            rdp=rdp_cache + updated_rdp,
+            delta=delta,
+        )
+        if eps < epsilon_u:
+            min_sensitivity_u = sensitivity_u
+        else:
+            max_sensitivity_u = sensitivity_u
+        if 0 < epsilon_u - eps and epsilon_u - eps < precision:
+            return sensitivity_u, eps
+
+
+def compute_rdp_from_history(history, cache=False):
+    if cache:
+        history_key = tuple(tuple(x) for x in history)
+
+        if not hasattr(compute_rdp_from_history, "cache"):
+            compute_rdp_from_history.cache = {}
+
+        if history_key in compute_rdp_from_history.cache:
+            return compute_rdp_from_history.cache[history_key]
+
+    rdp = sum(
+        [
+            _compute_rdp_with_cache(sample_rate, noise_multiplier, num_steps)
+            for (noise_multiplier, sample_rate, num_steps) in history
+        ]
+    )
+
+    if cache:
+        compute_rdp_from_history.cache[history_key] = rdp
+    return rdp
+
+
+@lru_cache(maxsize=1024)
+def _compute_rdp_with_cache(q, noise_multiplier, steps):
+    rdp = np.array(
+        [
+            _compute_single_rdp_with_cache(q, noise_multiplier, order)
+            for order in RDPAccountant.DEFAULT_ALPHAS
+        ]
+    )
+    return rdp * steps
+
+
+@lru_cache(maxsize=1024)
+def _compute_single_rdp_with_cache(q, noise_multiplier, order):
+    return analysis._compute_rdp(q, noise_multiplier, order)
