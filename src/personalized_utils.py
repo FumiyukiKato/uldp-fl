@@ -416,7 +416,11 @@ def static_optimization(
     )
 
     if not force_update:
-        check_results_file_already_exist(results_file_name)
+        try:
+            check_results_file_already_exist(results_file_name)
+        except FileExistsError:
+            print(f"Skip: File '{results_file_name}' already exists.")
+            return
 
     if opt_strategy["name"] in ["grid", "random", "independent"]:
         # grid search
@@ -903,7 +907,11 @@ def run_with_specified_idx(
     )
 
     if not force_update:
-        check_results_file_already_exist(results_file_name)
+        try:
+            check_results_file_already_exist(results_file_name)
+        except FileExistsError:
+            print(f"Skip: File '{results_file_name}' already exists.")
+            return
 
     C_u, q_u = make_static_params(
         epsilon_u,
@@ -1114,7 +1122,11 @@ def run_online_optimization(
     )
 
     if not force_update:
-        check_results_file_already_exist(results_file_name)
+        try:
+            check_results_file_already_exist(results_file_name)
+        except FileExistsError:
+            print(f"Skip: File '{results_file_name}' already exists.")
+            return
 
     result = fed_simulation(
         delta,

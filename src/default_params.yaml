@@ -28,7 +28,6 @@ clipping_bound: 1.0
 delta: 0.00001
 sampling_rate_q: 0.1
 verbose: 0
-hyper_parameter_tuning: null
 times: 1
 exp_dist: null
 validation_ratio: 0.0

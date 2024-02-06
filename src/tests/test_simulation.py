@@ -61,6 +61,14 @@ class TestSimulator(unittest.TestCase):
         test_args.group_thresholds = None
         test_args.q_step_size = None
 
+        test_args.with_momentum = False
+        test_args.off_train_loss_noise = False
+        test_args.momentum_weight = 0.9
+        test_args.hp_baseline = None
+        test_args.step_decay = False
+        test_args.initial_q_u = None
+        test_args.parallelized = False
+
         test_args.verbose = 0
         test_args.dry_run = False
         test_args.secure_w = False
@@ -238,14 +246,6 @@ class TestSimulator(unittest.TestCase):
             (1, 2.412889750604903, 1e-05),
             "ULDP-AVG-ws simulation has been changed from verified results",
         )
-
-    # def test_puldp(self):
-    #     args = self.create_args()
-    #     args.agg_strategy = "PULDP-AVG"
-
-    # def test_puldp_online(self):
-    #     args = self.create_args()
-    #     args.agg_strategy = "PULDP-AVG-QCTest"
 
 
 if __name__ == "__main__":

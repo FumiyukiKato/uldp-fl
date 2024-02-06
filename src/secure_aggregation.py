@@ -668,7 +668,7 @@ class SecureLocalTrainer(ClassificationTrainer):
                         batch_loss.append(loss.item())
 
                 weights = model_u.state_dict()
-                weights_diff = self.diff_weights(global_weights, weights)
+                weights_diff = noise_utils.diff_weights(global_weights, weights)
                 clipped_weights_diff = noise_utils.global_clip(
                     model_u, weights_diff, self.local_clipping_bound
                 )
