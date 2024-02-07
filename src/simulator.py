@@ -133,6 +133,7 @@ class FLSimulator:
             self.aggregator.set_average_qC(
                 np.mean(np.array(list(C_u.values())) * np.array(list(q_u.values())))
             )
+            print("self.aggregator.average_qC", self.aggregator.average_qC)
 
         if self.agg_strategy in METHOD_GROUP_ONLINE_OPTIMIZATION:
             self.with_momentum = with_momentum
@@ -302,9 +303,15 @@ class FLSimulator:
                 )
 
                 if self.parallelized:  # Parallelized training
+                    if self.parallelized == "strong":
+                        num_gpu = 4
+                        gpu_id = silo_id % num_gpu
+                    else:
+                        gpu_id = self.gpu_id
                     input_queue.put(
                         (
-                            local_trainer.silo_id,
+                            silo_id,
+                            gpu_id,
                             local_trainer.random_state,
                             local_trainer.model,
                             local_trainer.device,
@@ -312,7 +319,6 @@ class FLSimulator:
                             local_trainer.train_loader,
                             local_trainer.criterion,
                             self.round_idx,
-                            self.gpu_id,
                             local_trainer.n_silo_per_round,
                             getattr(local_trainer, "privacy_engine", None),
                             getattr(local_trainer, "clipping_bound", None),

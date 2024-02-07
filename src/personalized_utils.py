@@ -1035,6 +1035,18 @@ def show_specified_idx_result(
         else:
             ax_loss.plot(x, loss_means, label=f"{label}", alpha=0.8)
 
+        last_x = x[-1]
+        last_loss_mean = loss_means[-1]
+        last_loss_std = loss_stds[-1]
+        ax_loss.text(
+            last_x,
+            last_loss_mean,
+            f"{last_loss_mean:.3f}±{last_loss_std:.3f}",
+            ha="center",
+            va="bottom",
+            fontsize=12,
+        )
+
     ax_loss.set_ylabel("Test Loss", fontsize=20)
     ax_loss.set_xlabel("Round", fontsize=20)
     ax_loss.set_yscale("log")

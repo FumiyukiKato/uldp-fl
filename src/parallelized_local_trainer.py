@@ -34,6 +34,7 @@ def parallelized_train_worker(input_queue: Queue, output_queue: Queue):
             break
         (
             silo_id,
+            gpu_id,
             random_state,
             model,
             device,
@@ -41,7 +42,6 @@ def parallelized_train_worker(input_queue: Queue, output_queue: Queue):
             train_loader,
             criterion,
             round_idx,
-            gpu_id,
             n_silo_per_round,
             privacy_engine,
             clipping_bound,
@@ -65,6 +65,8 @@ def parallelized_train_worker(input_queue: Queue, output_queue: Queue):
             off_train_loss_noise,
             accountant_dct,
         ) = task
+        if gpu_id is not None:
+            torch.cuda.set_device(gpu_id)
         result = parallelized_train(
             random_state=random_state,
             model=model,
@@ -73,7 +75,6 @@ def parallelized_train_worker(input_queue: Queue, output_queue: Queue):
             train_loader=train_loader,
             criterion=criterion,
             round_idx=round_idx,
-            gpu_id=gpu_id,
             n_silo_per_round=n_silo_per_round,
             privacy_engine=privacy_engine,
             local_clipping_bound=clipping_bound,
@@ -97,6 +98,8 @@ def parallelized_train_worker(input_queue: Queue, output_queue: Queue):
             off_train_loss_noise=off_train_loss_noise,
             accountant_dct=accountant_dct,
         )
+        if gpu_id is not None:
+            torch.cuda.empty_cache()
         output_queue.put((silo_id, random_state, accountant_dct, result))
 
 
@@ -108,7 +111,6 @@ def parallelized_train(
     train_loader: DataLoader,
     criterion,
     round_idx,
-    gpu_id: Optional[int] = None,
     n_silo_per_round=None,
     privacy_engine=None,
     local_clipping_bound=None,
@@ -132,9 +134,6 @@ def parallelized_train(
     off_train_loss_noise=None,
     accountant_dct=None,
 ):
-    if gpu_id is not None:
-        torch.cuda.set_device(gpu_id)
-
     tick = time.time()
     model.to(device)
     model.train()
