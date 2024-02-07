@@ -111,6 +111,7 @@ def run_simulation(args, path_project, data_seed=None):
             step_decay=args.step_decay,
             initial_q_u=args.initial_q_u,
             parallelized=args.parallelized,
+            gpu_id=args.gpu_id,
         )
     simulator.run()
     results = simulator.get_results()
