@@ -67,6 +67,7 @@ def parallelized_train_worker(input_queue: Queue, output_queue: Queue):
         ) = task
         if gpu_id is not None:
             torch.cuda.set_device(gpu_id)
+            model.to(device)
         result = parallelized_train(
             random_state=random_state,
             model=model,
@@ -135,7 +136,6 @@ def parallelized_train(
     accountant_dct=None,
 ):
     tick = time.time()
-    model.to(device)
     model.train()
     global_weights = copy.deepcopy(model.state_dict())
 
@@ -761,7 +761,6 @@ def train_loss(
     metric,
     round_idx=None,
 ) -> Tuple[float, float]:
-    model.to(device)
     model.eval()
 
     user_level_total_loss = []
@@ -875,8 +874,6 @@ def dp_train_loss(
     # metric is approximated metric instead of the real train loss
     # it needs to be bounded by 1
     # privacy accounting is done in aggregator.py consume_dp_for_train_loss_metric()
-
-    model.to(device)
     model.eval()
 
     if dataset_name == TCGA_BRCA:
