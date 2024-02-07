@@ -9,12 +9,11 @@ from multiprocessing import Queue
 from dataset import CREDITCARD, HEART_DISEASE, TCGA_BRCA
 from method_group import (
     METHOD_DEFAULT,
-    METHOD_GROUP_AGGREGATOR_PRIVACY_ACCOUNTING,
-    METHOD_GROUP_AVG,
-    METHOD_GROUP_DP,
-    METHOD_GROUP_GRADIENT,
+    METHOD_GROUP_ULDP_AVG,
+    METHOD_GROUP_ULDP_SGD,
     METHOD_GROUP_ONLINE_OPTIMIZATION,
     METHOD_GROUP_ULDP_GROUPS,
+    METHOD_GROUP_WITHIN_SILO_DP_ACCOUNTING,
     METHOD_PULDP_AVG,
     METHOD_PULDP_AVG_ONLINE,
     METHOD_PULDP_AVG_ONLINE_TRAIN,
@@ -42,6 +41,7 @@ def parallelized_train_worker(input_queue: Queue, output_queue: Queue):
             train_loader,
             criterion,
             round_idx,
+            gpu_id,
             n_silo_per_round,
             privacy_engine,
             clipping_bound,
@@ -73,6 +73,7 @@ def parallelized_train_worker(input_queue: Queue, output_queue: Queue):
             train_loader=train_loader,
             criterion=criterion,
             round_idx=round_idx,
+            gpu_id=gpu_id,
             n_silo_per_round=n_silo_per_round,
             privacy_engine=privacy_engine,
             local_clipping_bound=clipping_bound,
@@ -107,6 +108,7 @@ def parallelized_train(
     train_loader: DataLoader,
     criterion,
     round_idx,
+    gpu_id: Optional[int] = None,
     n_silo_per_round=None,
     privacy_engine=None,
     local_clipping_bound=None,
@@ -130,6 +132,9 @@ def parallelized_train(
     off_train_loss_noise=None,
     accountant_dct=None,
 ):
+    if gpu_id is not None:
+        torch.cuda.set_device(gpu_id)
+
     tick = time.time()
     model.to(device)
     model.train()
@@ -181,9 +186,7 @@ def parallelized_train(
             raise ValueError("Unknown client optimizer")
 
     # Optimization step like CALCULATE GRADIENTS
-    if agg_strategy in METHOD_GROUP_DP.difference(
-        METHOD_GROUP_AGGREGATOR_PRIVACY_ACCOUNTING
-    ):
+    if agg_strategy in METHOD_GROUP_WITHIN_SILO_DP_ACCOUNTING:
         noise_generator = torch.Generator(device=device).manual_seed(
             random_state.randint(9223372036854775807)
         )
@@ -196,7 +199,7 @@ def parallelized_train(
             noise_generator=noise_generator,
         )
 
-    if agg_strategy in METHOD_GROUP_GRADIENT:
+    if agg_strategy in METHOD_GROUP_ULDP_SGD:
         grads_list = []  # TODO: memory optimization (use online aggregation)
         for user_id, user_train_loader in user_level_data_loader:
             if (
@@ -246,7 +249,7 @@ def parallelized_train(
             device=device,
         )
 
-    elif agg_strategy in METHOD_GROUP_AVG:
+    elif agg_strategy in METHOD_GROUP_ULDP_AVG:
         # If suddenly becomes unstable, skip the update gradient (call step()) for now.
 
         weights_diff_list = []  # TODO: memory optimization (use online aggregation)
@@ -555,9 +558,9 @@ def parallelized_train(
             model, weights_diff, local_clipping_bound
         )
         return clipped_weights_diff, len(train_loader)
-    elif agg_strategy in METHOD_GROUP_GRADIENT:
+    elif agg_strategy in METHOD_GROUP_ULDP_SGD:
         return noisy_avg_grads, len(train_loader)
-    elif agg_strategy in METHOD_GROUP_AVG:
+    elif agg_strategy in METHOD_GROUP_ULDP_AVG:
         return noisy_avg_weights_diff, len(train_loader)
     elif agg_strategy == METHOD_PULDP_AVG:
         return noisy_avg_weights_diff, len(train_loader)

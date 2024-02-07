@@ -12,13 +12,12 @@ import hashlib
 from aggregator import Aggregator
 from local_trainer import ClassificationTrainer
 from method_group import (
-    METHOD_GROUP_AVG,
+    METHOD_GROUP_ENHANCED_WEIGHTED_ULDP_AVG,
+    METHOD_GROUP_ENHANCED_WEIGHTED_ULDP_SGD,
     METHOD_ULDP_AVG_W,
     METHOD_ULDP_AVG_WS,
     METHOD_ULDP_SGD_W,
     METHOD_ULDP_SGD_WS,
-    METHOD_GROUP_GRADIENT,
-    METHOD_GROUP_WEIGHTS,
 )
 import noise_utils
 from mylogger import logger
@@ -584,9 +583,7 @@ class SecureLocalTrainer(ClassificationTrainer):
 
         criterion = self.criterion
 
-        if self.agg_strategy in METHOD_GROUP_GRADIENT.intersection(
-            METHOD_GROUP_WEIGHTS
-        ):
+        if self.agg_strategy in METHOD_GROUP_ENHANCED_WEIGHTED_ULDP_SGD:
             grads_list = []  # TODO: memory optimization (use online aggregation)
             for user_id, user_train_loader in self.user_level_data_loader:
                 logger.debug("User %d" % user_id)
@@ -631,7 +628,7 @@ class SecureLocalTrainer(ClassificationTrainer):
                 modulus=self.modulus,
             )
 
-        elif self.agg_strategy in METHOD_GROUP_AVG.intersection(METHOD_GROUP_WEIGHTS):
+        elif self.agg_strategy in METHOD_GROUP_ENHANCED_WEIGHTED_ULDP_AVG:
 
             def loss_callback(loss):
                 if torch.isnan(loss):
@@ -701,11 +698,9 @@ class SecureLocalTrainer(ClassificationTrainer):
         logger.debug("Train/Time : %s", train_time)
         self.results["train_time"].append((global_round_index, train_time))
 
-        if self.agg_strategy in METHOD_GROUP_GRADIENT.intersection(
-            METHOD_GROUP_WEIGHTS
-        ):
+        if self.agg_strategy in METHOD_GROUP_ENHANCED_WEIGHTED_ULDP_SGD:
             return masked_grad
-        elif self.agg_strategy in METHOD_GROUP_AVG.intersection(METHOD_GROUP_WEIGHTS):
+        elif self.agg_strategy in METHOD_GROUP_ENHANCED_WEIGHTED_ULDP_AVG:
             return masked_diff
         else:
             raise NotImplementedError("Unknown aggregation strategy")

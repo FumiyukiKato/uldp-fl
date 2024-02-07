@@ -3,8 +3,8 @@ from typing import List, Optional, Tuple, Dict
 import torch
 import copy
 from method_group import (
-    METHOD_GROUP_NO_SAMPLING,
-    METHOD_GROUP_SAMPLING,
+    METHOD_GROUP_ENHANCED_WEIGHTED_WITH_SAMPLING,
+    METHOD_GROUP_ENHANCED_WEIGHTED_WITHOUT_SAMPLING,
     METHOD_GROUP_SECURE_WEIGHTING,
 )
 
@@ -178,9 +178,9 @@ class SecureWeightingFLSimulator:
         # server -> silo
         for silo_id in range(n_silos):
             if silo_id != PRIMARY_SILO_ID:
-                channel_server_to_silos[
-                    silo_id
-                ] = secure_aggregator.get_shared_random_seed()[silo_id]
+                channel_server_to_silos[silo_id] = (
+                    secure_aggregator.get_shared_random_seed()[silo_id]
+                )
                 self.local_trainer_per_silos[
                     silo_id
                 ].receive_across_silos_shared_random_seed(
@@ -205,17 +205,15 @@ class SecureWeightingFLSimulator:
                 silo_id, channel_silo_to_server[silo_id]
             )
 
-        if self.agg_strategy in METHOD_GROUP_SECURE_WEIGHTING.intersection(
-            METHOD_GROUP_NO_SAMPLING
-        ):
+        if self.agg_strategy in METHOD_GROUP_ENHANCED_WEIGHTED_WITHOUT_SAMPLING:
             # server -> silo
             encrypted_inversed_blinded_user_histogram = (
                 secure_aggregator.get_encrypt_inversed_blinded_user_histogram()
             )
             for silo_id in range(n_silos):
-                channel_server_to_silos[
-                    silo_id
-                ] = encrypted_inversed_blinded_user_histogram
+                channel_server_to_silos[silo_id] = (
+                    encrypted_inversed_blinded_user_histogram
+                )
                 self.local_trainer_per_silos[silo_id].receive_encrypted_weights(
                     channel_server_to_silos[silo_id]
                 )
@@ -226,17 +224,15 @@ class SecureWeightingFLSimulator:
         while self.round_idx < self.n_total_round:
             silo_id_list_in_this_round = secure_aggregator.silo_selection()
 
-            if self.agg_strategy in METHOD_GROUP_SECURE_WEIGHTING.intersection(
-                METHOD_GROUP_SAMPLING
-            ):
+            if self.agg_strategy in METHOD_GROUP_ENHANCED_WEIGHTED_WITH_SAMPLING:
                 # server -> silo
                 encrypted_inversed_blinded_user_histogram = (
                     secure_aggregator.get_encrypt_inversed_blinded_user_histogram_with_userlevel_subsampling()
                 )
                 for silo_id in range(n_silos):
-                    channel_server_to_silos[
-                        silo_id
-                    ] = encrypted_inversed_blinded_user_histogram
+                    channel_server_to_silos[silo_id] = (
+                        encrypted_inversed_blinded_user_histogram
+                    )
                     self.local_trainer_per_silos[silo_id].receive_encrypted_weights(
                         channel_server_to_silos[silo_id]
                     )

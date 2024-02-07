@@ -7,16 +7,18 @@ from typing import Dict, List, Optional, OrderedDict, Union, Tuple
 from opacus.accountants import RDPAccountant
 from dataset import CREDITCARD, HEART_DISEASE, TCGA_BRCA
 from method_group import (
+    METHDO_GROUP_ULDP_WITH_SAMPLING,
     METHOD_GROUP_AGGREGATOR_PRIVACY_ACCOUNTING,
-    METHOD_GROUP_AVG,
     METHOD_GROUP_DP,
-    METHOD_GROUP_GRADIENT,
-    METHOD_GROUP_NO_SAMPLING,
-    METHOD_GROUP_PARAMETER_DIFF,
-    METHOD_GROUP_SAMPLING,
-    METHOD_GROUP_WEIGHTS,
+    METHOD_GROUP_ENHANCED_WEIGHTED,
+    METHOD_GROUP_ENHANCED_WEIGHTED_PULDP,
+    METHOD_GROUP_PARAMETER_DIFF_BASELINES,
+    METHOD_GROUP_ULDP_AVG_WITHOUT_SAMPLING,
+    METHOD_GROUP_ULDP_WITHOUT_SAMPLING,
+    METHOD_GROUP_ULDP_SGD_WITH_SAMPLING,
+    METHOD_GROUP_ULDP_SGD_WITHOUT_SAMPLING,
+    METHOD_GROUP_WITHIN_SILO_DP_ACCOUNTING,
     METHOD_NO_DP_ACCOUNTING,
-    METHOD_PULDP_AVG,
     METHOD_GROUP_ONLINE_OPTIMIZATION,
     METHOD_PULDP_AVG_ONLINE,
     METHOD_PULDP_AVG_ONLINE_TRAIN,
@@ -122,6 +124,9 @@ class Aggregator:
         self.epsilon_groups = epsilon_groups
         self.accountant_dct = {eps_u: RDPAccountant() for eps_u in epsilon_groups}
 
+    def set_average_qC(self, average_qC: float):
+        self.average_qC = average_qC
+
     def record_epsilon(self, round_idx):
         if self.strategy == METHOD_SILO_LEVEL_DP:  #
             self.accountant.step(
@@ -129,21 +134,19 @@ class Aggregator:
                 sample_rate=self.n_silo_per_round / self.n_silos,
             )
             eps = self.accountant.get_epsilon(self.delta)
-        elif self.strategy in METHOD_GROUP_DP.difference(
-            METHOD_GROUP_AGGREGATOR_PRIVACY_ACCOUNTING
-        ):
+        elif self.strategy in METHOD_GROUP_WITHIN_SILO_DP_ACCOUNTING:
             eps = self.latest_eps
             self.latest_eps = 0.0
         elif self.strategy == METHOD_ULDP_NAIVE:
             self.accountant.step(noise_multiplier=self.sigma, sample_rate=1.0)
             eps = self.accountant.get_epsilon(self.delta)
-        elif self.strategy in METHOD_GROUP_NO_SAMPLING:
+        elif self.strategy in METHOD_GROUP_ULDP_WITHOUT_SAMPLING:
             self.accountant.step(
                 noise_multiplier=self.sigma,
                 sample_rate=1.0,
             )
             eps = self.accountant.get_epsilon(self.delta)
-        elif self.strategy in METHOD_GROUP_SAMPLING.difference({METHOD_PULDP_AVG}):
+        elif self.strategy in METHDO_GROUP_ULDP_WITH_SAMPLING:
             self.accountant.step(
                 noise_multiplier=self.sigma, sample_rate=self.sampling_rate_q
             )
@@ -258,38 +261,48 @@ class Aggregator:
         for silo_id in silo_id_list_in_this_round:
             raw_client_model_or_grad_list.append(self.model_dict[silo_id])
 
-        if self.strategy in METHOD_GROUP_PARAMETER_DIFF.difference(
-            METHOD_GROUP_NO_SAMPLING
-        ):
+        if self.strategy in METHOD_GROUP_PARAMETER_DIFF_BASELINES:
             averaged_param_diff = noise_utils.torch_aggregation(
                 raw_client_model_or_grad_list, self.n_silo_per_round
             )
             global_weights = self.update_global_weights_from_diff(
                 averaged_param_diff, self.global_learning_rate
             )
-        elif self.strategy in METHOD_GROUP_AVG.difference(METHOD_GROUP_SAMPLING):
+        elif self.strategy in METHOD_GROUP_ULDP_AVG_WITHOUT_SAMPLING:
             averaged_param_diff = noise_utils.torch_aggregation(
                 raw_client_model_or_grad_list, self.n_users * self.n_silo_per_round
             )
             global_weights = self.update_global_weights_from_diff(
                 averaged_param_diff, self.global_learning_rate
             )
-        elif self.strategy in METHOD_GROUP_GRADIENT.difference(METHOD_GROUP_SAMPLING):
+        elif self.strategy in METHOD_GROUP_ULDP_SGD_WITHOUT_SAMPLING:
             averaged_grads = noise_utils.torch_aggregation(
                 raw_client_model_or_grad_list, self.n_users * self.n_silo_per_round
             )
             global_weights = self.update_parameters_from_gradients(
                 averaged_grads, self.global_learning_rate
             )
-        elif self.strategy in METHOD_GROUP_WEIGHTS.difference(METHOD_GROUP_NO_SAMPLING):
+        elif self.strategy in METHOD_GROUP_ENHANCED_WEIGHTED:
             averaged_param_diff = noise_utils.torch_aggregation(
                 raw_client_model_or_grad_list,
-                int(self.n_users * self.n_silo_per_round * self.sampling_rate_q),
+                self.n_users * self.n_silo_per_round * self.sampling_rate_q,
             )
             global_weights = self.update_global_weights_from_diff(
                 averaged_param_diff, self.global_learning_rate
             )
-        elif self.strategy in METHOD_GROUP_GRADIENT.intersection(METHOD_GROUP_SAMPLING):
+        elif self.strategy in METHOD_GROUP_ENHANCED_WEIGHTED_PULDP:
+            averaged_param_diff = noise_utils.torch_aggregation(
+                raw_client_model_or_grad_list,
+                self.n_users * self.n_silo_per_round * self.average_qC,
+            )
+            # averaged_param_diff = noise_utils.torch_aggregation(
+            #     raw_client_model_or_grad_list,
+            #     self.n_users * self.n_silo_per_round * self.sampling_rate_q,
+            # )
+            global_weights = self.update_global_weights_from_diff(
+                averaged_param_diff, self.global_learning_rate
+            )
+        elif self.strategy in METHOD_GROUP_ULDP_SGD_WITH_SAMPLING:
             averaged_grads = noise_utils.torch_aggregation(
                 raw_client_model_or_grad_list,
                 int(self.n_users * self.n_silo_per_round * self.sampling_rate_q),

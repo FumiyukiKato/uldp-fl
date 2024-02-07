@@ -10,9 +10,11 @@ from comm_manager import GRPCCommManager
 from aggregator import Aggregator
 import ip_utils
 from method_group import (
-    METHOD_GROUP_NO_SAMPLING,
+    METHOD_GROUP_ENHANCED_WEIGHTED_WITH_SAMPLING,
+    METHOD_GROUP_ENHANCED_WEIGHTED_WITHOUT_SAMPLING,
+    METHOD_GROUP_SAMPLING_WITH_ENHANCED_WEIGHTING,
+    METHOD_GROUP_SAMPLING_WITHOUT_ENHANCED_WEIGHTING,
     METHOD_GROUP_NO_WEIGHTS,
-    METHOD_GROUP_SAMPLING,
     METHOD_GROUP_SECURE_WEIGHTING,
     METHOD_GROUP_ULDP_GROUPS,
     METHOD_GROUP_WEIGHTS,
@@ -301,8 +303,9 @@ class ServerManager(GRPCCommManager):
         )
 
         if inversed_blinded_user_histogram is not None:
-            if self.aggregator.strategy in METHOD_GROUP_SECURE_WEIGHTING.intersection(
-                METHOD_GROUP_NO_SAMPLING
+            if (
+                self.aggregator.strategy
+                in METHOD_GROUP_ENHANCED_WEIGHTED_WITHOUT_SAMPLING
             ):
                 encrypted_inversed_blinded_user_histogram = (
                     self.aggregator.get_encrypt_inversed_blinded_user_histogram()
@@ -398,9 +401,7 @@ class ServerManager(GRPCCommManager):
 
         if self.is_secure:
             encrypted_inversed_blinded_user_histogram = None
-            if self.aggregator.strategy in METHOD_GROUP_SECURE_WEIGHTING.intersection(
-                METHOD_GROUP_SAMPLING
-            ):
+            if self.aggregator.strategy in METHOD_GROUP_ENHANCED_WEIGHTED_WITH_SAMPLING:
                 encrypted_inversed_blinded_user_histogram = self.aggregator.get_encrypt_inversed_blinded_user_histogram_with_userlevel_subsampling(
                     round_idx
                 )
@@ -415,14 +416,16 @@ class ServerManager(GRPCCommManager):
                 )
         else:
             user_weights_per_silo = {}
-            if self.aggregator.strategy in METHOD_GROUP_SAMPLING.intersection(
-                METHOD_GROUP_NO_WEIGHTS
+            if (
+                self.aggregator.strategy
+                in METHOD_GROUP_SAMPLING_WITHOUT_ENHANCED_WEIGHTING
             ):
                 user_weights_per_silo = self.coordinator.build_user_weights(
                     weighted=False, is_sample=True
                 )
-            elif self.aggregator.strategy in METHOD_GROUP_SAMPLING.intersection(
-                METHOD_GROUP_WEIGHTS
+            elif (
+                self.aggregator.strategy
+                in METHOD_GROUP_SAMPLING_WITH_ENHANCED_WEIGHTING
             ):
                 user_weights_per_silo = self.coordinator.build_user_weights(
                     weighted=True, is_sample=True

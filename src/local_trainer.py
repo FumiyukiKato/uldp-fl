@@ -10,12 +10,12 @@ from dataset import CREDITCARD, HEART_DISEASE, TCGA_BRCA
 from method_group import (
     METHOD_DEFAULT,
     METHOD_GROUP_AGGREGATOR_PRIVACY_ACCOUNTING,
-    METHOD_GROUP_AVG,
-    METHOD_GROUP_DP,
-    METHOD_GROUP_GRADIENT,
+    METHOD_GROUP_ULDP_AVG,
+    METHOD_GROUP_ULDP_SGD,
     METHOD_GROUP_ONLINE_OPTIMIZATION,
     METHOD_GROUP_ULDP_GROUPS,
     METHOD_GROUP_USER_LEVEL_DATA_LOADER,
+    METHOD_GROUP_WITHIN_SILO_DP_ACCOUNTING,
     METHOD_PULDP_AVG,
     METHOD_PULDP_AVG_ONLINE,
     METHOD_PULDP_AVG_ONLINE_TRAIN,
@@ -79,9 +79,7 @@ class ClassificationTrainer:
         self.results = {"local_test": [], "train_time": [], "epsilon": []}
 
         self.agg_strategy = agg_strategy
-        if self.agg_strategy in METHOD_GROUP_DP.difference(
-            METHOD_GROUP_AGGREGATOR_PRIVACY_ACCOUNTING
-        ):
+        if self.agg_strategy in METHOD_GROUP_WITHIN_SILO_DP_ACCOUNTING:
             assert client_optimizer == "sgd"
             from opacus import PrivacyEngine
 
@@ -288,9 +286,7 @@ class ClassificationTrainer:
         criterion = self.criterion
 
         # Optimization step like CALCULATE GRADIENTS
-        if self.agg_strategy in METHOD_GROUP_DP.difference(
-            METHOD_GROUP_AGGREGATOR_PRIVACY_ACCOUNTING
-        ):
+        if self.agg_strategy in METHOD_GROUP_WITHIN_SILO_DP_ACCOUNTING:
             noise_generator = torch.Generator(device=self.device).manual_seed(
                 self.get_torch_manual_seed()
             )
@@ -303,7 +299,7 @@ class ClassificationTrainer:
                 noise_generator=noise_generator,
             )
 
-        if self.agg_strategy in METHOD_GROUP_GRADIENT:
+        if self.agg_strategy in METHOD_GROUP_ULDP_SGD:
             grads_list = []  # TODO: memory optimization (use online aggregation)
             for user_id, user_train_loader in self.user_level_data_loader:
                 if (
@@ -355,7 +351,7 @@ class ClassificationTrainer:
                 device=self.device,
             )
 
-        elif self.agg_strategy in METHOD_GROUP_AVG:
+        elif self.agg_strategy in METHOD_GROUP_ULDP_AVG:
             # If suddenly becomes unstable, skip the update gradient (call step()) for now.
             def loss_callback(loss):
                 if torch.isnan(loss):
@@ -762,9 +758,9 @@ class ClassificationTrainer:
                 self.model, weights_diff, self.local_clipping_bound
             )
             return clipped_weights_diff, len(train_loader)
-        elif self.agg_strategy in METHOD_GROUP_GRADIENT:
+        elif self.agg_strategy in METHOD_GROUP_ULDP_SGD:
             return noisy_avg_grads, len(self.train_loader)
-        elif self.agg_strategy in METHOD_GROUP_AVG:
+        elif self.agg_strategy in METHOD_GROUP_ULDP_AVG:
             return noisy_avg_weights_diff, len(self.train_loader)
         elif self.agg_strategy == METHOD_PULDP_AVG:
             return noisy_avg_weights_diff, len(self.train_loader)
@@ -784,7 +780,7 @@ class ClassificationTrainer:
         model.to(self.device)
         model.eval()
 
-        if self.agg_strategy in (METHOD_GROUP_GRADIENT | METHOD_GROUP_AVG):
+        if self.agg_strategy in (METHOD_GROUP_ULDP_SGD | METHOD_GROUP_ULDP_AVG):
             logger.debug("Skip local test as model is not trained locally")
             return
 

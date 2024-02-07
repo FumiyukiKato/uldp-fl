@@ -7,7 +7,7 @@ from local_trainer import ClassificationTrainer
 from message_type import FLMessage, GRPCMessage
 import ip_utils
 from method_group import (
-    METHOD_GROUP_NO_SAMPLING,
+    METHOD_GROUP_ULDP_WITHOUT_SAMPLING,
     METHOD_GROUP_SAMPLING,
     METHOD_GROUP_ULDP_GROUPS,
 )
@@ -250,7 +250,7 @@ class SiloManager(GRPCCommManager):
         user_weights = msg_params.get(FLMessage.MSG_ARG_KEY_USER_WEIGHTS)
         if self.local_trainer.agg_strategy in METHOD_GROUP_ULDP_GROUPS:
             self.local_trainer.bound_user_contributions(user_weights)
-        elif self.local_trainer.agg_strategy in METHOD_GROUP_NO_SAMPLING:
+        elif self.local_trainer.agg_strategy in METHOD_GROUP_ULDP_WITHOUT_SAMPLING:
             self.local_trainer.set_user_weights(user_weights)
         self.send_complete_preparation()
 

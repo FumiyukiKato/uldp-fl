@@ -6,12 +6,13 @@ import copy
 from aggregator import Aggregator
 from dataset import TCGA_BRCA
 from method_group import (
+    METHOD_GROUP_ENHANCED_WEIGHTED_WITHOUT_SAMPLING,
     METHOD_GROUP_NEED_USER_RECORD,
-    METHOD_GROUP_NO_SAMPLING,
+    METHOD_GROUP_SAMPLING_WITH_ENHANCED_WEIGHTING,
+    METHOD_GROUP_SAMPLING_WITHOUT_ENHANCED_WEIGHTING,
+    METHOD_GROUP_ULDP_WITHOUT_SAMPLING,
     METHOD_GROUP_ONLINE_OPTIMIZATION,
-    METHOD_GROUP_SAMPLING,
     METHOD_GROUP_ULDP_GROUPS,
-    METHOD_GROUP_WEIGHTS,
     METHOD_PULDP_AVG,
     METHOD_PULDP_AVG_ONLINE,
     METHOD_PULDP_AVG_ONLINE_TRAIN,
@@ -73,6 +74,7 @@ class FLSimulator:
         step_decay: Optional[bool] = False,
         initial_q_u: Optional[float] = None,
         parallelized: Optional[bool] = False,
+        gpu_id: Optional[int] = None,
     ):
         self.n_total_round = n_total_round
         self.round_idx = 0
@@ -84,6 +86,7 @@ class FLSimulator:
         self.hp_baseline = hp_baseline
         self.parallelized = parallelized
         self.device = device
+        self.gpu_id = gpu_id
         self.coordinator = Coordinator(
             base_seed=seed,
             n_silos=n_silos,
@@ -123,7 +126,14 @@ class FLSimulator:
         )
 
         if self.agg_strategy == METHOD_PULDP_AVG:
+            assert (
+                q_u is not None and C_u is not None
+            ), "q_u and C_u must be provided in PULDP-AVG"
             self.aggregator.sampling_rate_q = np.mean(list(q_u.values()))
+            self.aggregator.set_average_qC(
+                np.mean(np.array(list(C_u.values())) * np.array(list(q_u.values())))
+            )
+
         if self.agg_strategy in METHOD_GROUP_ONLINE_OPTIMIZATION:
             self.with_momentum = with_momentum
             self.off_train_loss_noise = off_train_loss_noise
@@ -221,10 +231,8 @@ class FLSimulator:
                 self.local_trainer_per_silos[silo_id].bound_user_contributions(
                     bounded_user_hist
                 )
-        elif self.agg_strategy in METHOD_GROUP_NO_SAMPLING:
-            if self.agg_strategy in METHOD_GROUP_NO_SAMPLING.intersection(
-                METHOD_GROUP_WEIGHTS
-            ):
+        elif self.agg_strategy in METHOD_GROUP_ULDP_WITHOUT_SAMPLING:
+            if self.agg_strategy in METHOD_GROUP_ENHANCED_WEIGHTED_WITHOUT_SAMPLING:
                 user_weights_per_silo = self.coordinator.build_user_weights(
                     weighted=True
                 )
@@ -238,18 +246,14 @@ class FLSimulator:
         while self.round_idx < self.n_total_round:
             silo_id_list_in_this_round = self.aggregator.silo_selection()
 
-            if self.agg_strategy in METHOD_GROUP_SAMPLING.difference(
-                METHOD_GROUP_WEIGHTS
-            ):
+            if self.agg_strategy in METHOD_GROUP_SAMPLING_WITHOUT_ENHANCED_WEIGHTING:
                 user_weights_per_silo = self.coordinator.build_user_weights(
                     weighted=False, is_sample=True
                 )
                 for silo_id, user_weights in user_weights_per_silo.items():
                     self.local_trainer_per_silos[silo_id].set_user_weights(user_weights)
 
-            elif self.agg_strategy in METHOD_GROUP_SAMPLING.intersection(
-                METHOD_GROUP_WEIGHTS
-            ):
+            elif self.agg_strategy in METHOD_GROUP_SAMPLING_WITH_ENHANCED_WEIGHTING:
                 user_weights_per_silo = self.coordinator.build_user_weights(
                     weighted=True, is_sample=True
                 )
@@ -282,6 +286,9 @@ class FLSimulator:
                         stepped_C_u_list_for_optimization,
                     )
                 self.aggregator.sampling_rate_q = np.mean(self.coordinator.q_u_list)
+                self.aggregator.set_average_qC(
+                    np.mean(self.coordinator.C_u_list * self.coordinator.q_u_list)
+                )
 
             for silo_id in silo_id_list_in_this_round:
                 logger.debug(
@@ -305,6 +312,7 @@ class FLSimulator:
                             local_trainer.train_loader,
                             local_trainer.criterion,
                             self.round_idx,
+                            self.gpu_id,
                             local_trainer.n_silo_per_round,
                             getattr(local_trainer, "privacy_engine", None),
                             getattr(local_trainer, "clipping_bound", None),

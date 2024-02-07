@@ -55,7 +55,7 @@ $ python run_simulation.py --dataset_name=creditcard --verbose=1 --agg_strategy=
 ```
 
 
-Example of secure mode (private weighting protocol).
+Example of secure mode (private weighting protocol), supporting only (ULDP-AVG-w, ULDP-AVG, ULDP-SGD, ULDP-SGD-w).
 It is time-consuming and works only with small datasets.
 
 ```bash
