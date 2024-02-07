@@ -1038,13 +1038,15 @@ def show_specified_idx_result(
         last_x = x[-1]
         last_loss_mean = loss_means[-1]
         last_loss_std = loss_stds[-1]
+        last_acc_mean = acc_means[-1]
+        last_acc_std = acc_stds[-1]
         ax_loss.text(
             last_x,
             last_loss_mean,
-            f"{last_loss_mean:.3f}±{last_loss_std:.3f}",
+            f"{last_loss_mean:.3f}±{last_loss_std:.3f}\n (Acc: {last_acc_mean:.3f}±{last_acc_std:.3f})",
             ha="center",
             va="bottom",
-            fontsize=12,
+            fontsize=14,
         )
 
     ax_loss.set_ylabel("Test Loss", fontsize=20)

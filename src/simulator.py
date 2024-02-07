@@ -133,7 +133,6 @@ class FLSimulator:
             self.aggregator.set_average_qC(
                 np.mean(np.array(list(C_u.values())) * np.array(list(q_u.values())))
             )
-            print("self.aggregator.average_qC", self.aggregator.average_qC)
 
         if self.agg_strategy in METHOD_GROUP_ONLINE_OPTIMIZATION:
             self.with_momentum = with_momentum
@@ -203,9 +202,9 @@ class FLSimulator:
 
             input_queue = Queue()
             output_queue = Queue()
+            num_workers = min(cpu_count() - 1, self.aggregator.n_silos)
 
-            # Wakeup worker processes
-            num_workers = cpu_count() - 1
+            # Wakeup worker processes pool
             processes = [
                 Process(
                     target=parallelized_local_trainer.parallelized_train_worker,
@@ -467,12 +466,31 @@ class FLSimulator:
             )
             self.round_idx += 1
 
+            if self.parallelized and self.gpu_id is not None:
+                # when using GPU, we need to restart the process pool to avoid memory leak
+                for _ in range(num_workers):
+                    input_queue.put(None)
+                for p in processes:
+                    p.join()
+
+                del processes
+
+                processes = [
+                    Process(
+                        target=parallelized_local_trainer.parallelized_train_worker,
+                        args=(input_queue, output_queue),
+                    )
+                    for _ in range(num_workers)
+                ]
+                for p in processes:
+                    p.start()
+
         if self.parallelized:
-            # ワーカープロセスに終了を伝える
+            # messaging finish to worker processes
             for _ in range(num_workers):
                 input_queue.put(None)
 
-            # プロセスの終了待機
+            # wait for all worker processes to finish
             for p in processes:
                 p.join()
 
