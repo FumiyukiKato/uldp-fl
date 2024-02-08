@@ -46,6 +46,7 @@ def parallelized_train_worker(input_queue: Queue, output_queue: Queue):
             privacy_engine,
             clipping_bound,
             sigma,
+            delta,
             user_level_data_loader,
             user_weights,
             dataset_name,
@@ -64,10 +65,11 @@ def parallelized_train_worker(input_queue: Queue, output_queue: Queue):
             stepped_q_u_list,
             off_train_loss_noise,
             accountant_dct,
+            n_total_round,
         ) = task
         if gpu_id is not None:
             torch.cuda.set_device(gpu_id)
-            model.to(device)
+        model.to(device)
         result = parallelized_train(
             random_state=random_state,
             model=model,
@@ -80,6 +82,7 @@ def parallelized_train_worker(input_queue: Queue, output_queue: Queue):
             privacy_engine=privacy_engine,
             local_clipping_bound=clipping_bound,
             local_sigma=sigma,
+            local_delta=delta,
             user_level_data_loader=user_level_data_loader,
             user_weights=user_weights,
             dataset_name=dataset_name,
@@ -98,6 +101,7 @@ def parallelized_train_worker(input_queue: Queue, output_queue: Queue):
             stepped_q_u_list=stepped_q_u_list,
             off_train_loss_noise=off_train_loss_noise,
             accountant_dct=accountant_dct,
+            n_total_round=n_total_round,
         )
         if gpu_id is not None:
             torch.cuda.empty_cache()
@@ -116,6 +120,7 @@ def parallelized_train(
     privacy_engine=None,
     local_clipping_bound=None,
     local_sigma=None,
+    local_delta=None,
     user_level_data_loader=None,
     user_weights=None,
     dataset_name=None,
@@ -134,6 +139,7 @@ def parallelized_train(
     stepped_q_u_list=None,
     off_train_loss_noise=None,
     accountant_dct=None,
+    n_total_round=None,
 ):
     tick = time.time()
     model.train()
@@ -569,18 +575,25 @@ def parallelized_train(
         return weights_diff, len(train_loader)
     elif agg_strategy == METHOD_PULDP_AVG_ONLINE_TRAIN:
         local_loss_diff_dct = parallelized_train_loss_for_online_optimization(
+            device,
+            dataset_name,
+            local_delta,
             epsilon_groups,
-            C_u_list,
             accountant_dct,
             local_sigma,
             model,
             n_silo_per_round,
             user_weights_for_optimization,
             stepped_user_weights_for_optimization,
+            user_level_data_loader,
+            criterion,
             round_idx,
+            C_u_list,
             q_u_list,
             stepped_q_u_list,
             noisy_avg_weights_diff_dct,
+            n_total_round,
+            random_state,
             off_train_loss_noise=off_train_loss_noise,
         )
         return noisy_avg_weights_diff_dct, local_loss_diff_dct
@@ -593,7 +606,6 @@ def parallelized_train_loss_for_online_optimization(
     dataset_name,
     local_delta,
     epsilon_groups,
-    C_u_list,
     accountant_dct,
     local_sigma,
     model,
@@ -602,16 +614,16 @@ def parallelized_train_loss_for_online_optimization(
     stepped_user_weights_for_optimization,
     user_level_data_loader,
     criterion,
-    metric,
     round_idx: int,
+    C_u_list,
     q_u_list: List,
     stepped_q_u_list: List,
     local_updated_weights_dct: Dict,
     n_total_round: int,
+    random_state: np.random.RandomState,
     off_train_loss_noise: bool = False,
 ) -> Dict[float, float]:
     diff_dct = {}
-
     for eps_u, eps_user_ids in epsilon_groups.items():
         # (Consume privacy) Update local accountants for model aggregation for each user groups
         q_u = q_u_list[eps_user_ids[0]]
@@ -641,7 +653,6 @@ def parallelized_train_loss_for_online_optimization(
                 dataset_name=dataset_name,
                 user_level_data_loader=user_level_data_loader,
                 criterion=criterion,
-                metric=metric,
                 round_idx=round_idx,
             )
             logger.debug(
@@ -665,7 +676,8 @@ def parallelized_train_loss_for_online_optimization(
                 local_delta=local_delta,
                 n_total_round=n_total_round,
                 accountant_dct=accountant_dct,
-                metric=metric,
+                random_state=random_state,
+                n_silo_per_round=n_silo_per_round,
                 round_idx=round_idx,
                 sampling_rate_q=q_u,
                 current_round=round_idx * 3 + 1,
@@ -700,7 +712,6 @@ def parallelized_train_loss_for_online_optimization(
                 dataset_name=dataset_name,
                 user_level_data_loader=user_level_data_loader,
                 criterion=criterion,
-                metric=metric,
                 round_idx=round_idx,
             )
             logger.debug(
@@ -724,7 +735,8 @@ def parallelized_train_loss_for_online_optimization(
                 local_delta=local_delta,
                 n_total_round=n_total_round,
                 accountant_dct=accountant_dct,
-                metric=metric,
+                random_state=random_state,
+                n_silo_per_round=n_silo_per_round,
                 round_idx=round_idx,
                 sampling_rate_q=stepped_q_u,
                 current_round=round_idx * 3 + 2,
@@ -758,7 +770,6 @@ def train_loss(
     dataset_name,
     user_level_data_loader,
     criterion,
-    metric,
     round_idx=None,
 ) -> Tuple[float, float]:
     model.eval()
@@ -768,6 +779,13 @@ def train_loss(
     if dataset_name == TCGA_BRCA:
         logger.warning("TCGA_BRCA does not support train_loss")
         return 0, 0
+
+    if dataset_name == HEART_DISEASE:
+        from flamby_utils.heart_disease import (
+            custom_metric,
+        )
+
+        metric = custom_metric()
 
     for user_id, user_train_loader in user_level_data_loader:
         if dataset_name in [HEART_DISEASE]:
@@ -866,7 +884,6 @@ def dp_train_loss(
     accountant_dct,
     random_state,
     n_silo_per_round,
-    metric=None,
     round_idx=None,
     sampling_rate_q: Optional[float] = None,
     current_round: Optional[int] = None,
@@ -881,6 +898,13 @@ def dp_train_loss(
             "TCGA_BRCA does not currently support train_loss because cox-loss is not well-compatible for user-level setting"
         )
         return 0, 0
+
+    if dataset_name == HEART_DISEASE:
+        from flamby_utils.heart_disease import (
+            custom_metric,
+        )
+
+        metric = custom_metric()
 
     loss_list = []
     metric_list = []

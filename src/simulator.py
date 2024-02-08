@@ -322,6 +322,7 @@ class FLSimulator:
                             getattr(local_trainer, "privacy_engine", None),
                             getattr(local_trainer, "clipping_bound", None),
                             getattr(local_trainer, "local_sigma", None),
+                            getattr(local_trainer, "local_delta", None),
                             getattr(local_trainer, "user_level_data_loader", None),
                             getattr(local_trainer, "user_weights", None),
                             local_trainer.dataset_name,
@@ -344,10 +345,11 @@ class FLSimulator:
                                 None,
                             ),
                             getattr(local_trainer, "C_u_list_for_optimization", None),
-                            getattr(local_trainer, "q_u_list", None),
-                            getattr(local_trainer, "stepped_q_u_list", None),
-                            getattr(local_trainer, "off_train_loss_noise", None),
+                            getattr(self.coordinator, "q_u_list", None),
+                            getattr(self.coordinator, "stepped_q_u_list", None),
+                            getattr(self, "off_train_loss_noise", None),
                             getattr(local_trainer, "accountant_dct", None),
+                            self.n_total_round,
                         )
                     )
                 else:
