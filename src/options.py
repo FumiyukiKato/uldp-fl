@@ -78,6 +78,7 @@ def args_parser(path_project: str) -> argparse.Namespace:
     parser.add_argument("--step_decay", action='store_true', help="Using step decay for q_step_size.")
     parser.add_argument("--hp_baseline", type=str, default=None, help="Baseline for online HP optimization. random, random-updown")
     parser.add_argument("--initial_q_u", type=float, default=None, help="Step size for q_u for online optimization.")
+    parser.add_argument("--dynamic_global_learning_rate", action='store_true', help="Using dynamic global learning rate.")
 
     parser.add_argument("--verbose", type=int, help="verbose (set logging at DEBUG level)")
     parser.add_argument("--times", type=int, help="times of experiments in different random seeds")

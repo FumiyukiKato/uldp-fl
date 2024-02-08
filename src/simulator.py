@@ -75,6 +75,7 @@ class FLSimulator:
         initial_q_u: Optional[float] = None,
         parallelized: Optional[bool] = False,
         gpu_id: Optional[int] = None,
+        dynamic_global_learning_rate: Optional[bool] = False,
     ):
         self.n_total_round = n_total_round
         self.round_idx = 0
@@ -123,6 +124,7 @@ class FLSimulator:
             sampling_rate_q=sampling_rate_q,
             validation_ratio=validation_ratio,
             n_total_round=n_total_round,
+            dynamic_global_learning_rate=dynamic_global_learning_rate,
         )
 
         if self.agg_strategy == METHOD_PULDP_AVG:
@@ -538,10 +540,8 @@ class FLSimulator:
             results["privacy_info"] = self.aggregator.results["privacy_info"]
 
         if self.agg_strategy == METHOD_PULDP_AVG:
-            results["qC"] = {
-                "q_u": self.coordinator.q_u,
-                "C_u": self.local_trainer_per_silos[0].C_u,
-            }
+            results["q_u"] = self.coordinator.q_u
+            results["C_u"] = self.local_trainer_per_silos[0].C_u
             results["train"] = {
                 "train_loss": self.aggregator.results["train_loss"],
                 "train_metric": self.aggregator.results["train_metric"],

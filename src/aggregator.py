@@ -54,6 +54,7 @@ class Aggregator:
         sampling_rate_q: Optional[float] = None,
         validation_ratio: float = 0.0,
         n_total_round: Optional[int] = None,
+        dynamic_global_learning_rate: bool = False,
     ):
         self.random_state = np.random.RandomState(seed=base_seed + 1000000)
         self.model: nn.Module = model
@@ -68,6 +69,7 @@ class Aggregator:
         self.global_learning_rate = global_learning_rate
         self.sampling_rate_q = sampling_rate_q
         self.n_total_round = n_total_round
+        self.dynamic_global_learning_rate = dynamic_global_learning_rate
         if self.strategy in METHOD_GROUP_AGGREGATOR_PRIVACY_ACCOUNTING:
             assert (
                 clipping_bound is not None and sigma is not None and delta is not None
@@ -291,14 +293,16 @@ class Aggregator:
                 averaged_param_diff, self.global_learning_rate
             )
         elif self.strategy in METHOD_GROUP_ENHANCED_WEIGHTED_PULDP:
-            averaged_param_diff = noise_utils.torch_aggregation(
-                raw_client_model_or_grad_list,
-                self.n_users * self.n_silo_per_round * self.average_qC,
-            )
-            # averaged_param_diff = noise_utils.torch_aggregation(
-            #     raw_client_model_or_grad_list,
-            #     self.n_users * self.n_silo_per_round * self.sampling_rate_q,
-            # )
+            if self.dynamic_global_learning_rate:
+                averaged_param_diff = noise_utils.torch_aggregation(
+                    raw_client_model_or_grad_list,
+                    self.n_users * self.n_silo_per_round * self.average_qC,
+                )
+            else:
+                averaged_param_diff = noise_utils.torch_aggregation(
+                    raw_client_model_or_grad_list,
+                    self.n_users * self.n_silo_per_round * self.sampling_rate_q,
+                )
             global_weights = self.update_global_weights_from_diff(
                 averaged_param_diff, self.global_learning_rate
             )

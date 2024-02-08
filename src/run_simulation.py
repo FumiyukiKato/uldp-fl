@@ -5,17 +5,20 @@ import os
 
 from options import args_parser
 from dataset import HEART_DISEASE, TCGA_BRCA, load_dataset
-
+from method_group import METHOD_GROUP_ENHANCED_WEIGHTED_PULDP, METHOD_PULDP_AVG
+from epsilon_allocate_utils import (
+    make_epsilon_u,
+    group_by_closest_below,
+    make_static_params,
+)
 from results_saver import save_one_shot_results, args_to_hash
 import models
 from secure_simulator import SecureWeightingFLSimulator
-
 from simulator import FLSimulator, TrainNanError
-
 from mylogger import logger_set_debug
 
 
-def run_simulation(args, path_project, data_seed=None):
+def run_simulation(args, path_project, data_seed=None, **kwargs):
     if args.dry_run:
         # print(str(args))
         print("========> Hash value: ", args_to_hash(args))
@@ -41,6 +44,40 @@ def run_simulation(args, path_project, data_seed=None):
         args.n_labels,
         is_simulation=True,
     )
+
+    if args.agg_strategy in METHOD_GROUP_ENHANCED_WEIGHTED_PULDP:
+        assert (
+            "epsilon_list" in kwargs and "ratio_list" in kwargs
+        ), "epsilon_list, ratio_list are required for enhanced weighted PULDP."
+        epsilon_u_dct = make_epsilon_u(
+            n_users=args.n_users,
+            dist="hetero",
+            epsilon_list=kwargs["epsilon_list"],
+            ratio_list=kwargs["ratio_list"],
+            random_state=data_random_state,
+        )
+        grouped = group_by_closest_below(
+            epsilon_u_dct=epsilon_u_dct, group_thresholds=args.group_thresholds
+        )
+        epsilon_u = {}
+        for eps_u, user_ids in grouped.items():
+            for user_id in user_ids:
+                epsilon_u[user_id] = eps_u
+        args.epsilon_u = epsilon_u
+
+        if args.agg_strategy == METHOD_PULDP_AVG:
+            assert "idx_per_group" in kwargs, "idx_per_group is required for PULDP-AVG."
+            C_u, q_u = make_static_params(
+                args.epsilon_u,
+                args.delta,
+                args.sigma,
+                args.n_total_round,
+                idx_per_group=kwargs["idx_per_group"],
+                q_step_size=kwargs.get("q_step_size"),
+                static_q_u_list=kwargs.get("static_q_u_list"),
+            )
+            args.C_u = C_u
+            args.q_u = q_u
 
     # load model
     model = models.create_model(args.model_name, args.dataset_name, args.seed)
@@ -112,6 +149,7 @@ def run_simulation(args, path_project, data_seed=None):
             initial_q_u=args.initial_q_u,
             parallelized=args.parallelized,
             gpu_id=args.gpu_id,
+            dynamic_global_learning_rate=args.dynamic_global_learning_rate,
         )
     simulator.run()
     results = simulator.get_results()

@@ -9,6 +9,7 @@ from run_simulation import run_simulation
 import pickle
 import ast
 import time
+import hashlib
 
 # import pprint
 
@@ -19,7 +20,195 @@ img_path = os.path.join(path_project, "exp", "img")
 pickle_path = os.path.join(path_project, "exp", "pickle")
 results_path = os.path.join(path_project, "exp", "results")
 
-Q_LIST_SIZE = 30
+
+def init_heart_disease_param(**kwargs):
+    fed_sim_params = FLSimulationParameters(
+        dataset_name="heart_disease",
+        agg_strategy="PULDP-AVG",
+        n_total_round=30,
+        n_users=400,
+        n_silos=4,
+        times=5,
+        delta=1e-5,
+        sigma=1.0,
+        user_dist="uniform-iid",
+        silo_dist="uniform",
+        local_epochs=30,
+        global_learning_rate=10.0,
+        local_learning_rate=0.001,
+        validation_ratio=0.0,
+        q_step_size=0.8,
+        dynamic_global_learning_rate=False,
+        with_momentum=True,
+        step_decay=True,
+    )
+
+    for key, value in kwargs.items():
+        if key == "eps_u":
+            fed_sim_params.epsilon_list = [kwargs["eps_u"]]
+            fed_sim_params.group_thresholds = [kwargs["eps_u"]]
+            fed_sim_params.ratio_list = [1.0]
+        else:
+            setattr(fed_sim_params, key, value)
+
+    return fed_sim_params
+
+
+def init_mnist_param(**kwargs):
+    fed_sim_params = FLSimulationParameters(
+        dataset_name="mnist",
+        agg_strategy="PULDP-AVG",
+        n_total_round=50,
+        n_users=1000,
+        n_silos=5,
+        times=5,
+        delta=1e-5,
+        sigma=1.0,
+        user_dist="uniform-iid",
+        silo_dist="uniform",
+        local_epochs=50,
+        global_learning_rate=5.0,
+        local_learning_rate=0.001,
+        validation_ratio=0.0,
+        q_step_size=0.8,
+        dynamic_global_learning_rate=False,
+    )
+
+    for key, value in kwargs.items():
+        if key == "eps_u":
+            fed_sim_params.epsilon_list = [kwargs["eps_u"]]
+            fed_sim_params.group_thresholds = [kwargs["eps_u"]]
+            fed_sim_params.ratio_list = [1.0]
+        else:
+            setattr(fed_sim_params, key, value)
+
+    return fed_sim_params
+
+
+class FLSimulationParameters:
+    def __init__(
+        self,
+        dataset_name,
+        agg_strategy,
+        n_total_round,
+        n_users,
+        n_silos,
+        times,
+        delta,
+        sigma,
+        user_dist,
+        silo_dist,
+        local_epochs,
+        global_learning_rate,
+        local_learning_rate,
+        epsilon_u=None,
+        initial_q_u=1.0,
+        q_step_size=None,
+        C_u=None,
+        q_u=None,
+        step_decay=True,
+        with_momentum=True,
+        hp_baseline=None,
+        momentum_weight=0.9,
+        off_train_loss_noise=False,
+        dynamic_global_learning_rate=False,
+        validation_ratio=0.0,
+        gpu_id=None,
+        parallelized=False,
+        seed=0,
+        epsilon_list=None,
+        ratio_list=None,
+        group_thresholds=None,
+    ):
+        self.seed = seed
+        self.dataset_name = dataset_name
+        self.agg_strategy = agg_strategy
+        self.n_total_round = n_total_round
+        self.n_users = n_users
+        self.n_silos = n_silos
+        self.local_epochs = local_epochs
+        self.times = times
+
+        self.user_dist = user_dist
+        self.silo_dist = silo_dist
+        self.global_learning_rate = global_learning_rate
+        self.local_learning_rate = local_learning_rate
+        self.with_momentum = with_momentum
+        self.momentum_weight = momentum_weight
+        self.off_train_loss_noise = off_train_loss_noise
+        self.step_decay = step_decay
+        self.hp_baseline = hp_baseline
+
+        self.delta = delta
+        self.sigma = sigma
+        self.C_u = C_u
+        self.q_u = q_u
+        self.q_step_size = q_step_size
+        self.epsilon_u = epsilon_u
+        self.initial_q_u = initial_q_u
+        self.dynamic_global_learning_rate = dynamic_global_learning_rate
+
+        self.validation_ratio = validation_ratio
+        self.gpu_id = gpu_id
+        self.parallelized = parallelized
+
+        self.client_optimizer = "adam"
+        self.dry_run = False
+        self.secure_w = False
+
+        self.epsilon_list = epsilon_list
+        self.ratio_list = ratio_list
+        self.group_thresholds = group_thresholds
+
+    def create_file_prefix(self, prefix="", middle="", suffix=""):
+        exclude_keys = [
+            "times",
+            "seed",
+            "C_u",
+            "q_u",
+            "epsilon_u",
+            "group_thresholds",
+            "parallelized",
+            "gpu_id",
+            "dry_run",
+            "secure_w",
+            "idx_per_group",
+        ]
+
+        # 辞書から除外キーを除いたもので文字列を構築
+        parts = [
+            f"{key}-{self.__dict__[key]}"
+            for key in sorted(self.__dict__.keys())
+            if key not in exclude_keys
+        ]
+
+        if self.epsilon_u is not None:
+            epsilon_u_part = f"{list(self.epsilon_u.items())[:4]}"
+            parts.append(epsilon_u_part)
+
+        key_strings = middle + "x".join(parts)
+
+        # 全体の文字列のMD5ハッシュを計算
+        hash_object = hashlib.md5(key_strings.encode())
+        hash_hex = hash_object.hexdigest()
+
+        # ハッシュ値をプレフィックスとして使用
+        return prefix + hash_hex + suffix
+
+    def get_group_eps_set(self):
+        if self.epsilon_list is not None:
+            return set(self.epsilon_list)
+        else:
+            ValueError("epsilon_list is None")
+
+
+def get_eps_u_color_mapping(eps_u_values):
+    eps_u_colors = ["b", "g", "m", "c", "y", "k", "r"]
+    eps_u_color_mapping = {
+        eps_u: eps_u_colors[i % len(eps_u_colors)]
+        for i, eps_u in enumerate(eps_u_values)
+    }
+    return eps_u_color_mapping
 
 
 # for saving figure with printing the file path
@@ -74,12 +263,13 @@ def dump_results(file_name, results_dict):
 def check_results_file_already_exist(file_name):
     file_path = os.path.join(pickle_path, file_name)
     if os.path.exists(file_path):
-        raise FileExistsError(f"File '{file_path}' already exists.")
+        return True
+    return False
 
 
 # for depicting qC curve
-def make_q_c_curve(epsilon_u, delta, sigma, n_round=100, num_points=20, min=-5):
-    T = n_round
+def make_q_c_curve(epsilon_u, delta, sigma, n_total_round=100, num_points=20, min=-5):
+    T = n_total_round
     num_points = num_points // 3 * 2
     x = (
         np.logspace(min, -1, num_points).tolist()
@@ -110,130 +300,71 @@ def plot_q_c_curve(x, y, title="", img_name="", log=True):
     plt.show()
 
 
-def make_static_params(
-    epsilon_u_dct,
-    delta,
-    sigma,
-    n_round,
-    idx_per_group,
-    q_step_size,
-    static_q_u_list=None,
-):
-    C_u_dct = {}
-    q_u_dct = {}
-
-    if static_q_u_list is not None:
-        q_u_list = static_q_u_list
-    else:
-        # exponential
-        n_of_q_u = Q_LIST_SIZE
-        q_u_list = []
-        init_q_u = 1.0
-        for _ in range(n_of_q_u):
-            q_u_list.append(init_q_u)
-            init_q_u *= q_step_size
-
-    C_and_q_per_group = {}
-    for group_eps, idx in idx_per_group.items():
-        q_u = q_u_list[idx]
-        C_u, _eps, _ = noise_utils.from_q_u(
-            q_u=q_u, delta=delta, epsilon_u=group_eps, sigma=sigma, T=n_round
-        )
-        assert _eps <= group_eps, f"_eps={_eps} > eps_u={group_eps}"
-        C_and_q_per_group[group_eps] = (C_u, q_u)
-
-    for user_id, eps_u in epsilon_u_dct.items():
-        C_u, q_u = C_and_q_per_group[eps_u]
-        C_u_dct[user_id] = C_u
-        q_u_dct[user_id] = q_u
-
-    return C_u_dct, q_u_dct
-
-
 # wrapper of run_simulation without input argument
 def fed_simulation(
-    delta,
-    sigma,
-    n_users,
-    C_u=None,
-    q_u=None,
-    q_step_size=None,
-    momentum_weight=0.9,
-    times=1,
-    user_dist="uniform-iid",
-    silo_dist="uniform",
-    dataset_name="light_mnist",
-    clipping_bound=1.0,
-    n_round=10,
-    global_learning_rate=10.0,
-    local_learning_rate=0.01,
-    local_epochs=50,
-    agg_strategy="PULDP-AVG",
-    epsilon_u=None,
-    group_thresholds=None,
-    validation_ratio=0.0,
-    with_momentum=True,
-    off_train_loss_noise=False,
-    step_decay=True,
-    hp_baseline=None,
-    initial_q_u=None,
-    gpu_id=None,
-    parallelized=False,
-    seed=0,
+    fed_sim_params: FLSimulationParameters, idx_per_group=None, static_q_u_list=None
 ):
     args = options.build_default_args(path_project)
 
-    if dataset_name == "heart_disease":
+    if fed_sim_params.dataset_name == "heart_disease":
         from flamby_utils.heart_disease import update_args
 
         args = update_args(args)
 
-    elif dataset_name == "tcga_brca":
+    elif fed_sim_params.dataset_name == "tcga_brca":
         from flamby_utils.tcga_brca import update_args
 
         args = update_args(args)
 
-    args.dataset_name = dataset_name
-    args.agg_strategy = agg_strategy
-    args.n_total_round = n_round
-    args.n_users = n_users
-    args.local_epochs = local_epochs
-    args.times = times
+    args.dataset_name = fed_sim_params.dataset_name
+    args.agg_strategy = fed_sim_params.agg_strategy
+    args.n_total_round = fed_sim_params.n_total_round
+    args.n_users = fed_sim_params.n_users
+    args.local_epochs = fed_sim_params.local_epochs
+    args.times = fed_sim_params.times
 
-    args.user_dist = user_dist
-    args.silo_dist = silo_dist
-    args.global_learning_rate = global_learning_rate
-    args.local_learning_rate = local_learning_rate
-    args.clipping_bound = clipping_bound
-    args.with_momentum = with_momentum
-    args.momentum_weight = momentum_weight
-    args.off_train_loss_noise = off_train_loss_noise
-    args.step_decay = step_decay
-    args.hp_baseline = hp_baseline
+    args.user_dist = fed_sim_params.user_dist
+    args.silo_dist = fed_sim_params.silo_dist
+    args.global_learning_rate = fed_sim_params.global_learning_rate
+    args.local_learning_rate = fed_sim_params.local_learning_rate
+    args.with_momentum = fed_sim_params.with_momentum
+    args.momentum_weight = fed_sim_params.momentum_weight
+    args.off_train_loss_noise = fed_sim_params.off_train_loss_noise
+    args.step_decay = fed_sim_params.step_decay
+    args.hp_baseline = fed_sim_params.hp_baseline
 
-    args.delta = delta
-    args.sigma = sigma
-    args.C_u = C_u
-    args.q_u = q_u
-    args.q_step_size = q_step_size
-    args.epsilon_u = epsilon_u
-    args.group_thresholds = group_thresholds
-    args.dry_run = False
-    args.secure_w = False
-    args.initial_q_u = initial_q_u
+    args.delta = fed_sim_params.delta
+    args.sigma = fed_sim_params.sigma
+    args.C_u = fed_sim_params.C_u
+    args.q_u = fed_sim_params.q_u
+    args.q_step_size = fed_sim_params.q_step_size
+    args.epsilon_u = fed_sim_params.epsilon_u
+    args.group_thresholds = fed_sim_params.group_thresholds
+    args.dry_run = fed_sim_params.dry_run
+    args.secure_w = fed_sim_params.secure_w
+    args.initial_q_u = fed_sim_params.initial_q_u
+    args.dynamic_global_learning_rate = fed_sim_params.dynamic_global_learning_rate
 
-    args.validation_ratio = validation_ratio
-    args.client_optimizer = "adam"
-    args.gpu_id = gpu_id
-    args.parallelized = parallelized
+    args.validation_ratio = fed_sim_params.validation_ratio
+    args.client_optimizer = fed_sim_params.client_optimizer
+    args.gpu_id = fed_sim_params.gpu_id
+    args.parallelized = fed_sim_params.parallelized
 
-    args.seed = seed
+    args.seed = fed_sim_params.seed
 
     results_list = []
     for i in range(args.times):
         print("======== TIME:", i, "start")
         args.seed = args.seed + i
-        sim_results = run_simulation(args, path_project)
+        sim_results = run_simulation(
+            args,
+            path_project,
+            epsilon_list=fed_sim_params.epsilon_list,
+            ratio_list=fed_sim_params.ratio_list,
+            q_step_size=fed_sim_params.q_step_size,
+            idx_per_group=idx_per_group,
+            static_q_u_list=static_q_u_list,
+        )
         results_list.append(sim_results)
     return results_list
 
@@ -290,12 +421,12 @@ def group_by_closest_below(epsilon_u_dct: dict, group_thresholds: list):
 
 
 # STATIC MANUAL OPTIMIZATION
-def prepare_grid_search(epsilon_u, start_idx: int, end_idx: int):
+def prepare_grid_search(group_eps_set, start_idx: int, end_idx: int):
     # set idx list for each group
-    group_eps_set = set(epsilon_u.values())
     idx_per_group_list = []
 
-    idx_list = list(range(Q_LIST_SIZE))[start_idx:end_idx]
+    assert end_idx <= 30, "end_idx should be less than 30"
+    idx_list = list(range(30))[start_idx:end_idx]
     idx_list_list = [idx_list for _ in range(len(group_eps_set))]
 
     for combination in itertools.product(*idx_list_list):
@@ -304,201 +435,56 @@ def prepare_grid_search(epsilon_u, start_idx: int, end_idx: int):
             idx_per_group[group_eps] = idx
         idx_per_group_list.append(idx_per_group)
 
-    return {"name": "grid", "params": {"idx_per_group_list": idx_per_group_list}}
-
-
-def prepare_random_search(
-    epsilon_u,
-    start_idx: int,
-    end_idx: int,
-    random_state: np.random.RandomState,
-    n_samples: int,
-):
-    # set idx list for each group``
-    group_eps_set = set(epsilon_u.values())
-    idx_per_group_list = []
-
-    idx_list = list(range(Q_LIST_SIZE))[start_idx:end_idx]
-    idx_list_list = [idx_list for _ in range(len(group_eps_set))]
-    all_candidates = itertools.product(*idx_list_list)
-    samples = random_state.choice(len(all_candidates), size=n_samples, replace=False)
-
-    for sample in samples:
-        idx_per_group = {}
-        for idx, group_eps in zip(all_candidates[sample], group_eps_set):
-            idx_per_group[group_eps] = idx
-        idx_per_group_list.append(idx_per_group)
-
-    return {"name": "random", "params": {"idx_per_group_list": idx_per_group_list}}
-
-
-def prepare_independent_search(epsilon_u, start_idx: int, end_idx: int):
-    # set idx list for each group
-    group_eps_set = set(epsilon_u.values())
-    idx_per_group_list = []
-    idx_list = list(range(Q_LIST_SIZE))[start_idx:end_idx]
-
-    for group_eps in group_eps_set:
-        for idx in idx_list:
-            idx_per_group = {}
-            idx_per_group[group_eps] = idx
-            for group_eps in group_eps_set:
-                if group_eps != group_eps:
-                    idx_per_group[group_eps] = int((start_idx + end_idx) / 2)
-        idx_per_group_list.append(idx_per_group)
-
-    return {"name": "independent", "params": {"idx_per_group_list": idx_per_group_list}}
-
-
-def static_optimization_result_file_name(
-    sigma,
-    delta,
-    n_users,
-    n_round,
-    dataset_name,
-    q_step_size,
-    opt_strategy,
-    validation_ratio,
-    prefix_epsilon_u,
-    static_q_u_list,
-    user_dist,
-    global_learning_rate=None,
-    local_learning_rate=None,
-    local_epochs=None,
-):
-    if global_learning_rate is not None:
-        return f'static_optimization_{sigma}_{delta}_{n_users}_{n_round}_{dataset_name}_{q_step_size}_{opt_strategy["name"]}_{validation_ratio}_{prefix_epsilon_u}_{static_q_u_list}_{user_dist}_{global_learning_rate}_{local_learning_rate}_{local_epochs}.pkl'
-    else:
-        return f'static_optimization_{sigma}_{delta}_{n_users}_{n_round}_{dataset_name}_{q_step_size}_{opt_strategy["name"]}_{validation_ratio}_{prefix_epsilon_u}_{static_q_u_list}_{user_dist}.pkl'
+    return idx_per_group_list
 
 
 # Do Static Optimization which could be the Best Utility Baseline
 # Basically, we use grid search with prepare_grid_search() method above
 def static_optimization(
-    epsilon_u,
-    sigma,
-    delta,
-    n_users,
-    n_round,
-    dataset_name,
-    times,
-    q_step_size,
-    opt_strategy: dict,
-    global_learning_rate=10.0,
-    local_learning_rate=0.01,
-    local_epochs=50,
-    validation_ratio=0.0,
-    user_dist="uniform-iid",
-    silo_dist="uniform",
+    fed_sim_params: FLSimulationParameters,
+    idx_per_group_list,  # HP candidates
     static_q_u_list=None,
-    gpu_id=None,
     force_update=False,
-    parallelized=False,
 ):
     results_dict = {}
 
-    prefix_epsilon_u = list(epsilon_u.items())[:4]
-    results_file_name = static_optimization_result_file_name(
-        sigma,
-        delta,
-        n_users,
-        n_round,
-        dataset_name,
-        q_step_size,
-        opt_strategy,
-        validation_ratio,
-        prefix_epsilon_u,
-        static_q_u_list,
-        user_dist,
-        global_learning_rate,
-        local_learning_rate,
-        local_epochs,
+    results_file_name = fed_sim_params.create_file_prefix(
+        prefix="static_optimization_",
+        middle=f"{idx_per_group_list[0]}-{len(idx_per_group_list)}_"
+        + f"{static_q_u_list}_",
+        suffix=".pkl",
     )
 
-    if not force_update:
-        try:
-            check_results_file_already_exist(results_file_name)
-        except FileExistsError:
-            print(f"Skip: File '{results_file_name}' already exists.")
-            return
+    if not force_update and check_results_file_already_exist(results_file_name):
+        print("Skip: File already exists.")
+        return
 
-    if opt_strategy["name"] in ["grid", "random", "independent"]:
-        # grid search
-        for idx_per_group in opt_strategy["params"]["idx_per_group_list"]:
-            print("IDX: ", idx_per_group)
-            C_u, q_u = make_static_params(
-                epsilon_u,
-                delta,
-                sigma,
-                n_round,
-                idx_per_group=idx_per_group,
-                q_step_size=q_step_size,
-                static_q_u_list=static_q_u_list,
-            )
-            result = fed_simulation(
-                delta,
-                sigma,
-                n_users,
-                C_u=C_u,
-                q_u=q_u,
-                agg_strategy="PULDP-AVG",
-                times=times,
-                n_round=n_round,
-                user_dist=user_dist,
-                silo_dist=silo_dist,
-                global_learning_rate=global_learning_rate,
-                local_learning_rate=local_learning_rate,
-                dataset_name=dataset_name,
-                local_epochs=local_epochs,
-                epsilon_u=epsilon_u,
-                validation_ratio=validation_ratio,
-                gpu_id=gpu_id,
-                parallelized=parallelized,
-            )
-            results_dict[str(idx_per_group)] = (q_u, C_u, result)
-    else:
-        raise ValueError(f"invalid opt_strategy {opt_strategy}")
+    for idx_per_group in idx_per_group_list:
+        print("IDX: ", idx_per_group)
+        result = fed_simulation(
+            fed_sim_params, idx_per_group=idx_per_group, static_q_u_list=static_q_u_list
+        )
+        q_u, C_u = result[0]["q_u"], result[0]["C_u"]
+
+        results_dict[str(idx_per_group)] = (q_u, C_u, result)
 
     dump_results(results_file_name, results_dict)
 
 
 def show_static_optimization_result(
-    epsilon_u,
-    sigma,
-    delta,
-    n_users,
-    n_round,
-    dataset_name,
-    q_step_size,
-    opt_strategy: dict,
-    n_silos,
-    validation_ratio=0.0,
+    fed_sim_params: FLSimulationParameters,
+    idx_per_group_list,
+    static_q_u_list=None,
     train_loss=False,
-    errorbar=True,
+    errorbar=False,
     img_name="",
     is_3d=False,
-    static_q_u_list=None,
-    user_dist=None,
-    global_learning_rate=None,
-    local_learning_rate=None,
-    local_epochs=None,
 ):
-    prefix_epsilon_u = list(epsilon_u.items())[:4]
-    results_file_name = static_optimization_result_file_name(
-        sigma,
-        delta,
-        n_users,
-        n_round,
-        dataset_name,
-        q_step_size,
-        opt_strategy,
-        validation_ratio,
-        prefix_epsilon_u,
-        static_q_u_list,
-        user_dist,
-        global_learning_rate,
-        local_learning_rate,
-        local_epochs,
+    results_file_name = fed_sim_params.create_file_prefix(
+        prefix="static_optimization_",
+        middle=f"{idx_per_group_list[0]}-{len(idx_per_group_list)}_"
+        + f"{static_q_u_list}_",
+        suffix=".pkl",
     )
     with open(os.path.join(pickle_path, results_file_name), "rb") as file:
         results_dict = pickle.load(file)
@@ -522,12 +508,17 @@ def show_static_optimization_result(
 
     if not is_3d:
         if len(x) > 12:
-            plt.figure(figsize=(12, 5))
+            plt.figure(figsize=(16, 5))
         else:
-            plt.figure(figsize=(9, 5))
+            plt.figure(figsize=(10, 5))
         plt.title(
             r"{}: $\epsilon_u={}$, $\sigma={}$, $|U|={}$, $|S|={}$, $T={}$".format(
-                dataset_name, prefix_epsilon_u[0][1], sigma, n_users, n_silos, n_round
+                fed_sim_params.dataset_name,
+                fed_sim_params.get_group_eps_set().pop(),
+                fed_sim_params.sigma,
+                fed_sim_params.n_users,
+                fed_sim_params.n_silos,
+                fed_sim_params.n_total_round,
             ),
             fontsize=20,
         )
@@ -536,15 +527,15 @@ def show_static_optimization_result(
             plt.errorbar(x, y, yerr=error, fmt="-o", label="Test Loss")
         else:
             plt.plot(x, y, "-o", label="Test Loss")
-        for i in range(len(x)):
-            plt.text(
-                x[i],
-                y[i] * 1.02,
-                f"q={q_u_list[i]:.3f}\nC={C_u_list[i]:.3f}",
-                fontsize=8,
-            )
         plt.legend(loc="upper left", fontsize=16)
-        plt.yscale("log")
+        # lossの最小値を持つ点を大きい丸で強調
+        min_y_index = y.index(min(y))  # yの最大値のインデックスを取得
+        plt.scatter(
+            x[min_y_index],
+            y[min_y_index],
+            color="blue",
+            s=200,
+        )  # sはマーカーのサイズ
 
         ax2 = plt.twinx()
         if errorbar:
@@ -555,8 +546,13 @@ def show_static_optimization_result(
             ax2.plot(x, y_metric, "-o", color="red", label="Accuracy")
         ax2.set_ylabel("Accuracy", fontsize=20)
         ax2.legend(loc="upper right", fontsize=18)
-        plt.xticks([])
 
+        x_ticks_labels = [
+            f"q={q_u_list[i]:.2f}\nC={C_u_list[i]:.2f}" for i in range(len(x))
+        ]
+        plt.xticks(range(len(x)), x_ticks_labels)
+
+        plt.grid(True, linestyle="--")
         save_figure("static_optimization_result-1d-" + img_name)
         plt.show()
 
@@ -568,7 +564,7 @@ def show_static_optimization_result(
         acc_means = []
         acc_stds = []
 
-        symbol = "test" if validation_ratio <= 0.0 else "valid"
+        symbol = "test" if fed_sim_params.validation_ratio <= 0.0 else "valid"
         label = ""
 
         for i in range(len(result[0]["global"][f"global_{symbol}"])):
@@ -609,6 +605,7 @@ def show_static_optimization_result(
             ax2.plot(_x, acc_means, label="Accuracy", alpha=0.8, color="red")
         ax2.legend(loc="upper right", fontsize=20)
 
+        plt.grid(True, linestyle="--")
         save_figure("static_optimization_result-1d-loss-analysis-" + img_name)
         plt.show()
 
@@ -616,7 +613,7 @@ def show_static_optimization_result(
 
         def transform_string(input_str):
             i = int(input_str.strip("[]").split(",")[0])
-            value = round(q_step_size**i, 2)
+            value = round(fed_sim_params.q_step_size**i, 2)
             return f"{value}, {value}"
 
         param_set_list = [
@@ -625,7 +622,7 @@ def show_static_optimization_result(
         title_eps = [0.15, 3.0, 5.0]
         num_x = 7
         x_values = np.arange(0, num_x)
-        x_labels = [round(q_step_size**i, 2) for i in x_values]
+        x_labels = [round(fed_sim_params.q_step_size**i, 2) for i in x_values]
 
         if static_q_u_list is not None:
             num_x = len(static_q_u_list)
@@ -719,7 +716,12 @@ def show_static_optimization_result(
                 r"{}: Various HP ($q_u$) on the group with $\epsilon={}$"
                 "\n"
                 r"($\sigma={}$, $|U|={}$, $|S|={}$, $T={}$)".format(
-                    dataset_name, title_eps[i], sigma, n_users, n_silos, n_round
+                    fed_sim_params.dataset_name,
+                    title_eps[i],
+                    fed_sim_params.sigma,
+                    fed_sim_params.n_users,
+                    fed_sim_params.n_silos,
+                    fed_sim_params.n_total_round,
                 ),
                 fontsize=18,
                 y=1.1,
@@ -731,6 +733,7 @@ def show_static_optimization_result(
             )
             plt.xticks(ticks=x_values, labels=x_labels)
 
+            plt.grid(True, linestyle="--")
             save_figure(f"static_optimization_result-top20-group{i}-" + img_name)
             plt.show()
 
@@ -790,9 +793,10 @@ def show_static_optimization_result(
             ax2.plot(x, y_metric, "-o", color="red", label="Accuracy")
 
         ax2.legend(loc="lower left")
+        plt.grid(True, linestyle="--")
         plt.show()
 
-    if validation_ratio > 0.0:
+    if fed_sim_params.validation_ratio > 0.0:
         plt.figure(figsize=(8, 3))
         x = list(results_dict.keys())
         q_u_list = [results_dict[i][0][0] for i in x]
@@ -837,111 +841,31 @@ def show_static_optimization_result(
             ax2.plot(x, y_metric, "-o", color="red", label="Accuracy")
         ax2.legend(loc="lower left")
 
+        plt.grid(True, linestyle="--")
         plt.show()
 
     return min_idx, min_test_loss
 
 
-def specified_idx_result_file_name(
-    n_users,
-    sigma,
-    delta,
-    dataset_name,
-    n_round,
-    idx_per_group,
-    q_step_size,
-    validation_ratio,
-    prefix_epsilon_u,
-    static_q_u_list,
-    global_learning_rate=None,
-    local_learning_rate=None,
-    local_epochs=None,
-):
-    if global_learning_rate is not None:
-        return f"specified_idx_{n_users}_{sigma}_{delta}_{dataset_name}_{n_round}_{idx_per_group}_{q_step_size}_{validation_ratio}_{prefix_epsilon_u}_{static_q_u_list}_{global_learning_rate}_{local_learning_rate}_{local_epochs}.pkl".replace(
-            ":", "_"
-        )
-    else:
-        return f"specified_idx_{n_users}_{sigma}_{delta}_{dataset_name}_{n_round}_{idx_per_group}_{q_step_size}_{validation_ratio}_{prefix_epsilon_u}_{static_q_u_list}.pkl".replace(
-            ":", "_"
-        )
-
-
 def run_with_specified_idx(
-    epsilon_u,
-    sigma,
-    delta,
-    n_users,
-    n_round,
-    dataset_name,
-    q_step_size,
-    times,
+    fed_sim_params: FLSimulationParameters,
     idx_per_group,
-    global_learning_rate,
-    local_learning_rate,
-    local_epochs,
-    validation_ratio=0.0,
-    user_dist="uniform-iid",
-    silo_dist="uniform",
     static_q_u_list=None,
-    gpu_id=None,
     force_update=False,
-    parallelized=False,
-    seed=0,
 ):
-    prefix_epsilon_u = list(epsilon_u.items())[:4]
-    results_file_name = specified_idx_result_file_name(
-        n_users,
-        sigma,
-        delta,
-        dataset_name,
-        n_round,
-        idx_per_group,
-        q_step_size,
-        validation_ratio,
-        prefix_epsilon_u,
-        static_q_u_list,
-        global_learning_rate,
-        local_learning_rate,
-        local_epochs,
+    results_file_name = fed_sim_params.create_file_prefix(
+        prefix="static_optimization_",
+        middle=f"{idx_per_group}_" + f"{static_q_u_list}_",
+        suffix=".pkl",
     )
 
-    if not force_update:
-        try:
-            check_results_file_already_exist(results_file_name)
-        except FileExistsError:
-            print(f"Skip: File '{results_file_name}' already exists.")
-            return
+    if not force_update and check_results_file_already_exist(results_file_name):
+        print("Skip: File already exists.")
+        return
 
-    C_u, q_u = make_static_params(
-        epsilon_u,
-        delta,
-        sigma,
-        n_round,
-        idx_per_group=idx_per_group,
-        q_step_size=q_step_size,
-        static_q_u_list=static_q_u_list,
-    )
+    print("IDX: ", idx_per_group)
     result = fed_simulation(
-        delta,
-        sigma,
-        n_users,
-        C_u=C_u,
-        q_u=q_u,
-        agg_strategy="PULDP-AVG",
-        times=times,
-        n_round=n_round,
-        user_dist=user_dist,
-        silo_dist=silo_dist,
-        global_learning_rate=global_learning_rate,
-        local_learning_rate=local_learning_rate,
-        dataset_name=dataset_name,
-        local_epochs=local_epochs,
-        epsilon_u=epsilon_u,
-        validation_ratio=validation_ratio,
-        gpu_id=gpu_id,
-        parallelized=parallelized,
-        seed=seed,
+        fed_sim_params, idx_per_group=idx_per_group, static_q_u_list=static_q_u_list
     )
 
     acc_mean, acc_std, loss_mean, loss_std = calc_metric(result, "test")
@@ -950,7 +874,7 @@ def run_with_specified_idx(
         f", TEST LOSS: {loss_mean:.4f} ± {loss_std:.4f}",
     )
 
-    if validation_ratio > 0.0:
+    if fed_sim_params.validation_ratio > 0.0:
         acc_mean, acc_std, loss_mean, loss_std = calc_metric(result, "valid")
         print(
             f"VALID ACC: {acc_mean:.4f} ± {acc_std:.4f}",
@@ -962,214 +886,88 @@ def run_with_specified_idx(
 
 
 def show_specified_idx_result(
-    prefix_epsilon_u_list,
-    sigma,
-    delta,
-    n_users,
-    n_round,
-    dataset_name,
-    q_step_size,
-    idx_per_group_list,
-    label_list="",
-    validation_ratio=0.0,
+    fed_sim_params: FLSimulationParameters,
+    idx_per_group,
+    static_q_u_list=None,
+    label="",
     errorbar=True,
     img_name="",
-    static_q_u_list=None,
-    global_learning_rate=None,
-    local_learning_rate=None,
-    local_epochs=None,
 ):
     # optimal q_u
     _, ax_loss = plt.subplots()
-    if type(idx_per_group_list) is not list:
-        prefix_epsilon_u_list = [prefix_epsilon_u_list]
-        idx_per_group_list = [idx_per_group_list]
-        label_list = [label_list]
-    for idx_per_group, prefix_epsilon_u, label in zip(
-        idx_per_group_list, prefix_epsilon_u_list, label_list
-    ):
-        results_file_name = specified_idx_result_file_name(
-            n_users,
-            sigma,
-            delta,
-            dataset_name,
-            n_round,
-            idx_per_group,
-            q_step_size,
-            validation_ratio,
-            prefix_epsilon_u,
-            static_q_u_list,
-            global_learning_rate,
-            local_learning_rate,
-            local_epochs,
-        )
-        with open(os.path.join(pickle_path, results_file_name), "rb") as file:
-            result = pickle.load(file)
+    results_file_name = fed_sim_params.create_file_prefix(
+        prefix="static_optimization_",
+        middle=f"{idx_per_group}_" + f"{static_q_u_list}_",
+        suffix=".pkl",
+    )
+    with open(os.path.join(pickle_path, results_file_name), "rb") as file:
+        result = pickle.load(file)
 
-        loss_means = []
-        loss_stds = []
-        acc_means = []
-        acc_stds = []
+    loss_means = []
+    loss_stds = []
+    acc_means = []
+    acc_stds = []
 
-        symbol = "test" if validation_ratio <= 0.0 else "valid"
+    symbol = "test" if fed_sim_params.validation_ratio <= 0.0 else "valid"
 
-        for i in range(len(result[0]["global"][f"global_{symbol}"])):
-            losses_at_position = [
-                result[round_id]["global"][f"global_{symbol}"][i][2]
-                for round_id in range(len(result))
-            ]
-            accs_at_position = [
-                result[round_id]["global"][f"global_{symbol}"][i][1]
-                for round_id in range(len(result))
-            ]
+    for i in range(len(result[0]["global"][f"global_{symbol}"])):
+        losses_at_position = [
+            result[round_id]["global"][f"global_{symbol}"][i][2]
+            for round_id in range(len(result))
+        ]
+        accs_at_position = [
+            result[round_id]["global"][f"global_{symbol}"][i][1]
+            for round_id in range(len(result))
+        ]
 
-            loss_means.append(np.mean(losses_at_position))
-            loss_stds.append(np.std(losses_at_position))
+        loss_means.append(np.mean(losses_at_position))
+        loss_stds.append(np.std(losses_at_position))
 
-            acc_means.append(np.mean(accs_at_position))
-            acc_stds.append(np.std(accs_at_position))
+        acc_means.append(np.mean(accs_at_position))
+        acc_stds.append(np.std(accs_at_position))
 
-        x = range(len(loss_means))
-        if errorbar:
-            ax_loss.errorbar(x, loss_means, yerr=loss_stds, label=f"{label}", alpha=0.8)
-        else:
-            ax_loss.plot(x, loss_means, label=f"{label}", alpha=0.8)
+    x = range(len(loss_means))
+    if errorbar:
+        ax_loss.errorbar(x, loss_means, yerr=loss_stds, label=f"{label}", alpha=0.8)
+    else:
+        ax_loss.plot(x, loss_means, label=f"{label}", alpha=0.8)
 
-        last_x = x[-1]
-        last_loss_mean = loss_means[-1]
-        last_loss_std = loss_stds[-1]
-        last_acc_mean = acc_means[-1]
-        last_acc_std = acc_stds[-1]
-        ax_loss.text(
-            last_x,
-            last_loss_mean,
-            f"{last_loss_mean:.3f}±{last_loss_std:.3f}\n (Acc: {last_acc_mean:.3f}±{last_acc_std:.3f})",
-            ha="center",
-            va="bottom",
-            fontsize=14,
-        )
+    last_x = x[-1]
+    last_loss_mean = loss_means[-1]
+    last_loss_std = loss_stds[-1]
+    last_acc_mean = acc_means[-1]
+    last_acc_std = acc_stds[-1]
+    ax_loss.text(
+        last_x,
+        last_loss_mean,
+        f"{last_loss_mean:.3f}±{last_loss_std:.3f}\n (Acc: {last_acc_mean:.3f}±{last_acc_std:.3f})",
+        ha="center",
+        va="bottom",
+        fontsize=14,
+    )
 
     ax_loss.set_ylabel("Test Loss", fontsize=20)
     ax_loss.set_xlabel("Round", fontsize=20)
     ax_loss.set_yscale("log")
     ax_loss.legend(loc="upper right", fontsize=20)
 
+    plt.grid(True, linestyle="--")
     save_figure("specified_idx_result-" + img_name)
     plt.show()
     return x, acc_means, acc_stds
 
 
-def online_optimization_result_file_name(
-    agg_strategy,
-    n_users,
-    sigma,
-    delta,
-    dataset_name,
-    n_round,
-    q_step_size,
-    validation_ratio,
-    prefix_epsilon_u,
-    with_momentum,
-    off_train_loss_noise,
-    step_decay,
-    hp_baseline,
-    initial_q_u,
-    momentum_weight,
-    global_learning_rate=None,
-    local_learning_rate=None,
-    local_epochs=None,
-):
-    if global_learning_rate is not None:
-        return f"online_optimization_{agg_strategy}_{n_users}_{sigma}_{delta}_{dataset_name}_{n_round}_{q_step_size}_{validation_ratio}_{prefix_epsilon_u}_{with_momentum}_{off_train_loss_noise}_{step_decay}_{hp_baseline}_{initial_q_u}_{momentum_weight}_{global_learning_rate}_{local_learning_rate}_{local_epochs}.pkl"
-    else:
-        return f"online_optimization_{agg_strategy}_{n_users}_{sigma}_{delta}_{dataset_name}_{n_round}_{q_step_size}_{validation_ratio}_{prefix_epsilon_u}_{with_momentum}_{off_train_loss_noise}_{step_decay}_{hp_baseline}_{initial_q_u}_{momentum_weight}.pkl"
-
-
 # ONLINE OPTIMIZATION
-def run_online_optimization(
-    epsilon_u,
-    sigma,
-    delta,
-    n_users,
-    n_round,
-    dataset_name,
-    q_step_size,
-    group_thresholds,
-    times,
-    agg_strategy,
-    global_learning_rate=10.0,
-    local_learning_rate=0.01,
-    local_epochs=50,
-    validation_ratio=0.0,
-    momentum_weight=0.9,
-    initial_q_u=None,
-    with_momentum=None,
-    step_decay=True,
-    hp_baseline=None,
-    off_train_loss_noise=None,
-    user_dist="uniform-iid",
-    silo_dist="uniform",
-    gpu_id=None,
-    force_update=False,
-    parallelized=False,
-):
-    prefix_epsilon_u = list(epsilon_u.items())[:4]
-    results_file_name = online_optimization_result_file_name(
-        agg_strategy,
-        n_users,
-        sigma,
-        delta,
-        dataset_name,
-        n_round,
-        q_step_size,
-        validation_ratio,
-        prefix_epsilon_u,
-        with_momentum,
-        off_train_loss_noise,
-        step_decay,
-        hp_baseline,
-        initial_q_u,
-        momentum_weight,
-        global_learning_rate,
-        local_learning_rate,
-        local_epochs,
+def run_online_optimization(fed_sim_params: FLSimulationParameters, force_update=False):
+    results_file_name = fed_sim_params.create_file_prefix(
+        prefix="online_optimization_", suffix=".pkl"
     )
 
-    if not force_update:
-        try:
-            check_results_file_already_exist(results_file_name)
-        except FileExistsError:
-            print(f"Skip: File '{results_file_name}' already exists.")
-            return
+    if not force_update and check_results_file_already_exist(results_file_name):
+        print("Skip: File already exists.")
+        return
 
-    result = fed_simulation(
-        delta,
-        sigma,
-        n_users,
-        C_u=None,
-        q_u=None,
-        q_step_size=q_step_size,
-        agg_strategy=agg_strategy,
-        times=times,
-        n_round=n_round,
-        user_dist=user_dist,
-        silo_dist=silo_dist,
-        momentum_weight=momentum_weight,
-        initial_q_u=initial_q_u,
-        global_learning_rate=global_learning_rate,
-        local_learning_rate=local_learning_rate,
-        dataset_name=dataset_name,
-        local_epochs=local_epochs,
-        epsilon_u=epsilon_u,
-        group_thresholds=group_thresholds,
-        validation_ratio=validation_ratio,
-        with_momentum=with_momentum,
-        step_decay=step_decay,
-        off_train_loss_noise=off_train_loss_noise,
-        hp_baseline=hp_baseline,
-        gpu_id=gpu_id,
-        parallelized=parallelized,
-    )
+    result = fed_simulation(fed_sim_params)
 
     acc_mean, acc_std, loss_mean, loss_std = calc_metric(result)
     print(
@@ -1177,7 +975,7 @@ def run_online_optimization(
         f", TEST LOSS: {loss_mean:.4f} ± {loss_std:.4f}",
     )
 
-    if validation_ratio > 0.0:
+    if fed_sim_params.validation_ratio > 0.0:
         acc_mean, acc_std, loss_mean, loss_std = calc_metric(result, "valid")
         print(
             f"VALID ACC: {acc_mean:.4f} ± {acc_std:.4f}",
@@ -1188,58 +986,14 @@ def run_online_optimization(
         pickle.dump(result, file)
 
 
-def get_eps_u_color_mapping(eps_u_values):
-    eps_u_colors = ["b", "g", "m", "c", "y", "k", "r"]
-    eps_u_color_mapping = {
-        eps_u: eps_u_colors[i % len(eps_u_colors)]
-        for i, eps_u in enumerate(eps_u_values)
-    }
-    return eps_u_color_mapping
-
-
 def show_online_optimization_result(
-    epsilon_u,
-    sigma,
-    delta,
-    n_users,
-    n_round,
-    dataset_name,
-    q_step_size,
-    agg_strategy,
-    validation_ratio=0.0,
-    with_momentum=None,
-    hp_baseline=None,
-    off_train_loss_noise=None,
-    step_decay=True,
+    fed_sim_params: FLSimulationParameters,
     errorbar=True,
     img_name="",
-    initial_q_u=None,
-    momentum_weight=0.9,
     is_show_accuracy=False,
-    global_learning_rate=None,
-    local_learning_rate=None,
-    local_epochs=None,
 ):
-    prefix_epsilon_u = list(epsilon_u.items())[:4]
-    results_file_name = online_optimization_result_file_name(
-        agg_strategy,
-        n_users,
-        sigma,
-        delta,
-        dataset_name,
-        n_round,
-        q_step_size,
-        validation_ratio,
-        prefix_epsilon_u,
-        with_momentum,
-        off_train_loss_noise,
-        step_decay,
-        hp_baseline,
-        initial_q_u,
-        momentum_weight,
-        global_learning_rate,
-        local_learning_rate,
-        local_epochs,
+    results_file_name = fed_sim_params.create_file_prefix(
+        prefix="online_optimization_", suffix=".pkl"
     )
     with open(os.path.join(pickle_path, results_file_name), "rb") as file:
         result = pickle.load(file)
@@ -1293,7 +1047,7 @@ def show_online_optimization_result(
     acc_means = []
     acc_stds = []
 
-    symbol = "test" if validation_ratio <= 0.0 else "valid"
+    symbol = "test" if fed_sim_params.validation_ratio <= 0.0 else "valid"
 
     # 各ラウンドに対して処理
     for i in range(len(result[0]["global"][f"global_{symbol}"])):
@@ -1439,6 +1193,7 @@ def show_online_optimization_result(
         ax.set_ylabel("Test Accuracy", fontsize=20)
         ax.legend(loc="upper left", fontsize=12)
 
+        plt.grid(True, linestyle="--")
         save_figure("online_optimization_result-testacc-" + img_name)
         plt.show()
 
@@ -1446,16 +1201,18 @@ def show_online_optimization_result(
 
 
 def plot_acc_results(
+    fed_sim_params: FLSimulationParameters,
     all_acc_results,
-    dataset_name,
     initial_q_u_list,
-    delta,
-    alpha,
-    N,
-    T,
-    sigma,
     errorbar=True,
 ):
+    N = fed_sim_params.n_users
+    T = fed_sim_params.n_total_round
+    sigma = fed_sim_params.sigma
+    delta = fed_sim_params.delta
+    dataset_name = fed_sim_params.dataset_name
+    alpha = fed_sim_params.q_step_size
+
     for initial_q_u in initial_q_u_list:
         plt.figure(figsize=(7, 5))
         for (agg_strategy, param), (x, acc_means, acc_stds) in all_acc_results.items():
@@ -1492,5 +1249,5 @@ def plot_acc_results(
         plt.grid(True, linestyle="--")
 
         plt.legend(fontsize=14)
-        save_figure(f"comparison-with-baselines-{dataset_name}-{initial_q_u}")
+        save_figure(f"comparison-with-baselines-{dataset_name}-{initial_q_u}-")
         plt.show()

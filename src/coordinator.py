@@ -11,6 +11,7 @@ from method_group import (
 
 from mylogger import logger
 import noise_utils
+import epsilon_allocate_utils
 
 
 class Coordinator:
@@ -61,7 +62,7 @@ class Coordinator:
                 self.n_release = self.n_total_round
             else:
                 self.n_release = self.n_total_round * 3
-            self.epsilon_groups = group_by_closest_below(
+            self.epsilon_groups = epsilon_allocate_utils.group_by_closest_below(
                 epsilon_u_dct=epsilon_u, group_thresholds=group_thresholds
             )
             self.hp_dct_by_eps: Dict[float, Tuple] = {}
@@ -428,22 +429,6 @@ class Coordinator:
             self.hp_dct_by_eps[eps_u] = (q_u, C_u)
             self.param_history[eps_u].append((q_u, C_u))
             self.loss_history[eps_u].append((loss_diff, org_diff))
-
-
-def group_by_closest_below(epsilon_u_dct: Dict, group_thresholds: List):
-    minimum = min(epsilon_u_dct.values())
-    group_thresholds = set(group_thresholds) | {minimum}
-    grouped = {
-        g: [] for g in group_thresholds
-    }  # Initialize the dictionary with empty lists for each group threshold
-    for key, value in epsilon_u_dct.items():
-        # Find the closest group threshold that is less than or equal to the value
-        closest_group = max([g for g in group_thresholds if g <= value], default=None)
-        # If a suitable group is found, append the key to the corresponding list
-        if closest_group is not None:
-            grouped[closest_group].append(key)
-
-    return grouped
 
 
 def compute_stepped_qC(
