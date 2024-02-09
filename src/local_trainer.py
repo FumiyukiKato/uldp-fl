@@ -17,8 +17,8 @@ from method_group import (
     METHOD_GROUP_USER_LEVEL_DATA_LOADER,
     METHOD_GROUP_WITHIN_SILO_DP_ACCOUNTING,
     METHOD_PULDP_AVG,
-    METHOD_PULDP_AVG_ONLINE,
-    METHOD_PULDP_AVG_ONLINE_TRAIN,
+    METHOD_PULDP_QC_TEST,
+    METHOD_PULDP_QC_TRAIN,
     METHOD_RECORD_LEVEL_DP,
     METHOD_SILO_LEVEL_DP,
     METHOD_ULDP_NAIVE,
@@ -59,6 +59,7 @@ class ClassificationTrainer:
         dataset_name: Optional[str] = None,
         C_u: Optional[Dict] = None,
         n_total_round: Optional[int] = None,
+        hp_baseline: Optional[str] = None,
     ):
         self.base_seed = base_seed + silo_id + 1
         self.random_state = np.random.RandomState(seed=base_seed + silo_id + 1)
@@ -75,6 +76,7 @@ class ClassificationTrainer:
         self.local_delta = local_delta
         self.weight_decay = weight_decay
         self.client_optimizer = client_optimizer
+        self.hp_baseline = hp_baseline
 
         self.results = {"local_test": [], "train_time": [], "epsilon": []}
 
@@ -173,7 +175,7 @@ class ClassificationTrainer:
 
     def set_epsilon_groups(self, epsilon_groups: Dict[int, float]):
         self.epsilon_groups = epsilon_groups
-        if self.agg_strategy == METHOD_PULDP_AVG_ONLINE_TRAIN:
+        if self.agg_strategy == METHOD_PULDP_QC_TRAIN:
             self.accountant_dct: Dict[RDPAccountant] = {}
             for eps_u, _ in self.epsilon_groups.items():
                 self.accountant_dct[eps_u] = RDPAccountant()
@@ -519,23 +521,27 @@ class ClassificationTrainer:
             stepped_weights_diff_dct_per_epsilon_group_for_optimization = {}
             for eps_u, user_ids_per_eps_u in self.epsilon_groups.items():
                 user_ids_per_eps_u_set = set(user_ids_per_eps_u)
-                for user_weights, sensitivities, weights_diff_dct in [
-                    (
-                        self.user_weights,
-                        self.C_u_list,
-                        weights_diff_dct_per_epsilon_group,
-                    ),
-                    (
-                        self.user_weights_for_optimization,
-                        self.C_u_list_for_optimization,
-                        weights_diff_dct_per_epsilon_group_for_optimization,
-                    ),
-                    (
-                        self.stepped_user_weights_for_optimization,
-                        self.stepped_C_u_list_for_optimization,
-                        stepped_weights_diff_dct_per_epsilon_group_for_optimization,
-                    ),
-                ]:
+                for ith, (user_weights, sensitivities, weights_diff_dct) in enumerate(
+                    [
+                        (
+                            self.user_weights,
+                            self.C_u_list,
+                            weights_diff_dct_per_epsilon_group,
+                        ),
+                        (
+                            self.user_weights_for_optimization,
+                            self.C_u_list_for_optimization,
+                            weights_diff_dct_per_epsilon_group_for_optimization,
+                        ),
+                        (
+                            self.stepped_user_weights_for_optimization,
+                            self.stepped_C_u_list_for_optimization,
+                            stepped_weights_diff_dct_per_epsilon_group_for_optimization,
+                        ),
+                    ]
+                ):
+                    if ith > 0 and self.hp_baseline is not None:
+                        break
                     weights_diff_list = []
                     for user_id, user_train_loader in self.user_level_data_loader:
                         # to compute model delta per epsilon group
@@ -620,14 +626,27 @@ class ClassificationTrainer:
             DEFAULT_NAME = "default"
             noisy_avg_weights_diff_dct = {DEFAULT_NAME: default_noisy_avg_weights_diff}
 
+            if self.hp_baseline:
+                return noisy_avg_weights_diff_dct
+
             # For finite difference method, compute delta(q_u_i, C_u_i)
             for eps_u in self.epsilon_groups.keys():
-                # When eps_u, use stepped q_u and C_u
-                if self.agg_strategy == METHOD_PULDP_AVG_ONLINE:
+                # Need to compute delta(q_u_i, C_u_i) for each eps_i
+                # They need to be noised for DP in distributed manner
+                if self.agg_strategy == METHOD_PULDP_QC_TEST:
                     original_avg_weights_diff = noise_utils.torch_aggregation(
                         [weights_diff_dct_per_epsilon_group_for_optimization[eps_u]]
                     )
-
+                    noisy_original_avg_weights_diff = noise_utils.add_global_noise(
+                        model,
+                        original_avg_weights_diff,
+                        self.random_state,
+                        self.local_sigma
+                        / np.sqrt(
+                            self.n_silo_per_round
+                        ),  # this local_sigma is the standard deviation of normal dist itself
+                        device=self.device,
+                    )
                     stepped_avg_weights_diff = noise_utils.torch_aggregation(
                         [
                             stepped_weights_diff_dct_per_epsilon_group_for_optimization[
@@ -635,13 +654,23 @@ class ClassificationTrainer:
                             ]
                         ]
                     )
-
-                    noisy_avg_weights_diff_dct[eps_u] = (
-                        original_avg_weights_diff,
+                    noisy_stepped_avg_weights_diff = noise_utils.add_global_noise(
+                        model,
                         stepped_avg_weights_diff,
+                        self.random_state,
+                        self.local_sigma
+                        / np.sqrt(
+                            self.n_silo_per_round
+                        ),  # this local_sigma is the standard deviation of normal dist itself
+                        device=self.device,
                     )
 
-                elif self.agg_strategy == METHOD_PULDP_AVG_ONLINE_TRAIN:
+                    noisy_avg_weights_diff_dct[eps_u] = (
+                        noisy_original_avg_weights_diff,
+                        noisy_stepped_avg_weights_diff,
+                    )
+
+                elif self.agg_strategy == METHOD_PULDP_QC_TRAIN:
                     # doesn't need noise
                     original_avg_weights_diff = noise_utils.torch_aggregation(
                         [weights_diff_dct_per_epsilon_group_for_optimization[eps_u]]
@@ -1114,7 +1143,27 @@ class ClassificationTrainer:
 
         return final_shrunk_noisy_metric, noise_multiplier
 
-    def train_loss_for_online_optimization(
+    def consume_dp_for_model_optimization(self, q_u_list):
+        # (Consume privacy) Update local accountants for model aggregation for each user groups
+        for eps_u, eps_user_ids in self.epsilon_groups.items():
+            q_u = q_u_list[eps_user_ids[0]]
+            C_u = self.C_u_list[eps_user_ids[0]]
+            self.accountant_dct[eps_u].step(
+                noise_multiplier=self.local_sigma / C_u,
+                sample_rate=q_u,
+            )
+
+    def consume_dp_for_stepped_model_optimization(self, stepped_q_u_list):
+        # (Consume privacy) Update local accountants for model aggregation for each user groups
+        for eps_u, eps_user_ids in self.epsilon_groups.items():
+            q_u = stepped_q_u_list[eps_user_ids[0]]
+            C_u = self.stepped_C_u_list_for_optimization[eps_user_ids[0]]
+            self.accountant_dct[eps_u].step(
+                noise_multiplier=self.local_sigma / C_u,
+                sample_rate=q_u,
+            )
+
+    def compute_train_loss_for_online_optimization_and_consume_dp_for_train_loss_metric(
         self,
         round_idx: int,
         q_u_list: List,
@@ -1122,16 +1171,12 @@ class ClassificationTrainer:
         local_updated_weights_dct: Dict,
         off_train_loss_noise: bool = False,
     ) -> Dict[float, float]:
+        # Calculate the difference of the train loss (or approximated train loss like user level accuracy) between the original and the updated sampling rate
+        # At the same time, consume privacy for differentially private training loss (or user level accuracy)
         diff_dct = {}
 
         for eps_u, eps_user_ids in self.epsilon_groups.items():
-            # (Consume privacy) Update local accountants for model aggregation for each user groups
             q_u = q_u_list[eps_user_ids[0]]
-            C_u = self.C_u_list[eps_user_ids[0]]
-            self.accountant_dct[eps_u].step(
-                noise_multiplier=self.local_sigma / C_u,
-                sample_rate=q_u,
-            )
 
             original_weights_diff, stepped_weights_diff = local_updated_weights_dct[
                 eps_u

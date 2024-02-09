@@ -15,8 +15,8 @@ from method_group import (
     METHOD_GROUP_ULDP_GROUPS,
     METHOD_GROUP_WITHIN_SILO_DP_ACCOUNTING,
     METHOD_PULDP_AVG,
-    METHOD_PULDP_AVG_ONLINE,
-    METHOD_PULDP_AVG_ONLINE_TRAIN,
+    METHOD_PULDP_QC_TEST,
+    METHOD_PULDP_QC_TRAIN,
     METHOD_RECORD_LEVEL_DP,
     METHOD_SILO_LEVEL_DP,
     METHOD_ULDP_NAIVE,
@@ -66,6 +66,7 @@ def parallelized_train_worker(input_queue: Queue, output_queue: Queue):
             off_train_loss_noise,
             accountant_dct,
             n_total_round,
+            hp_baseline,
         ) = task
         if gpu_id is not None:
             torch.cuda.set_device(gpu_id)
@@ -102,6 +103,7 @@ def parallelized_train_worker(input_queue: Queue, output_queue: Queue):
             off_train_loss_noise=off_train_loss_noise,
             accountant_dct=accountant_dct,
             n_total_round=n_total_round,
+            hp_baseline=hp_baseline,
         )
         if gpu_id is not None:
             torch.cuda.empty_cache()
@@ -140,6 +142,7 @@ def parallelized_train(
     off_train_loss_noise=None,
     accountant_dct=None,
     n_total_round=None,
+    hp_baseline=None,
 ):
     tick = time.time()
     model.train()
@@ -391,23 +394,28 @@ def parallelized_train(
         stepped_weights_diff_dct_per_epsilon_group_for_optimization = {}
         for eps_u, user_ids_per_eps_u in epsilon_groups.items():
             user_ids_per_eps_u_set = set(user_ids_per_eps_u)
-            for user_weights, sensitivities, weights_diff_dct in [
-                (
-                    user_weights,
-                    C_u_list,
-                    weights_diff_dct_per_epsilon_group,
-                ),
-                (
-                    user_weights_for_optimization,
-                    C_u_list_for_optimization,
-                    weights_diff_dct_per_epsilon_group_for_optimization,
-                ),
-                (
-                    stepped_user_weights_for_optimization,
-                    stepped_C_u_list_for_optimization,
-                    stepped_weights_diff_dct_per_epsilon_group_for_optimization,
-                ),
-            ]:
+            for ith, (user_weights, sensitivities, weights_diff_dct) in enumerate(
+                [
+                    (
+                        user_weights,
+                        C_u_list,
+                        weights_diff_dct_per_epsilon_group,
+                    ),
+                    (
+                        user_weights_for_optimization,
+                        C_u_list_for_optimization,
+                        weights_diff_dct_per_epsilon_group_for_optimization,
+                    ),
+                    (
+                        stepped_user_weights_for_optimization,
+                        stepped_C_u_list_for_optimization,
+                        stepped_weights_diff_dct_per_epsilon_group_for_optimization,
+                    ),
+                ]
+            ):
+                if ith > 0 and hp_baseline is not None:
+                    break
+
                 weights_diff_list = []
                 for user_id, user_train_loader in user_level_data_loader:
                     # to compute model delta per epsilon group
@@ -483,24 +491,47 @@ def parallelized_train(
         DEFAULT_NAME = "default"
         noisy_avg_weights_diff_dct = {DEFAULT_NAME: default_noisy_avg_weights_diff}
 
+        if hp_baseline:
+            return noisy_avg_weights_diff_dct
+
         # For finite difference method, compute delta(q_u_i, C_u_i)
         for eps_u in epsilon_groups.keys():
-            # When eps_u, use stepped q_u and C_u
-            if agg_strategy == METHOD_PULDP_AVG_ONLINE:
+            # Need to compute delta(q_u_i, C_u_i) for each eps_i
+            # They need to be noised for DP in distributed manner
+            if agg_strategy == METHOD_PULDP_QC_TEST:
                 original_avg_weights_diff = noise_utils.torch_aggregation(
                     [weights_diff_dct_per_epsilon_group_for_optimization[eps_u]]
                 )
-
+                noisy_original_avg_weights_diff = noise_utils.add_global_noise(
+                    model,
+                    original_avg_weights_diff,
+                    random_state,
+                    local_sigma
+                    / np.sqrt(
+                        n_silo_per_round
+                    ),  # this local_sigma is the standard deviation of normal dist itself
+                    device=device,
+                )
                 stepped_avg_weights_diff = noise_utils.torch_aggregation(
                     [stepped_weights_diff_dct_per_epsilon_group_for_optimization[eps_u]]
                 )
-
-                noisy_avg_weights_diff_dct[eps_u] = (
-                    original_avg_weights_diff,
+                noisy_stepped_avg_weights_diff = noise_utils.add_global_noise(
+                    model,
                     stepped_avg_weights_diff,
+                    random_state,
+                    local_sigma
+                    / np.sqrt(
+                        n_silo_per_round
+                    ),  # this local_sigma is the standard deviation of normal dist itself
+                    device=device,
                 )
 
-            elif agg_strategy == METHOD_PULDP_AVG_ONLINE_TRAIN:
+                noisy_avg_weights_diff_dct[eps_u] = (
+                    noisy_original_avg_weights_diff,
+                    noisy_stepped_avg_weights_diff,
+                )
+
+            elif agg_strategy == METHOD_PULDP_QC_TRAIN:
                 # doesn't need noise
                 original_avg_weights_diff = noise_utils.torch_aggregation(
                     [weights_diff_dct_per_epsilon_group_for_optimization[eps_u]]
@@ -543,6 +574,8 @@ def parallelized_train(
     if agg_strategy == METHOD_RECORD_LEVEL_DP:
         model.remove_hooks()
         return weights_diff, len(train_loader)
+    elif agg_strategy == METHOD_DEFAULT:
+        return weights_diff, len(train_loader)
     elif agg_strategy in METHOD_GROUP_ULDP_GROUPS:
         model.remove_hooks()
         return weights_diff, len(train_loader)
@@ -569,45 +602,71 @@ def parallelized_train(
         return noisy_avg_weights_diff, len(train_loader)
     elif agg_strategy == METHOD_PULDP_AVG:
         return noisy_avg_weights_diff, len(train_loader)
-    elif agg_strategy == METHOD_PULDP_AVG_ONLINE:
-        return noisy_avg_weights_diff_dct
-    elif agg_strategy == METHOD_DEFAULT:
-        return weights_diff, len(train_loader)
-    elif agg_strategy == METHOD_PULDP_AVG_ONLINE_TRAIN:
-        local_loss_diff_dct = parallelized_train_loss_for_online_optimization(
-            device,
-            dataset_name,
-            local_delta,
-            epsilon_groups,
-            accountant_dct,
-            local_sigma,
-            model,
-            n_silo_per_round,
-            user_weights_for_optimization,
-            stepped_user_weights_for_optimization,
-            user_level_data_loader,
-            criterion,
-            round_idx,
-            C_u_list,
-            q_u_list,
-            stepped_q_u_list,
-            noisy_avg_weights_diff_dct,
-            n_total_round,
-            random_state,
-            off_train_loss_noise=off_train_loss_noise,
+    elif agg_strategy == METHOD_PULDP_QC_TEST:
+        consume_dp_for_model_optimization(
+            q_u_list=q_u_list,
+            epsilon_groups=epsilon_groups,
+            C_u_list=C_u_list,
+            local_sigma=local_sigma,
+            accountant_dct=accountant_dct,
         )
+        consume_dp_for_model_optimization(
+            q_u_list=q_u_list,
+            epsilon_groups=epsilon_groups,
+            C_u_list=C_u_list,
+            local_sigma=local_sigma,
+            accountant_dct=accountant_dct,
+        )
+        consume_dp_for_stepped_model_optimization(
+            q_u_list=stepped_q_u_list,
+            epsilon_groups=epsilon_groups,
+            C_u_list=stepped_C_u_list_for_optimization,
+            local_sigma=local_sigma,
+            accountant_dct=accountant_dct,
+        )
+        return noisy_avg_weights_diff_dct
+    elif agg_strategy == METHOD_PULDP_QC_TRAIN:
+        consume_dp_for_model_optimization(
+            q_u_list=q_u_list,
+            epsilon_groups=epsilon_groups,
+            C_u_list=C_u_list,
+            local_sigma=local_sigma,
+            accountant_dct=accountant_dct,
+        )
+        if hp_baseline:
+            local_loss_diff_dct = {}
+        else:
+            local_loss_diff_dct = compute_train_loss_for_online_optimization_and_consume_dp_for_train_loss_metric(
+                device,
+                dataset_name,
+                local_delta,
+                epsilon_groups,
+                accountant_dct,
+                model,
+                n_silo_per_round,
+                user_weights_for_optimization,
+                stepped_user_weights_for_optimization,
+                user_level_data_loader,
+                criterion,
+                round_idx,
+                q_u_list,
+                stepped_q_u_list,
+                noisy_avg_weights_diff_dct,
+                n_total_round,
+                random_state,
+                off_train_loss_noise=off_train_loss_noise,
+            )
         return noisy_avg_weights_diff_dct, local_loss_diff_dct
     else:
         raise NotImplementedError("Unknown aggregation strategy")
 
 
-def parallelized_train_loss_for_online_optimization(
+def compute_train_loss_for_online_optimization_and_consume_dp_for_train_loss_metric(
     device,
     dataset_name,
     local_delta,
     epsilon_groups,
     accountant_dct,
-    local_sigma,
     model,
     n_silo_per_round,
     user_weights_for_optimization,
@@ -615,7 +674,6 @@ def parallelized_train_loss_for_online_optimization(
     user_level_data_loader,
     criterion,
     round_idx: int,
-    C_u_list,
     q_u_list: List,
     stepped_q_u_list: List,
     local_updated_weights_dct: Dict,
@@ -623,15 +681,12 @@ def parallelized_train_loss_for_online_optimization(
     random_state: np.random.RandomState,
     off_train_loss_noise: bool = False,
 ) -> Dict[float, float]:
+    # Calculate the difference of the train loss (or approximated train loss like user level accuracy) between the original and the updated sampling rate
+    # At the same time, consume privacy for differentially private training loss (or user level accuracy)
     diff_dct = {}
+
     for eps_u, eps_user_ids in epsilon_groups.items():
-        # (Consume privacy) Update local accountants for model aggregation for each user groups
         q_u = q_u_list[eps_user_ids[0]]
-        C_u = C_u_list[eps_user_ids[0]]
-        accountant_dct[eps_u].step(
-            noise_multiplier=local_sigma / C_u,
-            sample_rate=q_u,
-        )
 
         original_weights_diff, stepped_weights_diff = local_updated_weights_dct[eps_u]
 
@@ -1036,3 +1091,33 @@ def dp_train_loss(
     final_shrunk_noisy_metric /= sampling_rate_q
 
     return final_shrunk_noisy_metric, noise_multiplier
+
+
+def consume_dp_for_model_optimization(
+    q_u_list, epsilon_groups, C_u_list, local_sigma, accountant_dct
+):
+    # (Consume privacy) Update local accountants for model aggregation for each user groups
+    for eps_u, eps_user_ids in epsilon_groups.items():
+        q_u = q_u_list[eps_user_ids[0]]
+        C_u = C_u_list[eps_user_ids[0]]
+        accountant_dct[eps_u].step(
+            noise_multiplier=local_sigma / C_u,
+            sample_rate=q_u,
+        )
+
+
+def consume_dp_for_stepped_model_optimization(
+    stepped_q_u_list,
+    epsilon_groups,
+    stepped_C_u_list_for_optimization,
+    local_sigma,
+    accountant_dct,
+):
+    # (Consume privacy) Update local accountants for model aggregation for each user groups
+    for eps_u, eps_user_ids in epsilon_groups.items():
+        q_u = stepped_q_u_list[eps_user_ids[0]]
+        C_u = stepped_C_u_list_for_optimization[eps_user_ids[0]]
+        accountant_dct[eps_u].step(
+            noise_multiplier=local_sigma / C_u,
+            sample_rate=q_u,
+        )

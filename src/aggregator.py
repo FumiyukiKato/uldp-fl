@@ -20,8 +20,8 @@ from method_group import (
     METHOD_GROUP_WITHIN_SILO_DP_ACCOUNTING,
     METHOD_NO_DP_ACCOUNTING,
     METHOD_GROUP_ONLINE_OPTIMIZATION,
-    METHOD_PULDP_AVG_ONLINE,
-    METHOD_PULDP_AVG_ONLINE_TRAIN,
+    METHOD_PULDP_QC_TEST,
+    METHOD_PULDP_QC_TRAIN,
     METHOD_SILO_LEVEL_DP,
     METHOD_ULDP_NAIVE,
 )
@@ -89,7 +89,7 @@ class Aggregator:
         self.latest_eps = 0.0
         self.results = {"privacy_budget": [], "global_test": [], "local_model_test": []}
 
-        if self.strategy == METHOD_PULDP_AVG_ONLINE:
+        if self.strategy == METHOD_PULDP_QC_TEST:
             assert (
                 validation_ratio > 0.0
             ), "Please set validation_ratio > 0 for Test Loss-based online."
@@ -178,7 +178,7 @@ class Aggregator:
         self.flag_client_model_uploaded_dict[silo_id] = True
         self.latest_eps = max(self.latest_eps, eps)
 
-    def add_local_trained_result_with_online_optimization(
+    def add_local_trained_result_of_QCTrain(
         self,
         silo_id,
         model_params,
@@ -186,16 +186,16 @@ class Aggregator:
         local_diff_dct: Dict[float, float],
     ):
         """
-        For online HP Optimization, we need to store the local loss diff for each eps groups.
+        For QCTrain HPO, we need to store the local loss diff for each eps groups.
         """
         self.add_local_trained_result(silo_id, model_params, eps)
         for eps_u, local_diff in local_diff_dct.items():
             self.model_dict_for_optimization[silo_id][eps_u] = local_diff
 
-    def add_local_trained_result_with_static_optimization(
+    def add_local_trained_result_of_QCTest(
         self, silo_id, model_params_dct: Dict[Union[float, str], OrderedDict], eps
     ):
-        """For static HP Optimization, we need to store the local trained models for each eps groups."""
+        """For QCTest HPO, we need to store the local trained models for each eps groups."""
         for eps_u, model_params in model_params_dct.items():
             if eps_u == "default":  # DEFAULT_NAME in local_trainer.py
                 model_params = model_params_to_device(model_params, self.device)
@@ -527,7 +527,8 @@ class Aggregator:
         """
         diff_dct = {}
 
-        if self.strategy == METHOD_PULDP_AVG_ONLINE_TRAIN:
+        # When QCTrain, we need to compute the difference of DP-train loss sent from silos for each epsilon group
+        if self.strategy == METHOD_PULDP_QC_TRAIN:
             for local_loss_diff_dct in self.model_dict_for_optimization.values():
                 for eps_u, local_loss_diff in local_loss_diff_dct.items():
                     if eps_u not in diff_dct:
@@ -535,6 +536,7 @@ class Aggregator:
                     diff_dct[eps_u] += local_loss_diff
             return diff_dct
 
+        # When QCTest, we need to compute the difference of test loss with test dataset for each epsilon group
         original_model = copy.deepcopy(self.model)
         for eps_u, eps_user_ids in self.epsilon_groups.items():
             raw_client_model_or_grad_list = []
@@ -587,13 +589,14 @@ class Aggregator:
     ):
         # train_loss_metric is approximated metric instead of the real train loss
         # it needs to be bounded by 1
+        # for example, user level accuracy
         for eps_u, eps_user_ids in self.epsilon_groups.items():
             q_u = q_u_list[eps_user_ids[0]]
             stepped_q_u = stepped_q_u_list[eps_user_ids[0]]
             (
                 noise_multiplier,
                 _,
-            ) = noise_utils.get_noise_multiplier_with_history(
+            ) = noise_utils.get_noise_multiplier_with_history(  # it should be the same as client side noise multiplier
                 q_u,
                 self.delta,
                 epsilon_u=eps_u,
@@ -627,6 +630,18 @@ class Aggregator:
             C_u = C_u_list[eps_user_ids[0]]
             self.accountant_dct[eps_u].step(
                 noise_multiplier=self.sigma / C_u,
+                sample_rate=q_u,
+            )
+
+    def consume_dp_for_stepped_model_optimization(
+        self, stepped_q_u_list, stepped_C_u_list
+    ):
+        # (Consume privacy) Update local accountants for model aggregation for each user groups
+        for eps_u, eps_user_ids in self.epsilon_groups.items():
+            q_u = stepped_q_u_list[eps_user_ids[0]]
+            C_u = stepped_C_u_list[eps_user_ids[0]]
+            self.accountant_dct[eps_u].step(
+                noise_multiplier=self.local_sigma / C_u,
                 sample_rate=q_u,
             )
 

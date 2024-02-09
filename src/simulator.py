@@ -14,8 +14,8 @@ from method_group import (
     METHOD_GROUP_ONLINE_OPTIMIZATION,
     METHOD_GROUP_ULDP_GROUPS,
     METHOD_PULDP_AVG,
-    METHOD_PULDP_AVG_ONLINE,
-    METHOD_PULDP_AVG_ONLINE_TRAIN,
+    METHOD_PULDP_QC_TEST,
+    METHOD_PULDP_QC_TRAIN,
 )
 from coordinator import Coordinator
 from local_trainer import ClassificationTrainer
@@ -144,7 +144,7 @@ class FLSimulator:
             else:
                 self.momentum_weight = momentum_weight
             self.aggregator.set_epsilon_groups(self.coordinator.epsilon_groups)
-        if self.agg_strategy == METHOD_PULDP_AVG_ONLINE:
+        if self.agg_strategy == METHOD_PULDP_QC_TEST:
             if validation_ratio <= 0.0:
                 raise ValueError(
                     "validation ratio must be greater than 0.0 for online optimization with Test Loss"
@@ -180,6 +180,7 @@ class FLSimulator:
                 dataset_name=dataset_name,
                 C_u=C_u,
                 n_total_round=n_total_round,
+                hp_baseline=hp_baseline,
             )
             self.local_trainer_per_silos[silo_id] = local_trainer
             if self.agg_strategy in METHOD_GROUP_NEED_USER_RECORD:
@@ -352,34 +353,48 @@ class FLSimulator:
                             getattr(self, "off_train_loss_noise", None),
                             getattr(local_trainer, "accountant_dct", None),
                             self.n_total_round,
+                            self.hp_baseline,
                         )
                     )
                 else:
-                    if self.agg_strategy == METHOD_PULDP_AVG_ONLINE:
+                    if self.agg_strategy == METHOD_PULDP_QC_TEST:
                         local_updated_weights_dct = local_trainer.train(
                             self.round_idx,
                             loss_callback=build_loss_callback(),
                         )
-                        self.aggregator.add_local_trained_result_with_static_optimization(
+                        local_trainer.consume_dp_for_model_optimization(
+                            self.coordinator.q_u_list
+                        )
+                        local_trainer.consume_dp_for_model_optimization(
+                            self.coordinator.q_u_list
+                        )
+                        local_trainer.consume_dp_for_stepped_model_optimization(
+                            self.coordinator.stepped_q_u_list
+                        )
+                        self.aggregator.add_local_trained_result_of_QCTest(
                             silo_id,
                             local_updated_weights_dct,
                             local_trainer.get_latest_epsilon(),
                         )
-                    elif self.agg_strategy == METHOD_PULDP_AVG_ONLINE_TRAIN:
+                    elif self.agg_strategy == METHOD_PULDP_QC_TRAIN:
                         local_updated_weights_dct = local_trainer.train(
                             self.round_idx,
                             loss_callback=build_loss_callback(),
                         )
-                        local_loss_diff_dct = (
-                            local_trainer.train_loss_for_online_optimization(
+                        local_trainer.consume_dp_for_model_optimization(
+                            q_u_list=self.coordinator.q_u_list
+                        )
+                        if local_trainer.hp_baseline:
+                            local_loss_diff_dct = {}
+                        else:
+                            local_loss_diff_dct = local_trainer.compute_train_loss_for_online_optimization_and_consume_dp_for_train_loss_metric(
                                 self.round_idx,
                                 self.coordinator.q_u_list,
                                 self.coordinator.stepped_q_u_list,
                                 local_updated_weights_dct,
                                 off_train_loss_noise=self.off_train_loss_noise,
                             )
-                        )
-                        self.aggregator.add_local_trained_result_with_online_optimization(
+                        self.aggregator.add_local_trained_result_of_QCTrain(
                             silo_id,
                             local_updated_weights_dct["default"],
                             local_trainer.get_latest_epsilon(),
@@ -402,16 +417,16 @@ class FLSimulator:
 
                 while received_results < expected_results:
                     silo_id, random_state, accountant_dct, result = output_queue.get()
-                    if self.agg_strategy == METHOD_PULDP_AVG_ONLINE:
+                    if self.agg_strategy == METHOD_PULDP_QC_TEST:
                         local_updated_weights_dct = result
-                        self.aggregator.add_local_trained_result_with_static_optimization(
+                        self.aggregator.add_local_trained_result_of_QCTest(
                             silo_id,
                             local_updated_weights_dct,
                             0.0,
                         )
-                    elif self.agg_strategy == METHOD_PULDP_AVG_ONLINE_TRAIN:
+                    elif self.agg_strategy == METHOD_PULDP_QC_TRAIN:
                         local_updated_weights_dct, local_loss_diff_dct = result
-                        self.aggregator.add_local_trained_result_with_online_optimization(
+                        self.aggregator.add_local_trained_result_of_QCTrain(
                             silo_id,
                             local_updated_weights_dct["default"],
                             0.0,
@@ -434,25 +449,45 @@ class FLSimulator:
                 "============ AGGREGATION: ROUND %d ============" % (self.round_idx)
             )
             self.aggregator.aggregate(silo_id_list_in_this_round, self.round_idx)
-            test_acc, test_loss = self.aggregator.test_global(self.round_idx)
+            self.aggregator.test_global(self.round_idx)
+
             if self.validation_ratio > 0.0:
                 self.aggregator.test_global(self.round_idx, is_validation=True)
-            if self.agg_strategy in METHOD_GROUP_ONLINE_OPTIMIZATION:
+
+            if self.agg_strategy == METHOD_GROUP_ONLINE_OPTIMIZATION:
                 self.aggregator.consume_dp_for_model_optimization(
                     q_u_list=self.coordinator.q_u_list,
                     C_u_list=self.coordinator.C_u_list,
                 )
-                loss_diff_dct = self.aggregator.compute_loss_diff(
-                    silo_id_list_in_this_round,
-                    q_u_list=self.coordinator.q_u_list,
-                    stepped_q_u_list=self.coordinator.stepped_q_u_list,
-                )
+                if self.agg_strategy == METHOD_PULDP_QC_TEST:
+                    self.aggregator.consume_dp_for_model_optimization(
+                        self.coordinator.q_u_list, self.coordinator.C_u_list
+                    )
+                    self.aggregator.consume_dp_for_stepped_model_optimization(
+                        self.coordinator.stepped_q_u_list,
+                        self.coordinator.stepped_C_u_list,
+                    )
+                    loss_diff_dct = self.aggregator.compute_loss_diff(
+                        silo_id_list_in_this_round,
+                        q_u_list=self.coordinator.q_u_list,
+                        stepped_q_u_list=self.coordinator.stepped_q_u_list,
+                    )
+                elif self.agg_strategy == METHOD_PULDP_QC_TRAIN:
+                    if self.hp_baseline:
+                        loss_diff_dct = {}
+                    else:
+                        self.aggregator.consume_dp_for_train_loss_metric(
+                            q_u_list=self.coordinator.q_u_list,
+                            stepped_q_u_list=self.coordinator.stepped_q_u_list,
+                            round_idx=self.round_idx,
+                        )
+                        loss_diff_dct = self.aggregator.compute_loss_diff(
+                            silo_id_list_in_this_round,
+                            q_u_list=self.coordinator.q_u_list,
+                            stepped_q_u_list=self.coordinator.stepped_q_u_list,
+                        )
+
                 self.aggregator.results["local_loss_diff"].append(loss_diff_dct)
-                self.aggregator.consume_dp_for_train_loss_metric(
-                    q_u_list=self.coordinator.q_u_list,
-                    stepped_q_u_list=self.coordinator.stepped_q_u_list,
-                    round_idx=self.round_idx,
-                )
                 self.coordinator.online_optimize(
                     loss_diff_dct,
                     with_momentum=self.with_momentum,
@@ -519,7 +554,7 @@ class FLSimulator:
             self.aggregator.results["train_loss"] = np.mean(final_loss)
             self.aggregator.results["train_metric"] = np.mean(final_metric)
 
-        if self.agg_strategy == METHOD_PULDP_AVG_ONLINE_TRAIN:
+        if self.agg_strategy in METHOD_GROUP_ONLINE_OPTIMIZATION:
             self.aggregator.results["final_eps"] = {}
             for eps_u, eps_u_list in self.coordinator.epsilon_groups.items():
                 final_eps = self.aggregator.accountant_dct[eps_u].get_epsilon(
@@ -550,7 +585,7 @@ class FLSimulator:
         if self.agg_strategy in METHOD_GROUP_ONLINE_OPTIMIZATION:
             results["param_history"] = self.coordinator.param_history
             results["loss_history"] = self.coordinator.loss_history
-            if self.agg_strategy == METHOD_PULDP_AVG_ONLINE_TRAIN:
+            if self.agg_strategy == METHOD_PULDP_QC_TRAIN:
                 results["final_eps"] = self.aggregator.results["final_eps"]
 
         return results

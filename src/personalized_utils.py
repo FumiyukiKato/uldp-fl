@@ -287,15 +287,32 @@ def make_q_c_curve(epsilon_u, delta, sigma, n_total_round=100, num_points=20, mi
 
 
 # plotting qC curve
-def plot_q_c_curve(x, y, title="", img_name="", log=True):
+def plot_q_c_curve(x, y, title="", img_name="", log=True, is_qC=False):
     fig = plt.figure(figsize=(8, 4))
     ax = fig.add_subplot(111)
-    ax.plot(x, y, marker="o", label="sensitivity_u")
+    ax.plot(x, y, marker="o", label=r"$C_u$")
+    if is_qC:
+        ax2 = ax.twinx()
+        ax2.plot(
+            x,
+            np.array(x) * np.array(y),
+            marker="x",
+            linestyle="--",
+            color="red",
+            label=r"$q_u \times C_u$",
+        )
+        ax2.set_yscale("log")
+        ax2.set_ylabel(r"$q_u \times C_u$", fontsize=20)
+        ax2.legend(loc="upper right", fontsize=16)
     ax.set_xlabel(r"$q_u$", fontsize=20)
     ax.set_ylabel(r"$C_u$", fontsize=20)
+    ax.legend(loc="upper left", fontsize=16)
     ax.tick_params(axis="both", labelsize=20)
     ax.set_title(title, fontsize=24)
-    save_figure("q_c_pair-example" + img_name, fig)
+    if is_qC:
+        save_figure("q_c_pair-example-qc" + img_name, fig)
+    else:
+        save_figure("q_c_pair-example" + img_name, fig)
     plt.grid(True, linestyle="--")
     plt.show()
 
@@ -454,6 +471,7 @@ def static_optimization(
         + f"{static_q_u_list}_",
         suffix=".pkl",
     )
+    print(results_file_name)
 
     if not force_update and check_results_file_already_exist(results_file_name):
         print("Skip: File already exists.")
@@ -651,9 +669,10 @@ def show_static_optimization_result(
                 label_with_max_point.append((label, max_point))
 
             plt.figure(figsize=(6, 4))
+            TOP_N = 20
             label_with_max_point_top_20 = sorted(
                 label_with_max_point, key=lambda item: item[1][1], reverse=True
-            )[:20]
+            )[:TOP_N]
             for label, max_point in label_with_max_point_top_20:
                 plt.scatter(max_point[0], max_point[1], color="red", s=60)
                 max_points_count[max_point[0]] = (
