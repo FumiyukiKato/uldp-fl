@@ -641,7 +641,7 @@ class Aggregator:
             q_u = stepped_q_u_list[eps_user_ids[0]]
             C_u = stepped_C_u_list[eps_user_ids[0]]
             self.accountant_dct[eps_u].step(
-                noise_multiplier=self.local_sigma / C_u,
+                noise_multiplier=self.sigma / C_u,
                 sample_rate=q_u,
             )
 

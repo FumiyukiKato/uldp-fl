@@ -48,16 +48,17 @@ class Coordinator:
         self.ready_silos = set()
         self.original_user_hist_dct = {silo_id: {} for silo_id in range(n_silos)}
         self.q_u = q_u
+        self.hp_baseline = hp_baseline
 
         if self.agg_strategy in METHOD_GROUP_ONLINE_OPTIMIZATION:
             assert (
                 q_step_size is not None and delta is not None and sigma is not None
-            ), "q_step_size, delta, sigma must be given for PULDP-AVG-xxx"
+            ), "q_step_size, delta, sigma must be given for Online optimization"
             self.q_step_size = q_step_size
             self.delta, self.sigma, self.n_total_round = delta, sigma, n_total_round
             self.step_decay = step_decay
 
-            if hp_baseline:
+            if self.hp_baseline:
                 # To total eps (model optimization and HP optimization) is upper bounded
                 self.n_release = self.n_total_round
             else:
@@ -238,20 +239,27 @@ class Coordinator:
         )
         for eps_u, user_ids_per_eps in self.epsilon_groups.items():
             q_u, C_u = self.hp_dct_by_eps[eps_u]
-            stepped_q_u, stepped_C_u = compute_stepped_qC(
-                step_size=q_step_size,
-                q_u=q_u,
-                delta=self.delta,
-                eps_u=eps_u,
-                sigma=self.sigma,
-                total_round=self.n_release,
-                current_round=round_idx,
-                current_accountant=accountant_dct[eps_u],
-            )
             self.q_u_list[user_ids_per_eps] = q_u
             self.C_u_list[user_ids_per_eps] = C_u
-            self.stepped_q_u_list[user_ids_per_eps] = stepped_q_u
-            self.stepped_C_u_list[user_ids_per_eps] = stepped_C_u
+
+            if self.hp_baseline is None:
+                accountant = copy.deepcopy(accountant_dct[eps_u])
+                # consume DP for 2 times publish to accurately calculate the next q_u which is not over the given epsilon constraint
+                accountant.step(noise_multiplier=self.sigma / C_u, sample_rate=q_u)
+                accountant.step(noise_multiplier=self.sigma / C_u, sample_rate=q_u)
+                stepped_q_u, stepped_C_u = compute_stepped_qC(
+                    step_size=q_step_size,
+                    q_u=q_u,
+                    delta=self.delta,
+                    eps_u=eps_u,
+                    sigma=self.sigma,
+                    total_round=self.n_release,
+                    current_round=round_idx * 3
+                    + 2,  # 3 times per round + original q_u of this round
+                    current_accountant=accountant,
+                )
+                self.stepped_q_u_list[user_ids_per_eps] = stepped_q_u
+                self.stepped_C_u_list[user_ids_per_eps] = stepped_C_u
 
         sampled_user_ids = user_ids[
             self.random_state.rand(len(self.q_u_list)) < self.q_u_list
@@ -362,7 +370,6 @@ class Coordinator:
         loss_diff_dct: Dict[float, float],
         with_momentum: bool = False,
         beta: float = 0.8,
-        hp_baseline: Optional[str] = None,
         round_idx: Optional[int] = None,
         accountant_dct: Optional[Dict[float, RDPAccountant]] = None,
     ):
@@ -370,8 +377,8 @@ class Coordinator:
             self.q_step_size, round_idx, self.n_total_round, step_decay=self.step_decay
         )
         for eps_u, eps_user_ids in self.epsilon_groups.items():
-            if hp_baseline is None or hp_baseline == "random-updown":
-                if hp_baseline is None:
+            if self.hp_baseline is None or self.hp_baseline == "random-updown":
+                if self.hp_baseline is None:
                     loss_diff = loss_diff_dct[
                         eps_u
                     ]  # diff = stepped_test_loss - test_loss
@@ -389,7 +396,7 @@ class Coordinator:
                         logger.info(
                             f"eps_u: {eps_u}, original loss_diff: {org_diff}, (self.momentum[eps_u]: {self.momentum[eps_u]})"
                         )
-                elif hp_baseline == "random-updown":
+                elif self.hp_baseline == "random-updown":
                     loss_diff = self.random_state.uniform(-1, 1)
                     org_diff = loss_diff
 
@@ -401,7 +408,13 @@ class Coordinator:
                     q_u = q_u / q_step_size
                     q_u = min(q_u, 1.0)
 
-            elif hp_baseline == "random":
+            elif self.hp_baseline == "random":
+                # Randomly select q_u between 1.0 and 1/n, so that it is evenly selected in the log scale
+                random_value = self.random_state.uniform(1.0 / len(eps_user_ids), 1.0)
+                q_u = random_value
+                loss_diff = random_value
+                org_diff = random_value
+            elif self.hp_baseline == "random-log":
                 # Randomly select q_u between 1.0 and 1/n, so that it is evenly selected in the log scale
                 log_min = np.log10(1.0 / len(eps_user_ids))
                 log_max = np.log10(1.0)
@@ -410,13 +423,13 @@ class Coordinator:
                 loss_diff = random_log_value
                 org_diff = random_log_value
             else:
-                raise ValueError(f"hp_baseline {hp_baseline} is not supported.")
+                raise ValueError(f"hp_baseline {self.hp_baseline} is not supported.")
 
             # Next (q_u, C_u)
-            if hp_baseline:
-                current_round = round_idx
+            if self.hp_baseline:
+                current_round = round_idx + 1
             else:
-                current_round = round_idx * 3
+                current_round = (round_idx + 1) * 3
             C_u, _ = noise_utils.from_q_u_with_history(
                 q_u,
                 self.delta,

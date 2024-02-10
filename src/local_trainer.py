@@ -175,7 +175,7 @@ class ClassificationTrainer:
 
     def set_epsilon_groups(self, epsilon_groups: Dict[int, float]):
         self.epsilon_groups = epsilon_groups
-        if self.agg_strategy == METHOD_PULDP_QC_TRAIN:
+        if self.agg_strategy in METHOD_GROUP_ONLINE_OPTIMIZATION:
             self.accountant_dct: Dict[RDPAccountant] = {}
             for eps_u, _ in self.epsilon_groups.items():
                 self.accountant_dct[eps_u] = RDPAccountant()

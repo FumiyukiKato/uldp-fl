@@ -12,7 +12,6 @@ silo_dist: "uniform"
 user_alpha: 0.3
 silo_alpha: 1.5
 n_labels: 1
-typical_scenario: null
 n_silo_per_round: 5
 n_total_round: 10
 local_epochs: 10

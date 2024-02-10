@@ -471,7 +471,6 @@ def static_optimization(
         + f"{static_q_u_list}_",
         suffix=".pkl",
     )
-    print(results_file_name)
 
     if not force_update and check_results_file_already_exist(results_file_name):
         print("Skip: File already exists.")

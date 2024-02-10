@@ -492,7 +492,7 @@ def parallelized_train(
         noisy_avg_weights_diff_dct = {DEFAULT_NAME: default_noisy_avg_weights_diff}
 
         if hp_baseline:
-            return noisy_avg_weights_diff_dct
+            return noisy_avg_weights_diff_dct, {}
 
         # For finite difference method, compute delta(q_u_i, C_u_i)
         for eps_u in epsilon_groups.keys():
@@ -618,9 +618,9 @@ def parallelized_train(
             accountant_dct=accountant_dct,
         )
         consume_dp_for_stepped_model_optimization(
-            q_u_list=stepped_q_u_list,
+            stepped_q_u_list=stepped_q_u_list,
             epsilon_groups=epsilon_groups,
-            C_u_list=stepped_C_u_list_for_optimization,
+            stepped_C_u_list_for_optimization=stepped_C_u_list_for_optimization,
             local_sigma=local_sigma,
             accountant_dct=accountant_dct,
         )

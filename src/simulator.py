@@ -104,6 +104,7 @@ class FLSimulator:
             q_step_size=q_step_size,
             step_decay=step_decay,
             initial_q_u=initial_q_u,
+            hp_baseline=hp_baseline,
         )
 
         self.aggregator = Aggregator(
@@ -139,10 +140,7 @@ class FLSimulator:
         if self.agg_strategy in METHOD_GROUP_ONLINE_OPTIMIZATION:
             self.with_momentum = with_momentum
             self.off_train_loss_noise = off_train_loss_noise
-            if momentum_weight is None:
-                self.momentum_weight = q_step_size
-            else:
-                self.momentum_weight = momentum_weight
+            self.momentum_weight = momentum_weight
             self.aggregator.set_epsilon_groups(self.coordinator.epsilon_groups)
         if self.agg_strategy == METHOD_PULDP_QC_TEST:
             if validation_ratio <= 0.0:
@@ -454,7 +452,7 @@ class FLSimulator:
             if self.validation_ratio > 0.0:
                 self.aggregator.test_global(self.round_idx, is_validation=True)
 
-            if self.agg_strategy == METHOD_GROUP_ONLINE_OPTIMIZATION:
+            if self.agg_strategy in METHOD_GROUP_ONLINE_OPTIMIZATION:
                 self.aggregator.consume_dp_for_model_optimization(
                     q_u_list=self.coordinator.q_u_list,
                     C_u_list=self.coordinator.C_u_list,
@@ -488,15 +486,18 @@ class FLSimulator:
                         )
 
                 self.aggregator.results["local_loss_diff"].append(loss_diff_dct)
-                self.coordinator.online_optimize(
-                    loss_diff_dct,
-                    with_momentum=self.with_momentum,
-                    beta=self.momentum_weight,
-                    hp_baseline=self.hp_baseline,
-                    round_idx=self.round_idx,
-                    accountant_dct=self.aggregator.accountant_dct,
-                )
-                logger.info(f"Next HP: (Q_u, C_u) = {self.coordinator.hp_dct_by_eps}")
+                # until last round
+                if self.round_idx + 1 < self.n_total_round:
+                    self.coordinator.online_optimize(
+                        loss_diff_dct,
+                        with_momentum=self.with_momentum,
+                        beta=self.momentum_weight,
+                        round_idx=self.round_idx,
+                        accountant_dct=self.aggregator.accountant_dct,
+                    )
+                    logger.info(
+                        f"Next HP: (Q_u, C_u) = {self.coordinator.hp_dct_by_eps}"
+                    )
 
             logger.info(
                 "\n\n========== end {}-th round training ===========\n".format(
@@ -560,6 +561,9 @@ class FLSimulator:
                 final_eps = self.aggregator.accountant_dct[eps_u].get_epsilon(
                     delta=self.aggregator.delta
                 )
+                assert (
+                    final_eps <= eps_u
+                ), f"Final epsilon {final_eps} must be less than eps_u"
                 logger.info(
                     f"Final epsilon for {eps_u} is {final_eps} (including eps_u)"
                 )
@@ -585,8 +589,7 @@ class FLSimulator:
         if self.agg_strategy in METHOD_GROUP_ONLINE_OPTIMIZATION:
             results["param_history"] = self.coordinator.param_history
             results["loss_history"] = self.coordinator.loss_history
-            if self.agg_strategy == METHOD_PULDP_QC_TRAIN:
-                results["final_eps"] = self.aggregator.results["final_eps"]
+            results["final_eps"] = self.aggregator.results["final_eps"]
 
         return results
 

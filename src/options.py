@@ -45,7 +45,6 @@ def args_parser(path_project: str) -> argparse.Namespace:
     parser.add_argument("--user_alpha", type=float, help="zipf's parameter for users distribution")
     parser.add_argument("--silo_alpha", type=float, help="zipf's parameter for silos distribution")
     parser.add_argument("--n_labels", type=int, help="number of distinct labels for each user")
-    parser.add_argument("--typical_scenario", type=int, help="typical scenario")
 
     parser.add_argument("--n_silo_per_round", type=int, help="the silos per round")
     parser.add_argument("--n_total_round", type=int, help="The number of total rounds")
