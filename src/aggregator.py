@@ -521,6 +521,8 @@ class Aggregator:
         silo_id_list_in_this_round=None,
         q_u_list=None,
         stepped_q_u_list=None,
+        C_u_list=None,
+        stepped_C_u_list=None,
     ) -> Dict[float, float]:
         """Compute the loss difference for each epsilon group to
         approximately perform Finite Difference Method for HP optimization.
@@ -544,11 +546,12 @@ class Aggregator:
                 raw_client_model_or_grad_list.append(
                     self.model_dict_for_optimization[silo_id][eps_u][0]
                 )
-            q_list = q_u_list[eps_user_ids]
-            sampling_rate_q = np.mean(q_list)
+            # average_qC = np.mean(C_u_list[eps_user_ids] * q_u_list[eps_user_ids])
+            sampling_rate_q = np.mean(q_u_list[eps_user_ids])
             averaged_param_diff = noise_utils.torch_aggregation(
                 raw_client_model_or_grad_list,
-                int(len(eps_user_ids) * self.n_silo_per_round * sampling_rate_q),
+                # len(eps_user_ids) * self.n_silo_per_round * average_qC,
+                len(eps_user_ids) * self.n_silo_per_round * sampling_rate_q,
             )
             self.update_global_weights_from_diff(
                 averaged_param_diff, self.global_learning_rate
@@ -562,11 +565,14 @@ class Aggregator:
                 raw_client_model_or_grad_list.append(
                     self.model_dict_for_optimization[silo_id][eps_u][1]
                 )
-            q_list = stepped_q_u_list[eps_user_ids]
-            sampling_rate_q = np.mean(q_list)
+            # stepped_average_qC = np.mean(
+            #     stepped_C_u_list[eps_user_ids] * stepped_q_u_list[eps_user_ids]
+            # )
+            stepped_sampling_rate_q = np.mean(stepped_q_u_list[eps_user_ids])
             averaged_param_diff = noise_utils.torch_aggregation(
                 raw_client_model_or_grad_list,
-                int(len(eps_user_ids) * self.n_silo_per_round * sampling_rate_q),
+                # len(eps_user_ids) * self.n_silo_per_round * stepped_average_qC,
+                len(eps_user_ids) * self.n_silo_per_round * stepped_sampling_rate_q,
             )
             self.update_global_weights_from_diff(
                 averaged_param_diff, self.global_learning_rate
@@ -577,6 +583,7 @@ class Aggregator:
             diff = stepped_test_loss - original_test_loss
             diff_dct[eps_u] = diff
             logger.info("eps_u = {}, diff = {}".format(eps_u, diff))
+            # print("eps_u = {}, diff = {}".format(eps_u, diff))
 
         self.model = original_model
         return diff_dct

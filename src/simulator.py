@@ -469,6 +469,8 @@ class FLSimulator:
                         silo_id_list_in_this_round,
                         q_u_list=self.coordinator.q_u_list,
                         stepped_q_u_list=self.coordinator.stepped_q_u_list,
+                        C_u_list=self.coordinator.C_u_list,
+                        stepped_C_u_list=self.coordinator.stepped_C_u_list,
                     )
                 elif self.agg_strategy == METHOD_PULDP_QC_TRAIN:
                     if self.hp_baseline:

@@ -247,8 +247,10 @@ class Coordinator:
                 # consume DP for 2 times publish to accurately calculate the next q_u which is not over the given epsilon constraint
                 accountant.step(noise_multiplier=self.sigma / C_u, sample_rate=q_u)
                 accountant.step(noise_multiplier=self.sigma / C_u, sample_rate=q_u)
+                step_size = q_step_size
+                # step_size = 0.8
                 stepped_q_u, stepped_C_u = compute_stepped_qC(
-                    step_size=q_step_size,
+                    step_size=step_size,
                     q_u=q_u,
                     delta=self.delta,
                     eps_u=eps_u,

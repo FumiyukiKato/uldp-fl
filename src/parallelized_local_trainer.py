@@ -506,6 +506,7 @@ def parallelized_train(
                     model,
                     original_avg_weights_diff,
                     random_state,
+                    # 0.000000001,  # for exp without noise
                     local_sigma
                     / np.sqrt(
                         n_silo_per_round
@@ -519,6 +520,7 @@ def parallelized_train(
                     model,
                     stepped_avg_weights_diff,
                     random_state,
+                    # 0.000000001,
                     local_sigma
                     / np.sqrt(
                         n_silo_per_round
@@ -1066,7 +1068,7 @@ def dp_train_loss(
                 f"\t |----- Local Test/Acc: {train_metric} ({test_correct} / {n_total_data}), Local Test/Loss: {train_loss}"
             )
 
-        # the metric is bounded by C_u per user
+        # the metric is bounded by 1 per user
         user_level_shrunk_metric = train_metric * user_weights[user_id]
         loss_list.append(train_loss / n_total_data)
         metric_list.append(user_level_shrunk_metric)
@@ -1083,6 +1085,7 @@ def dp_train_loss(
     )
     noise = noise_utils.single_gaussian_noise(
         random_state=random_state,
+        # std_dev=0.0000000001, # for exp without noise
         std_dev=noise_multiplier / np.sqrt(n_silo_per_round),
         # sensitivity is same for all users in the same epsilon group, and add distributed noise here
     )

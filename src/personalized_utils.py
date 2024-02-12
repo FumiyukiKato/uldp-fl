@@ -119,6 +119,7 @@ class FLSimulationParameters:
         epsilon_list=None,
         ratio_list=None,
         group_thresholds=None,
+        version=None,
     ):
         self.seed = seed
         self.dataset_name = dataset_name
@@ -160,6 +161,8 @@ class FLSimulationParameters:
         self.ratio_list = ratio_list
         self.group_thresholds = group_thresholds
 
+        self.version = version
+
     def create_file_prefix(self, prefix="", middle="", suffix=""):
         exclude_keys = [
             "times",
@@ -173,6 +176,7 @@ class FLSimulationParameters:
             "dry_run",
             "secure_w",
             "idx_per_group",
+            "version",
         ]
 
         # 辞書から除外キーを除いたもので文字列を構築
@@ -185,6 +189,9 @@ class FLSimulationParameters:
         if self.epsilon_u is not None:
             epsilon_u_part = f"{list(self.epsilon_u.items())[:4]}"
             parts.append(epsilon_u_part)
+
+        if self.version is not None:
+            parts.append(f"version-{self.version}")
 
         key_strings = middle + "x".join(parts)
 
@@ -764,7 +771,10 @@ def show_static_optimization_result(
         # ]
         # pprint.pprint(sorted_param_set_list)
 
-    min_idx, min_test_loss = x[np.argmin(y)], np.min(y)
+    max_idx, max_metric = x[np.argmax(y_metric)], np.max(y_metric)
+    print("Max Metric:", max_metric, "at", max_idx)
+
+    min_idx, min_metric = x[np.argmin(y)], np.min(y)
 
     if train_loss:
         plt.figure(figsize=(8, 3))
@@ -862,7 +872,7 @@ def show_static_optimization_result(
         plt.grid(True, linestyle="--")
         plt.show()
 
-    return min_idx, min_test_loss
+    return min_idx, min_metric
 
 
 def run_with_specified_idx(
@@ -1025,7 +1035,7 @@ def show_online_optimization_result(
         # 各辞書からeps_uに対応するデータを集める
         all_data = np.array(
             [
-                dct["param_history"][eps_u][:-1]
+                dct["param_history"][eps_u]
                 for dct in result
                 if eps_u in dct["param_history"]
             ]
@@ -1120,7 +1130,7 @@ def show_online_optimization_result(
         means = np.mean(all_data, axis=0)
         y.extend([item[0] for item in means])
 
-    up = np.min([np.max(y), 10]) * 1.05
+    up = np.min([np.max(y), 100]) * 1.05
     bottom = -up * 1.05
 
     for eps_u in eps_u_values:
