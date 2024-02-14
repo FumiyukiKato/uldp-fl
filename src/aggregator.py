@@ -546,11 +546,9 @@ class Aggregator:
                 raw_client_model_or_grad_list.append(
                     self.model_dict_for_optimization[silo_id][eps_u][0]
                 )
-            # average_qC = np.mean(C_u_list[eps_user_ids] * q_u_list[eps_user_ids])
             sampling_rate_q = np.mean(q_u_list[eps_user_ids])
             averaged_param_diff = noise_utils.torch_aggregation(
                 raw_client_model_or_grad_list,
-                # len(eps_user_ids) * self.n_silo_per_round * average_qC,
                 len(eps_user_ids) * self.n_silo_per_round * sampling_rate_q,
             )
             self.update_global_weights_from_diff(
@@ -558,6 +556,8 @@ class Aggregator:
             )
             metrics = self._test(self.test_dataset, self.device, self.model)
             original_test_loss = metrics["test_loss"]
+            # if eps_u == 0.15:
+            #     print("original_test_loss", original_test_loss)
 
             self.model = copy.deepcopy(original_model)
             raw_client_model_or_grad_list = []
@@ -565,13 +565,9 @@ class Aggregator:
                 raw_client_model_or_grad_list.append(
                     self.model_dict_for_optimization[silo_id][eps_u][1]
                 )
-            # stepped_average_qC = np.mean(
-            #     stepped_C_u_list[eps_user_ids] * stepped_q_u_list[eps_user_ids]
-            # )
             stepped_sampling_rate_q = np.mean(stepped_q_u_list[eps_user_ids])
             averaged_param_diff = noise_utils.torch_aggregation(
                 raw_client_model_or_grad_list,
-                # len(eps_user_ids) * self.n_silo_per_round * stepped_average_qC,
                 len(eps_user_ids) * self.n_silo_per_round * stepped_sampling_rate_q,
             )
             self.update_global_weights_from_diff(
@@ -579,11 +575,14 @@ class Aggregator:
             )
             metrics = self._test(self.test_dataset, self.device, self.model)
             stepped_test_loss = metrics["test_loss"]
+            # if eps_u == 0.15:
+            #     print("stepped_test_loss", stepped_test_loss)
 
             diff = stepped_test_loss - original_test_loss
             diff_dct[eps_u] = diff
             logger.info("eps_u = {}, diff = {}".format(eps_u, diff))
-            # print("eps_u = {}, diff = {}".format(eps_u, diff))
+            # if eps_u == 0.15:
+            #     print("eps_u = {}, diff = {}".format(eps_u, diff))
 
         self.model = original_model
         return diff_dct

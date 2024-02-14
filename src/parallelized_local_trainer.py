@@ -506,7 +506,7 @@ def parallelized_train(
                     model,
                     original_avg_weights_diff,
                     random_state,
-                    # 0.000000001,  # for exp without noise
+                    # 0.00001,  # for exp without noise
                     local_sigma
                     / np.sqrt(
                         n_silo_per_round
@@ -520,7 +520,7 @@ def parallelized_train(
                     model,
                     stepped_avg_weights_diff,
                     random_state,
-                    # 0.000000001,
+                    # 0.00001,  # for exp without noise
                     local_sigma
                     / np.sqrt(
                         n_silo_per_round

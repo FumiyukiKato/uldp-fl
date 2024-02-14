@@ -446,11 +446,6 @@ class FLSimulator:
             logger.debug(
                 "============ AGGREGATION: ROUND %d ============" % (self.round_idx)
             )
-            self.aggregator.aggregate(silo_id_list_in_this_round, self.round_idx)
-            self.aggregator.test_global(self.round_idx)
-
-            if self.validation_ratio > 0.0:
-                self.aggregator.test_global(self.round_idx, is_validation=True)
 
             if self.agg_strategy in METHOD_GROUP_ONLINE_OPTIMIZATION:
                 self.aggregator.consume_dp_for_model_optimization(
@@ -500,6 +495,12 @@ class FLSimulator:
                     logger.info(
                         f"Next HP: (Q_u, C_u) = {self.coordinator.hp_dct_by_eps}"
                     )
+
+            self.aggregator.aggregate(silo_id_list_in_this_round, self.round_idx)
+            self.aggregator.test_global(self.round_idx)
+
+            if self.validation_ratio > 0.0:
+                self.aggregator.test_global(self.round_idx, is_validation=True)
 
             logger.info(
                 "\n\n========== end {}-th round training ===========\n".format(

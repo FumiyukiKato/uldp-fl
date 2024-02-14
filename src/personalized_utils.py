@@ -316,11 +316,11 @@ def plot_q_c_curve(x, y, title="", img_name="", log=True, is_qC=False):
     ax.legend(loc="upper left", fontsize=16)
     ax.tick_params(axis="both", labelsize=20)
     ax.set_title(title, fontsize=24)
+    plt.grid(True, linestyle="--")
     if is_qC:
         save_figure("q_c_pair-example-qc" + img_name, fig)
     else:
         save_figure("q_c_pair-example" + img_name, fig)
-    plt.grid(True, linestyle="--")
     plt.show()
 
 
@@ -478,6 +478,7 @@ def static_optimization(
         + f"{static_q_u_list}_",
         suffix=".pkl",
     )
+    print(results_file_name)
 
     if not force_update and check_results_file_already_exist(results_file_name):
         print("Skip: File already exists.")
@@ -503,6 +504,7 @@ def show_static_optimization_result(
     errorbar=False,
     img_name="",
     is_3d=False,
+    outlier=None,
 ):
     results_file_name = fed_sim_params.create_file_prefix(
         prefix="static_optimization_",
@@ -514,6 +516,8 @@ def show_static_optimization_result(
         results_dict = pickle.load(file)
 
     x = list(results_dict.keys())
+    if outlier is not None:
+        x = x[:outlier]
     q_u_list = [results_dict[i][0][0] for i in x]
     C_u_list = [results_dict[i][1][0] for i in x]
     acc_mean_acc_std_loss_mean_loss_std = [
@@ -956,9 +960,11 @@ def show_specified_idx_result(
 
     x = range(len(loss_means))
     if errorbar:
-        ax_loss.errorbar(x, loss_means, yerr=loss_stds, label=f"{label}", alpha=0.8)
+        ax_loss.errorbar(
+            x, loss_means, yerr=loss_stds, label=f"{label}", alpha=0.8, color="red"
+        )
     else:
-        ax_loss.plot(x, loss_means, label=f"{label}", alpha=0.8)
+        ax_loss.plot(x, loss_means, label=f"{label}", alpha=0.8, color="red")
 
     last_x = x[-1]
     last_loss_mean = loss_means[-1]
@@ -1096,6 +1102,8 @@ def show_online_optimization_result(
         acc_stds.append(np.std(accs_at_position))
 
     ax2 = ax1.twinx()
+    if len(x) == len(loss_means) + 1:
+        x = x[:-1]
     if errorbar:
         ax2.errorbar(
             x, loss_means, yerr=loss_stds, label="Test Loss", color="red", alpha=1.0
@@ -1116,93 +1124,94 @@ def show_online_optimization_result(
     save_figure("online_optimization_result-" + img_name)
     plt.show()
 
-    _, ax_train_loss = plt.subplots(figsize=(9, 6))
-    y = []
-    for eps_u in eps_u_values:
-        # 各辞書からeps_uに対応するデータを集める
-        all_data = np.array(
-            [
-                dct["loss_history"][eps_u][:-1]
-                for dct in result
-                if eps_u in dct["loss_history"]
-            ]
+    if fed_sim_params.hp_baseline not in ["random", "random-log"]:
+        _, ax_train_loss = plt.subplots(figsize=(9, 6))
+        y = []
+        for eps_u in eps_u_values:
+            # 各辞書からeps_uに対応するデータを集める
+            all_data = np.array(
+                [
+                    dct["loss_history"][eps_u][:-1]
+                    for dct in result
+                    if eps_u in dct["loss_history"]
+                ]
+            )
+            means = np.mean(all_data, axis=0)
+            y.extend([item[0] for item in means])
+
+        up = np.min([np.max(y), 100]) * 1.05
+        bottom = -up * 1.05
+
+        for eps_u in eps_u_values:
+            all_data = np.array(
+                [
+                    dct["loss_history"][eps_u][:-1]
+                    for dct in result
+                    if eps_u in dct["loss_history"]
+                ]
+            )
+
+            means = np.mean(all_data, axis=0)
+            stds = np.std(all_data, axis=0)
+
+            train_loss_round = range(len(means))
+            y = [item[0] for item in means]
+            error = [item[0] for item in stds]
+            y_clamped = np.clip(y, bottom, up)
+
+            color = eps_u_color_mapping[eps_u]
+            if errorbar:
+                ax_train_loss.errorbar(
+                    train_loss_round,
+                    y_clamped,
+                    yerr=error,
+                    label=r"$\epsilon_u={}$".format(eps_u),
+                    alpha=0.9,
+                    color=color,
+                )
+            else:
+                ax_train_loss.plot(
+                    train_loss_round,
+                    y_clamped,
+                    label=r"$\epsilon_u={}$".format(eps_u),
+                    alpha=0.9,
+                    color=color,
+                    linewidth=2,
+                )
+
+            y = [item[1] for item in means]
+            error = [item[1] for item in stds]
+
+            if errorbar:
+                ax_train_loss.errorbar(
+                    train_loss_round,
+                    y,
+                    yerr=error,
+                    label=r"(w/o momentum)\epsilon_u={}$".format(eps_u),
+                    alpha=0.4,
+                    color=color,
+                )
+            else:
+                ax_train_loss.plot(
+                    train_loss_round,
+                    y,
+                    label=r"(w/o momentum) $\epsilon_u={}$".format(eps_u),
+                    alpha=0.4,
+                    color=color,
+                )
+
+        ax_train_loss.set_ylim(bottom, up * 1.01)
+        ax_train_loss.set_xlabel("Round")
+        ax_train_loss.set_ylabel("(surrogate function) \n Metric", fontsize=20)
+        ax_train_loss.legend(
+            loc="upper left", bbox_to_anchor=(1.02, 0.8), fontsize=16, borderaxespad=0.0
         )
-        means = np.mean(all_data, axis=0)
-        y.extend([item[0] for item in means])
+        plt.subplots_adjust(right=0.75)
+        plt.grid(True, linestyle="--")
 
-    up = np.min([np.max(y), 100]) * 1.05
-    bottom = -up * 1.05
-
-    for eps_u in eps_u_values:
-        all_data = np.array(
-            [
-                dct["loss_history"][eps_u][:-1]
-                for dct in result
-                if eps_u in dct["loss_history"]
-            ]
-        )
-
-        means = np.mean(all_data, axis=0)
-        stds = np.std(all_data, axis=0)
-
-        train_loss_round = range(len(means))
-        y = [item[0] for item in means]
-        error = [item[0] for item in stds]
-        y_clamped = np.clip(y, bottom, up)
-
-        color = eps_u_color_mapping[eps_u]
-        if errorbar:
-            ax_train_loss.errorbar(
-                train_loss_round,
-                y_clamped,
-                yerr=error,
-                label=r"$\epsilon_u={}$".format(eps_u),
-                alpha=0.9,
-                color=color,
-            )
-        else:
-            ax_train_loss.plot(
-                train_loss_round,
-                y_clamped,
-                label=r"$\epsilon_u={}$".format(eps_u),
-                alpha=0.9,
-                color=color,
-                linewidth=2,
-            )
-
-        y = [item[1] for item in means]
-        error = [item[1] for item in stds]
-
-        if errorbar:
-            ax_train_loss.errorbar(
-                train_loss_round,
-                y,
-                yerr=error,
-                label=r"(w/o momentum)\epsilon_u={}$".format(eps_u),
-                alpha=0.4,
-                color=color,
-            )
-        else:
-            ax_train_loss.plot(
-                train_loss_round,
-                y,
-                label=r"(w/o momentum) $\epsilon_u={}$".format(eps_u),
-                alpha=0.4,
-                color=color,
-            )
-
-    ax_train_loss.set_ylim(bottom, up * 1.01)
-    ax_train_loss.set_xlabel("Round")
-    ax_train_loss.set_ylabel("(surrogate function) \n Metric", fontsize=20)
-    ax_train_loss.legend(
-        loc="upper left", bbox_to_anchor=(1.02, 0.8), fontsize=16, borderaxespad=0.0
-    )
-    plt.subplots_adjust(right=0.75)
-    plt.grid(True, linestyle="--")
-
-    plt.title("Approximated Gradient for FDM", fontsize=20)
-    save_figure("online_optimization_result-losses-" + img_name)
-    plt.show()
+        plt.title("Approximated Gradient for FDM", fontsize=20)
+        save_figure("online_optimization_result-losses-" + img_name)
+        plt.show()
 
     if is_show_accuracy:
         fig, ax = plt.subplots(figsize=(6, 4))
@@ -1252,8 +1261,10 @@ def plot_acc_results(
                 else:
                     plt.plot(x, acc_means, label=f"{agg_strategy}", marker="o")
             elif (
-                agg_strategy == "PULDP-AVG" and type(param) is str
-            ) or agg_strategy == "random":
+                (agg_strategy == "PULDP-AVG" and type(param) is str)
+                or agg_strategy == "random"
+                or agg_strategy == "random-log"
+            ):
                 if errorbar:
                     plt.errorbar(
                         x, acc_means, yerr=acc_stds, label=f"{param}", marker="o"
