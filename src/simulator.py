@@ -359,6 +359,7 @@ class FLSimulator:
                         local_updated_weights_dct = local_trainer.train(
                             self.round_idx,
                             loss_callback=build_loss_callback(),
+                            off_train_loss_noise=self.off_train_loss_noise,
                         )
                         local_trainer.consume_dp_for_model_optimization(
                             self.coordinator.q_u_list
@@ -378,6 +379,7 @@ class FLSimulator:
                         local_updated_weights_dct = local_trainer.train(
                             self.round_idx,
                             loss_callback=build_loss_callback(),
+                            off_train_loss_noise=self.off_train_loss_noise,
                         )
                         local_trainer.consume_dp_for_model_optimization(
                             q_u_list=self.coordinator.q_u_list

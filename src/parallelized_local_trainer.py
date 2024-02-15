@@ -479,25 +479,16 @@ def parallelized_train(
             list(weights_diff_dct_per_epsilon_group.values())
         )
 
-        if off_train_loss_noise:
-            default_noisy_avg_weights_diff = noise_utils.add_global_noise(
-                model,
-                default_avg_weights_diff,
-                random_state,
-                0.000000000000000001,
-                device=device,
-            )
-        else:
-            default_noisy_avg_weights_diff = noise_utils.add_global_noise(
-                model,
-                default_avg_weights_diff,
-                random_state,
-                local_sigma
-                / np.sqrt(
-                    n_silo_per_round
-                ),  # this local_sigma is the standard deviation of normal dist itself
-                device=device,
-            )
+        default_noisy_avg_weights_diff = noise_utils.add_global_noise(
+            model,
+            default_avg_weights_diff,
+            random_state,
+            local_sigma
+            / np.sqrt(
+                n_silo_per_round
+            ),  # this local_sigma is the standard deviation of normal dist itself
+            device=device,
+        )
         DEFAULT_NAME = "default"
         noisy_avg_weights_diff_dct = {DEFAULT_NAME: default_noisy_avg_weights_diff}
 
@@ -1090,7 +1081,6 @@ def dp_train_loss(
     else:
         noise = noise_utils.single_gaussian_noise(
             random_state=random_state,
-            # std_dev=0.0000000001, # for exp without noise
             std_dev=noise_multiplier / np.sqrt(n_silo_per_round),
             # sensitivity is same for all users in the same epsilon group, and add distributed noise here
         )

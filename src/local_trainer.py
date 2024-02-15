@@ -617,25 +617,16 @@ class ClassificationTrainer:
                 list(weights_diff_dct_per_epsilon_group.values())
             )
 
-            if off_train_loss_noise:
-                default_noisy_avg_weights_diff = noise_utils.add_global_noise(
-                    model,
-                    default_avg_weights_diff,
-                    self.random_state,
-                    0.0000000000000001,
-                    device=self.device,
-                )
-            else:
-                default_noisy_avg_weights_diff = noise_utils.add_global_noise(
-                    model,
-                    default_avg_weights_diff,
-                    self.random_state,
-                    self.local_sigma
-                    / np.sqrt(
-                        self.n_silo_per_round
-                    ),  # this local_sigma is the standard deviation of normal dist itself
-                    device=self.device,
-                )
+            default_noisy_avg_weights_diff = noise_utils.add_global_noise(
+                model,
+                default_avg_weights_diff,
+                self.random_state,
+                self.local_sigma
+                / np.sqrt(
+                    self.n_silo_per_round
+                ),  # this local_sigma is the standard deviation of normal dist itself
+                device=self.device,
+            )
             DEFAULT_NAME = "default"
             noisy_avg_weights_diff_dct = {DEFAULT_NAME: default_noisy_avg_weights_diff}
 
