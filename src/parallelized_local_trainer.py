@@ -478,16 +478,26 @@ def parallelized_train(
         default_avg_weights_diff = noise_utils.torch_aggregation(
             list(weights_diff_dct_per_epsilon_group.values())
         )
-        default_noisy_avg_weights_diff = noise_utils.add_global_noise(
-            model,
-            default_avg_weights_diff,
-            random_state,
-            local_sigma
-            / np.sqrt(
-                n_silo_per_round
-            ),  # this local_sigma is the standard deviation of normal dist itself
-            device=device,
-        )
+
+        if off_train_loss_noise:
+            default_noisy_avg_weights_diff = noise_utils.add_global_noise(
+                model,
+                default_avg_weights_diff,
+                random_state,
+                0.000000000000000001,
+                device=device,
+            )
+        else:
+            default_noisy_avg_weights_diff = noise_utils.add_global_noise(
+                model,
+                default_avg_weights_diff,
+                random_state,
+                local_sigma
+                / np.sqrt(
+                    n_silo_per_round
+                ),  # this local_sigma is the standard deviation of normal dist itself
+                device=device,
+            )
         DEFAULT_NAME = "default"
         noisy_avg_weights_diff_dct = {DEFAULT_NAME: default_noisy_avg_weights_diff}
 
@@ -502,31 +512,49 @@ def parallelized_train(
                 original_avg_weights_diff = noise_utils.torch_aggregation(
                     [weights_diff_dct_per_epsilon_group_for_optimization[eps_u]]
                 )
-                noisy_original_avg_weights_diff = noise_utils.add_global_noise(
-                    model,
-                    original_avg_weights_diff,
-                    random_state,
-                    # 0.00001,  # for exp without noise
-                    local_sigma
-                    / np.sqrt(
-                        n_silo_per_round
-                    ),  # this local_sigma is the standard deviation of normal dist itself
-                    device=device,
-                )
+                if off_train_loss_noise:
+                    noisy_original_avg_weights_diff = noise_utils.add_global_noise(
+                        model,
+                        original_avg_weights_diff,
+                        random_state,
+                        0.000000000000000001,
+                        device=device,
+                    )
+                else:
+                    noisy_original_avg_weights_diff = noise_utils.add_global_noise(
+                        model,
+                        original_avg_weights_diff,
+                        random_state,
+                        # 0.00001,  # for exp without noise
+                        local_sigma
+                        / np.sqrt(
+                            n_silo_per_round
+                        ),  # this local_sigma is the standard deviation of normal dist itself
+                        device=device,
+                    )
                 stepped_avg_weights_diff = noise_utils.torch_aggregation(
                     [stepped_weights_diff_dct_per_epsilon_group_for_optimization[eps_u]]
                 )
-                noisy_stepped_avg_weights_diff = noise_utils.add_global_noise(
-                    model,
-                    stepped_avg_weights_diff,
-                    random_state,
-                    # 0.00001,  # for exp without noise
-                    local_sigma
-                    / np.sqrt(
-                        n_silo_per_round
-                    ),  # this local_sigma is the standard deviation of normal dist itself
-                    device=device,
-                )
+                if off_train_loss_noise:
+                    noisy_stepped_avg_weights_diff = noise_utils.add_global_noise(
+                        model,
+                        stepped_avg_weights_diff,
+                        random_state,
+                        0.000000000000000001,
+                        device=device,
+                    )
+                else:
+                    noisy_stepped_avg_weights_diff = noise_utils.add_global_noise(
+                        model,
+                        stepped_avg_weights_diff,
+                        random_state,
+                        # 0.00001,  # for exp without noise
+                        local_sigma
+                        / np.sqrt(
+                            n_silo_per_round
+                        ),  # this local_sigma is the standard deviation of normal dist itself
+                        device=device,
+                    )
 
                 noisy_avg_weights_diff_dct[eps_u] = (
                     noisy_original_avg_weights_diff,
@@ -703,52 +731,39 @@ def compute_train_loss_for_online_optimization_and_consume_dp_for_train_loss_met
             model,
             learning_rate=1.0,
         )
-        if off_train_loss_noise:
-            original_test_loss, _ = train_loss(
-                device=device,
-                model=model,
-                dataset_name=dataset_name,
-                user_level_data_loader=user_level_data_loader,
-                criterion=criterion,
-                round_idx=round_idx,
+
+        (
+            original_user_level_metric,
+            local_noise_multiplier,
+        ) = dp_train_loss(
+            model=model,
+            eps_u=eps_u,
+            user_weights=user_weights_for_optimization,
+            device=device,
+            dataset_name=dataset_name,
+            epsilon_groups=epsilon_groups,
+            user_level_data_loader=user_level_data_loader,
+            criterion=criterion,
+            local_delta=local_delta,
+            n_total_round=n_total_round,
+            accountant_dct=accountant_dct,
+            random_state=random_state,
+            n_silo_per_round=n_silo_per_round,
+            round_idx=round_idx,
+            sampling_rate_q=q_u,
+            current_round=round_idx * 3 + 1,
+            off_train_loss_noise=off_train_loss_noise,
+        )
+        # (Consume privacy)
+        accountant_dct[eps_u].step(
+            noise_multiplier=local_noise_multiplier,
+            sample_rate=q_u,
+        )
+        logger.debug(
+            "Original sampling_rate_q = {}, metric = {}".format(
+                q_u, original_user_level_metric
             )
-            logger.debug(
-                "Original sampling_rate_q = {}, metric = {}".format(
-                    q_u, original_test_loss
-                )
-            )
-        else:
-            (
-                original_user_level_metric,
-                local_noise_multiplier,
-            ) = dp_train_loss(
-                model=model,
-                eps_u=eps_u,
-                user_weights=user_weights_for_optimization,
-                device=device,
-                dataset_name=dataset_name,
-                epsilon_groups=epsilon_groups,
-                user_level_data_loader=user_level_data_loader,
-                criterion=criterion,
-                local_delta=local_delta,
-                n_total_round=n_total_round,
-                accountant_dct=accountant_dct,
-                random_state=random_state,
-                n_silo_per_round=n_silo_per_round,
-                round_idx=round_idx,
-                sampling_rate_q=q_u,
-                current_round=round_idx * 3 + 1,
-            )
-            # (Consume privacy)
-            accountant_dct[eps_u].step(
-                noise_multiplier=local_noise_multiplier,
-                sample_rate=q_u,
-            )
-            logger.debug(
-                "Original sampling_rate_q = {}, metric = {}".format(
-                    q_u, original_user_level_metric
-                )
-            )
+        )
 
         # Calculate train loss with updated (stepped) sampling rate
         model = copy.deepcopy(model)
@@ -762,58 +777,42 @@ def compute_train_loss_for_online_optimization_and_consume_dp_for_train_loss_met
             model,
             learning_rate=1.0,
         )
-        if off_train_loss_noise:
-            stepped_test_loss, _ = train_loss(
-                device=device,
-                model=model,
-                dataset_name=dataset_name,
-                user_level_data_loader=user_level_data_loader,
-                criterion=criterion,
-                round_idx=round_idx,
+
+        (
+            stepped_user_level_metric,
+            stepped_local_noise_multiplier,
+        ) = dp_train_loss(
+            model=model,
+            eps_u=eps_u,
+            user_weights=stepped_user_weights_for_optimization,
+            device=device,
+            dataset_name=dataset_name,
+            epsilon_groups=epsilon_groups,
+            user_level_data_loader=user_level_data_loader,
+            criterion=criterion,
+            local_delta=local_delta,
+            n_total_round=n_total_round,
+            accountant_dct=accountant_dct,
+            random_state=random_state,
+            n_silo_per_round=n_silo_per_round,
+            round_idx=round_idx,
+            sampling_rate_q=stepped_q_u,
+            current_round=round_idx * 3 + 2,
+            off_train_loss_noise=off_train_loss_noise,
+        )
+        # (Consume privacy)
+        accountant_dct[eps_u].step(
+            noise_multiplier=stepped_local_noise_multiplier,
+            sample_rate=stepped_q_u,
+        )
+        logger.debug(
+            "Stepped sampling_rate_q = {}, metric = {}".format(
+                stepped_q_u, stepped_user_level_metric
             )
-            logger.debug(
-                "Stepped sampling_rate_q = {}, metric = {}".format(
-                    stepped_q_u, stepped_test_loss
-                )
-            )
-        else:
-            (
-                stepped_user_level_metric,
-                stepped_local_noise_multiplier,
-            ) = dp_train_loss(
-                model=model,
-                eps_u=eps_u,
-                user_weights=stepped_user_weights_for_optimization,
-                device=device,
-                dataset_name=dataset_name,
-                epsilon_groups=epsilon_groups,
-                user_level_data_loader=user_level_data_loader,
-                criterion=criterion,
-                local_delta=local_delta,
-                n_total_round=n_total_round,
-                accountant_dct=accountant_dct,
-                random_state=random_state,
-                n_silo_per_round=n_silo_per_round,
-                round_idx=round_idx,
-                sampling_rate_q=stepped_q_u,
-                current_round=round_idx * 3 + 2,
-            )
-            # (Consume privacy)
-            accountant_dct[eps_u].step(
-                noise_multiplier=stepped_local_noise_multiplier,
-                sample_rate=stepped_q_u,
-            )
-            logger.debug(
-                "Stepped sampling_rate_q = {}, metric = {}".format(
-                    stepped_q_u, stepped_user_level_metric
-                )
-            )
+        )
 
         # diff < 0 means that the model is improved
-        if off_train_loss_noise:
-            diff = stepped_test_loss - original_test_loss
-        else:
-            diff = original_user_level_metric - stepped_user_level_metric
+        diff = original_user_level_metric - stepped_user_level_metric
 
         diff_dct[eps_u] = diff
         logger.debug("eps_u = {}, diff = {}".format(eps_u, diff))
@@ -944,6 +943,7 @@ def dp_train_loss(
     round_idx=None,
     sampling_rate_q: Optional[float] = None,
     current_round: Optional[int] = None,
+    off_train_loss_noise: Optional[bool] = None,
 ) -> Tuple[Tuple[float, float], float]:
     # metric is approximated metric instead of the real train loss
     # it needs to be bounded by 1
@@ -1083,12 +1083,17 @@ def dp_train_loss(
         current_round=current_round,
         current_accountant=accountant_dct[eps_u],
     )
-    noise = noise_utils.single_gaussian_noise(
-        random_state=random_state,
-        # std_dev=0.0000000001, # for exp without noise
-        std_dev=noise_multiplier / np.sqrt(n_silo_per_round),
-        # sensitivity is same for all users in the same epsilon group, and add distributed noise here
-    )
+    if off_train_loss_noise:
+        noise = noise_utils.single_gaussian_noise(
+            random_state=random_state, std_dev=0.0000000000001
+        )
+    else:
+        noise = noise_utils.single_gaussian_noise(
+            random_state=random_state,
+            # std_dev=0.0000000001, # for exp without noise
+            std_dev=noise_multiplier / np.sqrt(n_silo_per_round),
+            # sensitivity is same for all users in the same epsilon group, and add distributed noise here
+        )
     logger.debug("noise:", noise)
     final_shrunk_noisy_metric = np.sum(metric_list) + noise
     final_shrunk_noisy_metric /= sampling_rate_q

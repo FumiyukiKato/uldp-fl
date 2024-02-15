@@ -996,6 +996,7 @@ def run_online_optimization(fed_sim_params: FLSimulationParameters, force_update
     results_file_name = fed_sim_params.create_file_prefix(
         prefix="online_optimization_", suffix=".pkl"
     )
+    print(results_file_name)
 
     if not force_update and check_results_file_already_exist(results_file_name):
         print("Skip: File already exists.")
@@ -1025,6 +1026,7 @@ def show_online_optimization_result(
     errorbar=True,
     img_name="",
     is_show_accuracy=False,
+    statically_optimal_q_u_dct=None,
 ):
     results_file_name = fed_sim_params.create_file_prefix(
         prefix="online_optimization_", suffix=".pkl"
@@ -1118,6 +1120,25 @@ def show_online_optimization_result(
     # ax2.set_yscale('log')
     ax1.legend(loc="lower left", fontsize=14)
     ax2.legend(loc="lower right", fontsize=14)
+
+    if statically_optimal_q_u_dct is not None:
+        for eps_u, statically_optimal_q_u in statically_optimal_q_u_dct.items():
+            ax1.axhline(
+                y=statically_optimal_q_u,
+                color=eps_u_color_mapping[eps_u],
+                linestyle="--",
+                alpha=0.5,
+            )
+            ax1.text(
+                x[-1],
+                statically_optimal_q_u,
+                r"statically optimal $q_u={}$ ($\epsilon_u = {}$)".format(
+                    statically_optimal_q_u, eps_u
+                ),
+                ha="right",
+                va="bottom",
+                fontsize=10,
+            )
 
     plt.grid(True, linestyle="--")
     plt.title(r"HP ($q_u$) with Test Loss", fontsize=20)
@@ -1242,51 +1263,57 @@ def plot_acc_results(
     all_acc_results,
     initial_q_u_list,
     errorbar=True,
+    img_name="",
 ):
     N = fed_sim_params.n_users
     T = fed_sim_params.n_total_round
     sigma = fed_sim_params.sigma
     delta = fed_sim_params.delta
     dataset_name = fed_sim_params.dataset_name
-    alpha = fed_sim_params.q_step_size
 
-    for initial_q_u in initial_q_u_list:
-        plt.figure(figsize=(7, 5))
-        for (agg_strategy, param), (x, acc_means, acc_stds) in all_acc_results.items():
-            if type(param) is float and param == initial_q_u:
-                if errorbar:
-                    plt.errorbar(
-                        x, acc_means, yerr=acc_stds, label=f"{agg_strategy}", marker="o"
-                    )
-                else:
-                    plt.plot(x, acc_means, label=f"{agg_strategy}", marker="o")
-            elif (
-                (agg_strategy == "PULDP-AVG" and type(param) is str)
-                or agg_strategy == "random"
-                or agg_strategy == "random-log"
-            ):
-                if errorbar:
-                    plt.errorbar(
-                        x, acc_means, yerr=acc_stds, label=f"{param}", marker="o"
-                    )
-                else:
-                    plt.plot(x, acc_means, label=f"{param}", marker="o")
+    plt.figure(figsize=(7, 5))
+    for (agg_strategy, param), (x, acc_means, acc_stds) in all_acc_results.items():
+        if type(param) is float and param in initial_q_u_list:
+            if errorbar:
+                plt.errorbar(
+                    x,
+                    acc_means,
+                    yerr=acc_stds,
+                    label=r"{} ($q_0={}$)".format(agg_strategy, param),
+                    marker="o",
+                )
+            else:
+                plt.plot(
+                    x,
+                    acc_means,
+                    label=r"{} ($q_0={}$)".format(agg_strategy, param),
+                    marker="o",
+                )
+        elif (
+            (agg_strategy == "PULDP-AVG" and type(param) is str)
+            or agg_strategy == "random"
+            or agg_strategy == "random-log"
+        ):
+            if errorbar:
+                plt.errorbar(x, acc_means, yerr=acc_stds, label=f"{param}", marker="o")
+            else:
+                plt.plot(x, acc_means, label=f"{param}", marker="o")
 
-        # グラフの設定
-        plt.xlabel("Round", fontsize=20)
-        plt.ylabel("Test Accuracy", fontsize=20)
-        plt.title(
-            r"{}: Comparison with Baselines"
-            "\n"
-            r"$\epsilon_u=(0.15, 3.0, 5.0)$, $\delta={}$, $\alpha={}$, $N={}$, $T={}$, $\sigma={}$".format(
-                dataset_name, delta, alpha, N, T, sigma
-            ),
-            fontsize=14,
-        )
+    # グラフの設定
+    plt.xlabel("Round", fontsize=20)
+    plt.ylabel("Test Accuracy", fontsize=20)
+    plt.title(
+        r"{}: Comparison with Baselines"
+        "\n"
+        r"$\epsilon_u=(0.15, 3.0, 5.0)$, $\delta={}$, $N={}$, $T={}$, $\sigma={}$".format(
+            dataset_name, delta, N, T, sigma
+        ),
+        fontsize=14,
+    )
 
-        # 目盛りを点線で表示
-        plt.grid(True, linestyle="--")
+    # 目盛りを点線で表示
+    plt.grid(True, linestyle="--")
 
-        plt.legend(fontsize=14)
-        save_figure(f"comparison-with-baselines-{dataset_name}-{initial_q_u}-")
-        plt.show()
+    plt.legend(loc="upper left", bbox_to_anchor=(1, 1), fontsize=14)
+    save_figure(f"comparison-with-baselines-{dataset_name}" + img_name)
+    plt.show()

@@ -269,7 +269,10 @@ class ClassificationTrainer:
         self.distinct_users = list(set(new_user_ids_of_local_train_dataset))
 
     def train(
-        self, global_round_index: int, loss_callback: Callable = lambda loss: None
+        self,
+        global_round_index: int,
+        loss_callback: Callable = lambda loss: None,
+        off_train_loss_noise=None,
     ):
         """
         Train the model on the local dataset.
@@ -613,16 +616,26 @@ class ClassificationTrainer:
             default_avg_weights_diff = noise_utils.torch_aggregation(
                 list(weights_diff_dct_per_epsilon_group.values())
             )
-            default_noisy_avg_weights_diff = noise_utils.add_global_noise(
-                model,
-                default_avg_weights_diff,
-                self.random_state,
-                self.local_sigma
-                / np.sqrt(
-                    self.n_silo_per_round
-                ),  # this local_sigma is the standard deviation of normal dist itself
-                device=self.device,
-            )
+
+            if off_train_loss_noise:
+                default_noisy_avg_weights_diff = noise_utils.add_global_noise(
+                    model,
+                    default_avg_weights_diff,
+                    self.random_state,
+                    0.0000000000000001,
+                    device=self.device,
+                )
+            else:
+                default_noisy_avg_weights_diff = noise_utils.add_global_noise(
+                    model,
+                    default_avg_weights_diff,
+                    self.random_state,
+                    self.local_sigma
+                    / np.sqrt(
+                        self.n_silo_per_round
+                    ),  # this local_sigma is the standard deviation of normal dist itself
+                    device=self.device,
+                )
             DEFAULT_NAME = "default"
             noisy_avg_weights_diff_dct = {DEFAULT_NAME: default_noisy_avg_weights_diff}
 
@@ -637,16 +650,25 @@ class ClassificationTrainer:
                     original_avg_weights_diff = noise_utils.torch_aggregation(
                         [weights_diff_dct_per_epsilon_group_for_optimization[eps_u]]
                     )
-                    noisy_original_avg_weights_diff = noise_utils.add_global_noise(
-                        model,
-                        original_avg_weights_diff,
-                        self.random_state,
-                        self.local_sigma
-                        / np.sqrt(
-                            self.n_silo_per_round
-                        ),  # this local_sigma is the standard deviation of normal dist itself
-                        device=self.device,
-                    )
+                    if off_train_loss_noise:
+                        noisy_original_avg_weights_diff = noise_utils.add_global_noise(
+                            model,
+                            original_avg_weights_diff,
+                            self.random_state,
+                            0.0000000000000001,
+                            device=self.device,
+                        )
+                    else:
+                        noisy_original_avg_weights_diff = noise_utils.add_global_noise(
+                            model,
+                            original_avg_weights_diff,
+                            self.random_state,
+                            self.local_sigma
+                            / np.sqrt(
+                                self.n_silo_per_round
+                            ),  # this local_sigma is the standard deviation of normal dist itself
+                            device=self.device,
+                        )
                     stepped_avg_weights_diff = noise_utils.torch_aggregation(
                         [
                             stepped_weights_diff_dct_per_epsilon_group_for_optimization[
@@ -654,16 +676,25 @@ class ClassificationTrainer:
                             ]
                         ]
                     )
-                    noisy_stepped_avg_weights_diff = noise_utils.add_global_noise(
-                        model,
-                        stepped_avg_weights_diff,
-                        self.random_state,
-                        self.local_sigma
-                        / np.sqrt(
-                            self.n_silo_per_round
-                        ),  # this local_sigma is the standard deviation of normal dist itself
-                        device=self.device,
-                    )
+                    if off_train_loss_noise:
+                        noisy_stepped_avg_weights_diff = noise_utils.add_global_noise(
+                            model,
+                            stepped_avg_weights_diff,
+                            self.random_state,
+                            0.0000000000000001,
+                            device=self.device,
+                        )
+                    else:
+                        noisy_stepped_avg_weights_diff = noise_utils.add_global_noise(
+                            model,
+                            stepped_avg_weights_diff,
+                            self.random_state,
+                            self.local_sigma
+                            / np.sqrt(
+                                self.n_silo_per_round
+                            ),  # this local_sigma is the standard deviation of normal dist itself
+                            device=self.device,
+                        )
 
                     noisy_avg_weights_diff_dct[eps_u] = (
                         noisy_original_avg_weights_diff,
@@ -994,6 +1025,7 @@ class ClassificationTrainer:
         model: Optional[nn.Module] = None,
         sampling_rate_q: Optional[float] = None,
         current_round: Optional[int] = None,
+        off_train_loss_noise: Optional[bool] = False,
     ) -> Tuple[Tuple[float, float], float]:
         # metric is approximated metric instead of the real train loss
         # it needs to be bounded by 1
@@ -1132,11 +1164,16 @@ class ClassificationTrainer:
             current_round=current_round,
             current_accountant=self.accountant_dct[eps_u],
         )
-        noise = noise_utils.single_gaussian_noise(
-            random_state=self.random_state,
-            std_dev=noise_multiplier / np.sqrt(self.n_silo_per_round),
-            # sensitivity is same for all users in the same epsilon group, and add distributed noise here
-        )
+        if off_train_loss_noise:
+            noise = noise_utils.single_gaussian_noise(
+                random_state=self.random_state, std_dev=0.0000000000001
+            )
+        else:
+            noise = noise_utils.single_gaussian_noise(
+                random_state=self.random_state,
+                std_dev=noise_multiplier / np.sqrt(self.n_silo_per_round),
+                # sensitivity is same for all users in the same epsilon group, and add distributed noise here
+            )
         logger.debug("noise:", noise)
         final_shrunk_noisy_metric = np.sum(metric_list) + noise
         final_shrunk_noisy_metric /= sampling_rate_q
@@ -1193,38 +1230,29 @@ class ClassificationTrainer:
                 model,
                 learning_rate=1.0,
             )
-            if off_train_loss_noise:
-                original_test_loss, _ = self.train_loss(
-                    round_idx=round_idx,
-                    model=model,
+
+            (
+                original_user_level_metric,
+                local_noise_multiplier,
+            ) = self.dp_train_loss(
+                eps_u=eps_u,
+                user_weights=self.user_weights_for_optimization,
+                round_idx=round_idx,
+                model=model,
+                sampling_rate_q=q_u,
+                current_round=round_idx * 3 + 1,
+                off_train_loss_noise=off_train_loss_noise,
+            )
+            # (Consume privacy)
+            self.accountant_dct[eps_u].step(
+                noise_multiplier=local_noise_multiplier,
+                sample_rate=q_u,
+            )
+            logger.debug(
+                "Original sampling_rate_q = {}, metric = {}".format(
+                    q_u, original_user_level_metric
                 )
-                logger.debug(
-                    "Original sampling_rate_q = {}, metric = {}".format(
-                        q_u, original_test_loss
-                    )
-                )
-            else:
-                (
-                    original_user_level_metric,
-                    local_noise_multiplier,
-                ) = self.dp_train_loss(
-                    eps_u=eps_u,
-                    user_weights=self.user_weights_for_optimization,
-                    round_idx=round_idx,
-                    model=model,
-                    sampling_rate_q=q_u,
-                    current_round=round_idx * 3 + 1,
-                )
-                # (Consume privacy)
-                self.accountant_dct[eps_u].step(
-                    noise_multiplier=local_noise_multiplier,
-                    sample_rate=q_u,
-                )
-                logger.debug(
-                    "Original sampling_rate_q = {}, metric = {}".format(
-                        q_u, original_user_level_metric
-                    )
-                )
+            )
 
             # Calculate train loss with updated (stepped) sampling rate
             model = copy.deepcopy(self.model)
@@ -1238,44 +1266,32 @@ class ClassificationTrainer:
                 model,
                 learning_rate=1.0,
             )
-            if off_train_loss_noise:
-                stepped_test_loss, _ = self.train_loss(
-                    round_idx=round_idx,
-                    model=model,
+
+            (
+                stepped_user_level_metric,
+                stepped_local_noise_multiplier,
+            ) = self.dp_train_loss(
+                eps_u=eps_u,
+                user_weights=self.stepped_user_weights_for_optimization,
+                round_idx=round_idx,
+                model=model,
+                sampling_rate_q=stepped_q_u,
+                current_round=round_idx * 3 + 2,
+                off_train_loss_noise=off_train_loss_noise,
+            )
+            # (Consume privacy)
+            self.accountant_dct[eps_u].step(
+                noise_multiplier=stepped_local_noise_multiplier,
+                sample_rate=stepped_q_u,
+            )
+            logger.debug(
+                "Stepped sampling_rate_q = {}, metric = {}".format(
+                    stepped_q_u, stepped_user_level_metric
                 )
-                logger.debug(
-                    "Stepped sampling_rate_q = {}, metric = {}".format(
-                        stepped_q_u, stepped_test_loss
-                    )
-                )
-            else:
-                (
-                    stepped_user_level_metric,
-                    stepped_local_noise_multiplier,
-                ) = self.dp_train_loss(
-                    eps_u=eps_u,
-                    user_weights=self.stepped_user_weights_for_optimization,
-                    round_idx=round_idx,
-                    model=model,
-                    sampling_rate_q=stepped_q_u,
-                    current_round=round_idx * 3 + 2,
-                )
-                # (Consume privacy)
-                self.accountant_dct[eps_u].step(
-                    noise_multiplier=stepped_local_noise_multiplier,
-                    sample_rate=stepped_q_u,
-                )
-                logger.debug(
-                    "Stepped sampling_rate_q = {}, metric = {}".format(
-                        stepped_q_u, stepped_user_level_metric
-                    )
-                )
+            )
 
             # diff < 0 means that the model is improved
-            if off_train_loss_noise:
-                diff = stepped_test_loss - original_test_loss
-            else:
-                diff = original_user_level_metric - stepped_user_level_metric
+            diff = original_user_level_metric - stepped_user_level_metric
 
             diff_dct[eps_u] = diff
             logger.debug("eps_u = {}, diff = {}".format(eps_u, diff))
