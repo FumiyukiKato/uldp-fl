@@ -1027,6 +1027,7 @@ def show_online_optimization_result(
     img_name="",
     is_show_accuracy=False,
     statically_optimal_q_u_dct=None,
+    is_each=None,
 ):
     results_file_name = fed_sim_params.create_file_prefix(
         prefix="online_optimization_", suffix=".pkl"
@@ -1149,7 +1150,8 @@ def show_online_optimization_result(
         _, ax_train_loss = plt.subplots(figsize=(9, 6))
         y = []
         for eps_u in eps_u_values:
-            # 各辞書からeps_uに対応するデータを集める
+            if is_each is not None and eps_u not in is_each:
+                continue
             all_data = np.array(
                 [
                     dct["loss_history"][eps_u][:-1]
@@ -1164,6 +1166,8 @@ def show_online_optimization_result(
         bottom = -up * 1.05
 
         for eps_u in eps_u_values:
+            if is_each is not None and eps_u not in is_each:
+                continue
             all_data = np.array(
                 [
                     dct["loss_history"][eps_u][:-1]
