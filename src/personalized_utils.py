@@ -1027,7 +1027,7 @@ def show_online_optimization_result(
     img_name="",
     is_show_accuracy=False,
     statically_optimal_q_u_dct=None,
-    is_each=None,
+    is_record_metrics=False,
 ):
     results_file_name = fed_sim_params.create_file_prefix(
         prefix="online_optimization_", suffix=".pkl"
@@ -1146,12 +1146,52 @@ def show_online_optimization_result(
     save_figure("online_optimization_result-" + img_name)
     plt.show()
 
+    if is_record_metrics:
+        for eps_u in eps_u_values:
+            all_data = np.array(
+                [
+                    dct["record_metrics"][eps_u]
+                    for dct in result
+                    if eps_u in dct["record_metrics"]
+                ]
+            )
+            loss_history = np.array(
+                [
+                    dct["loss_history"][eps_u]
+                    for dct in result
+                    if eps_u in dct["loss_history"]
+                ]
+            )
+            for t, (data, loss) in enumerate(zip(all_data, loss_history)):
+                _, ax_record_metrics = plt.subplots(figsize=(6, 6))
+                loss_history = [lh[1] for lh in loss]
+                x = np.arange(len(loss_history))
+                original_data = data["original"]
+                clipped_data = data["clipped"]
+                ema_data = data["ema"]
+                ax_record_metrics.plot(x, loss_history, label="Original Grad")
+                for ys, label in [
+                    (original_data, "original"),
+                    (clipped_data, "clipped"),
+                    (ema_data, "ema"),
+                ]:
+                    y5 = [a[0] for a in ys]
+                    ax_record_metrics.plot(x[1:], y5, label=f"{label}-5")
+                    y10 = [a[1] for a in ys]
+                    ax_record_metrics.plot(x[1:], y10, label=f"{label}-10")
+                    y20 = [a[2] for a in ys]
+                    ax_record_metrics.plot(x[1:], y20, label=f"{label}-20")
+                ax_record_metrics.legend(
+                    loc="upper left", bbox_to_anchor=(1.02, 0.8), fontsize=16, borderaxespad=0.0
+                )
+                plt.grid(True, linestyle="--")
+                plt.title(f"Record Metrics for eps_u={eps_u}$ at times {t}")
+                plt.show()
+
     if fed_sim_params.hp_baseline not in ["random", "random-log"]:
         _, ax_train_loss = plt.subplots(figsize=(9, 6))
         y = []
         for eps_u in eps_u_values:
-            if is_each is not None and eps_u not in is_each:
-                continue
             all_data = np.array(
                 [
                     dct["loss_history"][eps_u][:-1]
@@ -1166,8 +1206,6 @@ def show_online_optimization_result(
         bottom = -up * 1.05
 
         for eps_u in eps_u_values:
-            if is_each is not None and eps_u not in is_each:
-                continue
             all_data = np.array(
                 [
                     dct["loss_history"][eps_u][:-1]

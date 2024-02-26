@@ -321,7 +321,7 @@ class FLSimulator:
                             self.round_idx,
                             local_trainer.n_silo_per_round,
                             getattr(local_trainer, "privacy_engine", None),
-                            getattr(local_trainer, "clipping_bound", None),
+                            getattr(local_trainer, "local_clipping_bound", None),
                             getattr(local_trainer, "local_sigma", None),
                             getattr(local_trainer, "local_delta", None),
                             getattr(local_trainer, "user_level_data_loader", None),
@@ -595,6 +595,7 @@ class FLSimulator:
             results["param_history"] = self.coordinator.param_history
             results["loss_history"] = self.coordinator.loss_history
             results["final_eps"] = self.aggregator.results["final_eps"]
+            results["record_metrics"] = self.coordinator.record_metrics
 
         return results
 
