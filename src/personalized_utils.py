@@ -1162,31 +1162,47 @@ def show_online_optimization_result(
                     if eps_u in dct["loss_history"]
                 ]
             )
-            for t, (data, loss) in enumerate(zip(all_data, loss_history)):
-                _, ax_record_metrics = plt.subplots(figsize=(6, 6))
+            n_cols = len(all_data)
+            n_cols = 3
+            fig, axs = plt.subplots(1, n_cols, figsize=(6 * n_cols, 6))
+            for t, (data, loss, ax) in enumerate(
+                zip(all_data, loss_history, axs.flatten())
+            ):
+                if t >= n_cols:
+                    break
                 loss_history = [lh[1] for lh in loss]
                 x = np.arange(len(loss_history))
                 original_data = data["original"]
                 clipped_data = data["clipped"]
                 ema_data = data["ema"]
-                ax_record_metrics.plot(x, loss_history, label="Original Grad")
+
+                ax.plot(x, loss_history, label="Original Grad")
                 for ys, label in [
                     (original_data, "original"),
                     (clipped_data, "clipped"),
                     (ema_data, "ema"),
                 ]:
                     y5 = [a[0] for a in ys]
-                    ax_record_metrics.plot(x[1:], y5, label=f"{label}-5")
+                    ax.plot(x[1:], y5, label=f"{label}-5")
                     y10 = [a[1] for a in ys]
-                    ax_record_metrics.plot(x[1:], y10, label=f"{label}-10")
+                    ax.plot(x[1:], y10, label=f"{label}-10")
                     y20 = [a[2] for a in ys]
-                    ax_record_metrics.plot(x[1:], y20, label=f"{label}-20")
-                ax_record_metrics.legend(
-                    loc="upper left", bbox_to_anchor=(1.02, 0.8), fontsize=16, borderaxespad=0.0
-                )
-                plt.grid(True, linestyle="--")
-                plt.title(f"Record Metrics for eps_u={eps_u}$ at times {t}")
-                plt.show()
+                    ax.plot(x[1:], y20, label=f"{label}-20")
+
+                ax.axhline(y=0, color="black", linewidth=1)
+
+                ax.set_title(f"Record Metrics for eps_u={eps_u} at times {t}")
+                ax.grid(True, linestyle="--")
+                if t == n_cols - 1:
+                    ax.legend(
+                        loc="upper left",
+                        bbox_to_anchor=(1.02, 0.8),
+                        fontsize=16,
+                        borderaxespad=0.0,
+                    )
+
+            plt.tight_layout()
+            plt.show()
 
     if fed_sim_params.hp_baseline not in ["random", "random-log"]:
         _, ax_train_loss = plt.subplots(figsize=(9, 6))
