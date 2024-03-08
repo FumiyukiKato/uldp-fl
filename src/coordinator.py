@@ -387,63 +387,63 @@ class Coordinator:
                     if with_momentum:
                         if not hasattr(self, "momentum"):
                             self.momentum = {}
-                            self.data_memory = {}
-                            self.record_metrics = {}
+                            # self.data_memory = {}
+                            # self.record_metrics = {}
                         if len(self.loss_history[eps_u]) == 0:
                             self.momentum[eps_u] = loss_diff_dct[eps_u]
-                            self.data_memory[eps_u] = [loss_diff]
-                            self.record_metrics[eps_u] = {
-                                "original": [],
-                                "clipped": [],
-                                "ema": [],
-                            }
+                            # self.data_memory[eps_u] = [loss_diff]
+                            # self.record_metrics[eps_u] = {
+                            #     "original": [],
+                            #     "clipped": [],
+                            #     "ema": [],
+                            # }
                         else:
-                            # loss_diff = (
-                            #     beta * self.momentum[eps_u] + (1 - beta) * loss_diff
-                            # )
+                            loss_diff = (
+                                beta * self.momentum[eps_u] + (1 - beta) * loss_diff
+                            )
                             self.momentum[eps_u] = loss_diff
 
-                            # print("eps_u", eps_u)
-                            self.data_memory[eps_u].append(loss_diff)
-                            percentile = 50
-                            n_data_for_ema = 5
-                            data = self.data_memory[eps_u]
-                            clipping_bound = np.percentile(np.abs(data), percentile)
-                            clipped_data = np.clip(
-                                data, -clipping_bound, clipping_bound
-                            )
-                            # print(
-                            #     f"original data: 移動平均5: {np.mean(data[-5:])}, 移動平均10: {np.mean(data[-10:])}, 移動平均20: {np.mean(data[-20:])}"
+                            # # print("eps_u", eps_u)
+                            # self.data_memory[eps_u].append(loss_diff)
+                            # percentile = 50
+                            # n_data_for_ema = 5
+                            # data = self.data_memory[eps_u]
+                            # clipping_bound = np.percentile(np.abs(data), percentile)
+                            # clipped_data = np.clip(
+                            #     data, -clipping_bound, clipping_bound
                             # )
-                            self.record_metrics[eps_u]["original"].append(
-                                (
-                                    np.mean(data[-5:]),
-                                    np.mean(data[-10:]),
-                                    np.mean(data[-20:]),
-                                )
-                            )
-                            # print(
-                            #     f"clipped data: 移動平均5: {np.mean(clipped_data[-5:])}, 移動平均10: {np.mean(clipped_data[-10:])}, 移動平均20: {np.mean(clipped_data[-20:])}"
+                            # # print(
+                            # #     f"original data: 移動平均5: {np.mean(data[-5:])}, 移動平均10: {np.mean(data[-10:])}, 移動平均20: {np.mean(data[-20:])}"
+                            # # )
+                            # self.record_metrics[eps_u]["original"].append(
+                            #     (
+                            #         np.mean(data[-5:]),
+                            #         np.mean(data[-10:]),
+                            #         np.mean(data[-20:]),
+                            #     )
                             # )
-                            self.record_metrics[eps_u]["clipped"].append(
-                                (
-                                    np.mean(clipped_data[-5:]),
-                                    np.mean(clipped_data[-10:]),
-                                    np.mean(clipped_data[-20:]),
-                                )
-                            )
-                            # print(
-                            #     f"clipped data: EMA 5: {calc_ema(clipped_data, beta, 5)}, EMA 10: {calc_ema(clipped_data, beta, 10)}, EMA 20: {calc_ema(clipped_data, beta, 20)}"
+                            # # print(
+                            # #     f"clipped data: 移動平均5: {np.mean(clipped_data[-5:])}, 移動平均10: {np.mean(clipped_data[-10:])}, 移動平均20: {np.mean(clipped_data[-20:])}"
+                            # # )
+                            # self.record_metrics[eps_u]["clipped"].append(
+                            #     (
+                            #         np.mean(clipped_data[-5:]),
+                            #         np.mean(clipped_data[-10:]),
+                            #         np.mean(clipped_data[-20:]),
+                            #     )
                             # )
-                            self.record_metrics[eps_u]["ema"].append(
-                                (
-                                    calc_ema(clipped_data, beta, 5),
-                                    calc_ema(clipped_data, beta, 10),
-                                    calc_ema(clipped_data, beta, 20),
-                                )
-                            )
-                            ema = calc_ema(clipped_data, beta, n_data_for_ema)
-                            loss_diff = ema
+                            # # print(
+                            # #     f"clipped data: EMA 5: {calc_ema(clipped_data, beta, 5)}, EMA 10: {calc_ema(clipped_data, beta, 10)}, EMA 20: {calc_ema(clipped_data, beta, 20)}"
+                            # # )
+                            # self.record_metrics[eps_u]["ema"].append(
+                            #     (
+                            #         calc_ema(clipped_data, beta, 5),
+                            #         calc_ema(clipped_data, beta, 10),
+                            #         calc_ema(clipped_data, beta, 20),
+                            #     )
+                            # )
+                            # ema = calc_ema(clipped_data, beta, n_data_for_ema)
+                            # loss_diff = ema
 
                         logger.info(
                             f"eps_u: {eps_u}, original loss_diff: {org_diff}, (self.momentum[eps_u]: {self.momentum[eps_u]})"
