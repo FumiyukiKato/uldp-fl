@@ -595,7 +595,7 @@ class FLSimulator:
             results["param_history"] = self.coordinator.param_history
             results["loss_history"] = self.coordinator.loss_history
             results["final_eps"] = self.aggregator.results["final_eps"]
-            results["record_metrics"] = self.coordinator.record_metrics
+            # results["record_metrics"] = self.coordinator.record_metrics
 
         return results
 
