@@ -66,5 +66,5 @@ jobs:
           cml pr create \
             ${{ env.LOCAL_ARTIFACT_PATH }} ${{ env.LOCAL_ARTIFACT_META_DATA_PATH }} \
             --title "Model Validation Report ${{ env.TIMESTAMP }}" \
-            --body "$(cat report.md)"
+            --body "$(cat report.md)" \
             --branch "cannibalization-model-manual-update-${{ env.TIMESTAMP }}"
