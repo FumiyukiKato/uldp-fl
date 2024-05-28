@@ -1,0 +1,11 @@
+[tool.poetry]
+name = "markdown-opt"
+version = "0.1.0"
+description = ""
+authors = ["Fumiyuki <fumilemon79@preferred.jp>"]
+readme = "README.md"
+packages = [{include = "piyo"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+numpy = "^1.23.5"
