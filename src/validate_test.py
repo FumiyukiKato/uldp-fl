@@ -1,4 +1,5 @@
 import argparse
+import datetime
 
 import numpy as np
 
@@ -17,6 +18,12 @@ def _parse() -> argparse.Namespace:
 def output_variables(variable_dict: dict[str, str]):
     with open("variables.txt", "w") as f:
         for key, value in variable_dict.items():
+            f.write(f"{key}={value}\n")
+
+
+def output_metadata(metadata_dict: dict[str, str]):
+    with open("metadata.txt", "w") as f:
+        for key, value in metadata_dict.items():
             f.write(f"{key}={value}\n")
 
 
@@ -76,12 +83,20 @@ def main(args):
 
     print("numpy check", np.__version__)
 
+    now_time_stamp = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     variables = {
-        "TIMESTAMP": "2021-09-01-17-00-00",
+        "TIMESTAMP": now_time_stamp,
         "LOCAL_ARTIFACT_PATH": args.artifact_path,
-        "LOCAL_ARTIFACT_META_DATA_PATH": args.artifact_source,
+        "LOCAL_ARTIFACT_META_DATA_PATH": "metadata.txt",
     }
     output_variables(variables)
+
+    metadeta = {
+        "MODEL_NAME": args.artifact_source,
+        "LOCAL_ARTIFACT_PATH": args.artifact_path,
+        "time": now_time_stamp,
+    }
+    output_metadata(metadeta)
 
     output_report()
 
