@@ -48,6 +48,7 @@ jobs:
 
       - name: Run validation
         run: | 
+            echo $(pwd)
             poetry run python \
             src/validate_test.py \
             --artifact_source ${{ github.event.inputs.s3_artifact_id }}
