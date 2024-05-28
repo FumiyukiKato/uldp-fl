@@ -3,6 +3,9 @@ import datetime
 import json
 
 import numpy as np
+from zoneinfo import ZoneInfo
+
+JST = ZoneInfo("Asia/Tokyo")
 
 
 def _parse() -> argparse.Namespace:
@@ -24,7 +27,7 @@ def output_variables(variable_dict: dict[str, str]):
 
 def output_metadata(metadata_dict: dict[str, str]):
     with open("metadata.json", "w") as f:
-        json.dump(metadata_dict, f)
+        json.dump(metadata_dict, f, indent=2)
 
 
 def output_report():
@@ -83,7 +86,7 @@ def main(args):
 
     print("numpy check", np.__version__)
 
-    now_time_stamp = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+    now_time_stamp = datetime.datetime.now(JST).strftime("%Y-%m-%d-%H-%M-%S")
     variables = {
         "TIMESTAMP": now_time_stamp,
         "LOCAL_ARTIFACT_PATH": args.artifact_path,
