@@ -1,4 +1,4 @@
-name: Why This is 
+name: Papapapapap
 
 on:
   workflow_dispatch:
@@ -48,9 +48,6 @@ jobs:
 
       - name: Run validation
         run: | 
-            echo $(pwd)
-            echo $(ls)
-            echo $(ls ../)
             poetry run python \
             src/validate_test.py \
             --artifact_source ${{ github.event.inputs.s3_artifact_id }}
@@ -76,5 +73,4 @@ jobs:
           cml pr create \
             ${{ steps.read_vars.outputs.local_artifact_path }} ${{ steps.read_vars.outputs.local_artifact_metadata_path }} \
             --title "Model Validation Report ${{ steps.read_vars.outputs.timestamp }}" \
-            --body "$REPORT" \
-
+            --body "$REPORT"
