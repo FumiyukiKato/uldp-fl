@@ -2,8 +2,27 @@ name: Deployment
 
 on:
   workflow_dispatch:
+    inputs:
+      s3_artifact_id:
+        description: 'Artifact identifier in S3'
+        required: true
+        default: ''
+      environment:
+        type: choice
+        options:
+          - dev
+          - prod
 
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.environment }}
+  cancel-in-progress: true
 
+env:
+  AWS_REGION: ap-northeast-1 
+  ENVIRONMENT: ${{ vars.STAGE }}
+  STAGE: ${{ vars.STAGE }}
+
+            
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -30,6 +49,8 @@ jobs:
       - name: Run validation
         run: | 
             echo $(pwd)
+            echo $(ls)
+            echo $(ls ../)
             poetry run python \
             src/validate_test.py \
             --artifact_source ${{ github.event.inputs.s3_artifact_id }}
