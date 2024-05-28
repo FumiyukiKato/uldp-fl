@@ -17,8 +17,6 @@ concurrency:
   cancel-in-progress: true
 env:
   AWS_REGION: ap-northeast-1 
-  ENVIRONMENT: ${{ vars.STAGE }}
-  STAGE: ${{ vars.STAGE }}
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -49,7 +47,7 @@ jobs:
             --artifact_source ${{ github.event.inputs.s3_artifact_id }} \
             --artifact_path temp-artifact.pickle \
             --variables_file variables.txt \
-            --stage ${{ vars.STAGE }}
+            --stage ${{ inputs.environment }}
 
       - name: Read variables from file
         id: read_vars
