@@ -44,11 +44,9 @@ jobs:
 
       - name: Run validation
         run: | 
-            echo $(ls)
-            echo $(ls ..)
             poetry run python \
             src/validate_test.py \
-            --artifact_source ${{ github.event.inputs.s3_artifact_id }}
+            --artifact_source ${{ github.event.inputs.s3_artifact_id }} \
             --artifact_path temp-artifact.pickle \
             --variables_file variables.txt \
             --stage ${{ vars.STAGE }}
