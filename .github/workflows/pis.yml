@@ -1,0 +1,32 @@
+name: Updated cml deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      s3_artifact_id:
+        description: 'Artifact identifier in S3'
+        required: true
+        default: ''
+      environment:
+        type: choice
+        options:
+          - dev
+          - prod
+
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.environment }}
+  cancel-in-progress: true
+
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+
+      - name: Run validation
+        run: | 
+            echo $(pwd)
