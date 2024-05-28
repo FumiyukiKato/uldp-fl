@@ -1,0 +1,22 @@
+name: Hoge
+
+on:
+  workflow_dispatch:
+    inputs:
+      s3_artifact_id:
+        description: 'args'
+        required: true
+        default: ''
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+
+      - name: Run validation
+        run: | 
+            echo $(pwd)
