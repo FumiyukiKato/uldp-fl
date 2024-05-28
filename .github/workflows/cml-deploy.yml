@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       s3_artifact_id:
-        description: 'Artifact identifier in S3 (like 00227-202405101700-artifacts_for_prediction.pickle)'
+        description: 'Artifact identifier in S3'
         required: true
         default: ''
       environment:
@@ -48,6 +48,7 @@ jobs:
 
       - name: Run validation
         run: | 
+            echo $(pwd)
             poetry run python \
             src/validate_test.py \
             --artifact_source ${{ github.event.inputs.s3_artifact_id }}
