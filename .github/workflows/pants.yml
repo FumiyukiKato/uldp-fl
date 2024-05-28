@@ -55,10 +55,9 @@ jobs:
         id: read_vars
         run: |
           source variables.txt
-          source variables.txt
-          echo "timestamp=$TIMESTAMP" >> $GITHUB_ENV
-          echo "local_artifact_path=$LOCAL_ARTIFACT_PATH" >> $GITHUB_ENV
-          echo "local_artifact_metadata_path=$LOCAL_ARTIFACT_META_DATA_PATH" >> $GITHUB_ENV
+          echo "TIMESTAMP=$TIMESTAMP" >> $GITHUB_ENV
+          echo "LOCAL_ARTIFACT_PATH=$LOCAL_ARTIFACT_PATH" >> $GITHUB_ENV
+          echo "LOCAL_ARTIFACT_META_DATA_PATH=$LOCAL_ARTIFACT_META_DATA_PATH" >> $GITHUB_ENV
 
       - name: Commit and push model file
         env:
@@ -66,6 +65,6 @@ jobs:
         run: |
           REPORT=$(cat report.md)
           cml pr create \
-            ${{ steps.read_vars.outputs.local_artifact_path }} ${{ steps.read_vars.outputs.local_artifact_metadata_path }} \
-            --title "Model Validation Report ${{ steps.read_vars.outputs.timestamp }}" \
+            ${{ env.LOCAL_ARTIFACT_PATH }} ${{ env.LOCAL_ARTIFACT_META_DATA_PATH }} \
+            --title "Model Validation Report ${{ env.TIMESTAMP }}" \
             --body "$REPORT"
