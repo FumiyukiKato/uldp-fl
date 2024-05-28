@@ -1,5 +1,6 @@
 import argparse
 import datetime
+import json
 
 import numpy as np
 
@@ -22,9 +23,8 @@ def output_variables(variable_dict: dict[str, str]):
 
 
 def output_metadata(metadata_dict: dict[str, str]):
-    with open("metadata.txt", "w") as f:
-        for key, value in metadata_dict.items():
-            f.write(f"{key}={value}\n")
+    with open("metadata.json", "w") as f:
+        json.dump(metadata_dict, f)
 
 
 def output_report():
@@ -87,16 +87,16 @@ def main(args):
     variables = {
         "TIMESTAMP": now_time_stamp,
         "LOCAL_ARTIFACT_PATH": args.artifact_path,
-        "LOCAL_ARTIFACT_META_DATA_PATH": "metadata.txt",
+        "LOCAL_ARTIFACT_META_DATA_PATH": "metadata.json",
     }
     output_variables(variables)
 
-    metadeta = {
+    metadata = {
         "artifact_source": args.artifact_source,
         "local_artifact_path": args.artifact_path,
         "time": now_time_stamp,
     }
-    output_metadata(metadeta)
+    output_metadata(metadata)
 
     output_report()
 

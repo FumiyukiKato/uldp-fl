@@ -1,12 +1,12 @@
 name: Pants
-run-name: IIIIIII
+run-name: test-workflow
 on:
   workflow_dispatch:
     inputs:
       s3_artifact_id:
         description: 'Artifact identifier in S3'
         required: true
-        default: ''
+        default: 'cannibalization-data/hoge.pickle'
       environment:
         type: choice
         options:
@@ -63,8 +63,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          REPORT=$(cat report.md)
           cml pr create \
             ${{ env.LOCAL_ARTIFACT_PATH }} ${{ env.LOCAL_ARTIFACT_META_DATA_PATH }} \
             --title "Model Validation Report ${{ env.TIMESTAMP }}" \
-            --body "$REPORT"
+            --body "$(cat report.md)"
+            --branch "cannibalization-model-manual-update-${{ env.TIMESTAMP }}"
