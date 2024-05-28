@@ -26,7 +26,7 @@ def output_variables(variable_dict: dict[str, str]):
 
 
 def output_metadata(metadata_dict: dict[str, str]):
-    with open("metadata.json", "w") as f:
+    with open("src/metadata.json", "w") as f:
         json.dump(metadata_dict, f, indent=2)
 
 
@@ -90,7 +90,7 @@ def main(args):
     variables = {
         "TIMESTAMP": now_time_stamp,
         "LOCAL_ARTIFACT_PATH": args.artifact_path,
-        "LOCAL_ARTIFACT_META_DATA_PATH": "metadata.json",
+        "LOCAL_ARTIFACT_META_DATA_PATH": "src/metadata.json",
     }
     output_variables(variables)
 
