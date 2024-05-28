@@ -1,0 +1,59 @@
+name: Deployment
+
+on:
+  workflow_dispatch:
+
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.10'
+
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo 'export PATH="$HOME/.local/bin:$PATH"' >> $GITHUB_ENV
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          poetry install
+
+      - name: Run validation
+        run: | 
+            echo $(pwd)
+            poetry run python \
+            src/validate_test.py \
+            --artifact_source ${{ github.event.inputs.s3_artifact_id }}
+            --artifact_path temp-artifact.pickle \
+            --variables_file variables.txt \
+            --stage ${{ vars.STAGE }}
+
+
+      - name: Read variables from file
+        id: read_vars
+        run: |
+          source variables.txt
+          echo "::set-output name=timestamp::$TIMESTAMP"
+          echo "::set-output name=local_artifact_path::$LOCAL_ARTIFACT_PATH"
+          echo "::set-output name=local_artifact_metadata_path::$LOCAL_ARTIFACT_META_DATA_PATH"
+
+      - name: Commit and push model file
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pip install cml
+          REPORT=$(cat report.md)
+          cml pr create \
+            ${{ steps.read_vars.outputs.local_artifact_path }} ${{ steps.read_vars.outputs.local_artifact_metadata_path }} \
+            --title "Model Validation Report ${{ steps.read_vars.outputs.timestamp }}" \
+            --body "$REPORT" \
+
