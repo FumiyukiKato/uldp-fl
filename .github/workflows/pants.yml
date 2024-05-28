@@ -30,6 +30,8 @@ jobs:
         with:
           python-version: '3.10'
 
+      - uses: iterative/setup-cml@v1
+
       - name: Install Poetry
         run: |
           curl -sSL https://install.python-poetry.org | python3 -
@@ -61,7 +63,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          poetry add cml
           REPORT=$(cat report.md)
           cml pr create \
             ${{ steps.read_vars.outputs.local_artifact_path }} ${{ steps.read_vars.outputs.local_artifact_metadata_path }} \
