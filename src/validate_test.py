@@ -10,7 +10,7 @@ def _parse() -> argparse.Namespace:
     parser.add_argument("--stage", type=str, default="dev")
     parser.add_argument("--artifact_source", type=str, required=True)
     parser.add_argument("--artifact_path", type=str, required=True)
-    parser.add_argument("--variables", type=str, required=True)
+    parser.add_argument("--variables_file", type=str, required=True)
     return parser.parse_args()
 
 
@@ -69,7 +69,6 @@ df['new_feature'] = df['existing_feature'] * 2
 
 
 def main(args):
-    args = _parse()
     print(args.stage)
     print(args.artifact_source)
     print(args.artifact_path)
@@ -83,3 +82,8 @@ def main(args):
         "LOCAL_ARTIFACT_META_DATA_PATH": "src/meta_data.txt",
     }
     output_variables(variables)
+
+
+if __name__ == "__main__":
+    args = _parse()
+    main(args)
