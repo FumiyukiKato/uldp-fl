@@ -72,16 +72,18 @@ def main(args):
     print(args.stage)
     print(args.artifact_source)
     print(args.artifact_path)
-    print(args.variables)
+    print(args.variables_file)
 
     print("numpy check", np.__version__)
 
     variables = {
         "TIMESTAMP": "20210901170000",
-        "LOCAL_ARTIFACT_PATH": "src/artifact.txt",
-        "LOCAL_ARTIFACT_META_DATA_PATH": "src/meta_data.txt",
+        "LOCAL_ARTIFACT_PATH": args.artifact_path,
+        "LOCAL_ARTIFACT_META_DATA_PATH": args.artifact_source,
     }
     output_variables(variables)
+
+    output_report()
 
 
 if __name__ == "__main__":
