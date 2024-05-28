@@ -13,10 +13,6 @@ on:
           - dev
           - prod
 
-concurrency:
-  group: ${{ github.workflow }}-${{ inputs.environment }}
-  cancel-in-progress: true
-
 
 jobs:
   deploy:
