@@ -92,8 +92,8 @@ def main(args):
     output_variables(variables)
 
     metadeta = {
-        "MODEL_NAME": args.artifact_source,
-        "LOCAL_ARTIFACT_PATH": args.artifact_path,
+        "artifact_source": args.artifact_source,
+        "local_artifact_path": args.artifact_path,
         "time": now_time_stamp,
     }
     output_metadata(metadeta)
