@@ -1,4 +1,4 @@
-name: CML Model Validation and Deployment
+name: piyopiyo
 
 on:
   workflow_dispatch:
