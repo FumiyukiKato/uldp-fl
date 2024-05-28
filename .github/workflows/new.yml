@@ -1,5 +1,5 @@
 name: Papapapapap
-
+run-name: IIIIIII
 on:
   workflow_dispatch:
     inputs:
@@ -12,17 +12,13 @@ on:
         options:
           - dev
           - prod
-
 concurrency:
   group: ${{ github.workflow }}-${{ inputs.environment }}
   cancel-in-progress: true
-
 env:
   AWS_REGION: ap-northeast-1 
   ENVIRONMENT: ${{ vars.STAGE }}
   STAGE: ${{ vars.STAGE }}
-
-            
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -54,7 +50,6 @@ jobs:
             --artifact_path temp-artifact.pickle \
             --variables_file variables.txt \
             --stage ${{ vars.STAGE }}
-
 
       - name: Read variables from file
         id: read_vars
