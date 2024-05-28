@@ -4,7 +4,6 @@ version = "0.1.0"
 description = ""
 authors = ["Fumiyuki <fumilemon79@preferred.jp>"]
 readme = "README.md"
-packages = [{include = "piyo"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
