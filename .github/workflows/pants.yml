@@ -61,7 +61,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          pip install cml
+          poetry add cml
           REPORT=$(cat report.md)
           cml pr create \
             ${{ steps.read_vars.outputs.local_artifact_path }} ${{ steps.read_vars.outputs.local_artifact_metadata_path }} \
