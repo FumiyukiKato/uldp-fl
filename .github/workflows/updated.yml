@@ -1,10 +1,10 @@
-name: piyopiyo
+name: updated cml deploy
 
 on:
   workflow_dispatch:
     inputs:
       s3_artifact_id:
-        description: 'Artifact identifier in S3 (like 00227-202405101700-artifacts_for_prediction.pickle)'
+        description: 'Artifact identifier in S3'
         required: true
         default: ''
       environment:
