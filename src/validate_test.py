@@ -77,7 +77,7 @@ def main(args):
     print("numpy check", np.__version__)
 
     variables = {
-        "TIMESTAMP": "20210901170000",
+        "TIMESTAMP": "2021-09-01-17-00-00",
         "LOCAL_ARTIFACT_PATH": args.artifact_path,
         "LOCAL_ARTIFACT_META_DATA_PATH": args.artifact_source,
     }

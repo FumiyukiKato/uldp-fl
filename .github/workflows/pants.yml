@@ -55,9 +55,10 @@ jobs:
         id: read_vars
         run: |
           source variables.txt
-          echo "::set-output name=timestamp::$TIMESTAMP"
-          echo "::set-output name=local_artifact_path::$LOCAL_ARTIFACT_PATH"
-          echo "::set-output name=local_artifact_metadata_path::$LOCAL_ARTIFACT_META_DATA_PATH"
+          source variables.txt
+          echo "timestamp=$TIMESTAMP" >> $GITHUB_ENV
+          echo "local_artifact_path=$LOCAL_ARTIFACT_PATH" >> $GITHUB_ENV
+          echo "local_artifact_metadata_path=$LOCAL_ARTIFACT_META_DATA_PATH" >> $GITHUB_ENV
 
       - name: Commit and push model file
         env:
